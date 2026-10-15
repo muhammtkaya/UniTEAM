@@ -1,0 +1,15 @@
+{
+  "name": "weboffice-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WebOffice uçtan uca / dosya sadakati test paketi (puppeteer-core + yerel Chrome)",
+  "scripts": {
+    "test": "node run.js",
+    "test:e2e": "node run.js e2e",
+    "test:fidelity": "node run.js fidelity",
+    "test:corpus": "node run.js corpus"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}

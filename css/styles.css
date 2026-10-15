@@ -1,0 +1,370 @@
+/* ===================== Temel ===================== */
+:root {
+  --accent: #107c41;          /* moda göre değişir */
+  --accent-dark: #0b5a2f;
+  --accent-soft: #e2efda;
+  --line: #d4d4d4;
+  --head-bg: #f3f3f3;
+  --bar-bg: #f8f8f8;
+  --sel-fill: rgba(16, 124, 65, 0.12);
+  font-family: "Segoe UI", system-ui, Arial, sans-serif;
+}
+body[data-mode="xlsx"] { --accent: #107c41; --accent-dark: #0b5a2f; --accent-soft: #e2efda; }
+body[data-mode="docx"] { --accent: #185abd; --accent-dark: #103f91; --accent-soft: #dde6f6; }
+body[data-mode="pptx"] { --accent: #c43e1c; --accent-dark: #8f2b12; --accent-soft: #fbe3dc; }
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden;
+  display: flex; flex-direction: column;
+  background: #fff; color: #222; font-size: 13px;
+}
+button, select, input { font-family: inherit; }
+.hidden { display: none !important; }
+
+/* ===================== Üst çubuk ===================== */
+#topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 12px; background: var(--accent); color: #fff;
+}
+#topbar .brand { font-weight: 700; font-size: 15px; white-space: nowrap; }
+#doc-title { flex: 1; text-align: center; opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-actions { display: flex; gap: 6px; }
+.top-actions button {
+  background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3);
+  border-radius: 4px; padding: 4px 10px; cursor: pointer;
+}
+.top-actions button:hover { background: rgba(255,255,255,.3); }
+
+/* ===================== Şerit ===================== */
+#ribbon { background: #fff; border-bottom: 1px solid var(--line); }
+.rtabs { display: flex; gap: 2px; padding: 0 8px; background: var(--accent); overflow-x: auto; scrollbar-width: thin; }
+.rtab {
+  background: none; border: none; color: rgba(255,255,255,.85); padding: 6px 14px;
+  cursor: pointer; border-radius: 4px 4px 0 0; font-size: 13px;
+}
+.rtab:hover { background: rgba(255,255,255,.15); color: #fff; }
+.rtab.active { background: #fff; color: var(--accent-dark); font-weight: 600; }
+.rpanel { display: none; align-items: stretch; gap: 0; padding: 6px 8px 4px; overflow-x: auto; min-height: 88px; scrollbar-width: thin; }
+.rpanel.active { display: flex; }
+/* Her araç grubu bir kutu/kart içinde */
+.rgroup {
+  display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+  padding: 5px 10px 3px; margin: 1px 3px; flex-shrink: 0;
+  border: 1px solid #e6e6e6; border-radius: 7px; background: var(--rgroup-bg, #fafbfc);
+}
+.rgroup:hover { border-color: #d7dde6; background: var(--rgroup-bg-hover, #f5f8fc); }
+.rgroup > label { font-size: 11px; color: #777; margin-top: 5px; white-space: nowrap; }
+.rrow { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
+.rrow + .rrow { margin-top: 3px; }
+.rcol { display: flex; flex-direction: column; gap: 3px; }
+#ribbon button[data-cmd], #ribbon select, .swatch {
+  background: var(--rctrl-bg, #fff); border: 1px solid transparent; border-radius: 4px; padding: 3px 7px;
+  cursor: pointer; font-size: 13px; line-height: 1.2; color: #222; white-space: nowrap;
+}
+#ribbon select { border-color: #cfcfcf; padding: 3px 4px; max-width: 170px; }
+#ribbon button[data-cmd]:hover, .swatch:hover { background: var(--accent-soft); border-color: #cfd8cf; }
+#ribbon button.active { background: var(--accent-soft); border-color: var(--accent); }
+#ribbon button.big { display: flex; flex-direction: column; align-items: center; font-size: 20px; padding: 4px 8px; min-width: 56px; }
+#ribbon button.big span { font-size: 11px; margin-top: 2px; }
+
+/* --- Şerit özelleştirme (düzenleme modu) --- */
+.rtabs-spacer { flex: 1 1 auto; }
+.rtab-edit, .rtab-reset { font-size: 12px; opacity: .92; }
+.rtab-reset { color: #fff; }
+.rib-edit-hint { padding: 5px 12px; background: var(--accent-soft); color: #333; font-size: 12px; border-bottom: 1px solid var(--line); }
+#ribbon.rib-editing .rgroup { position: relative; }
+#ribbon.rib-editing .rgroup[draggable="true"] { cursor: grab; border-style: dashed; border-color: #b9c6dd; }
+#ribbon.rib-editing .rgroup[draggable="true"]:hover { background: var(--accent-soft); }
+#ribbon.rib-editing .rgroup.dragging { opacity: .5; cursor: grabbing; }
+/* Düzenleme modunda araçlar pasif görünür (sadece grup taşınır/gizlenir) */
+#ribbon.rib-editing .rgroup [data-cmd] { pointer-events: none; opacity: .75; }
+.rgroup-hide {
+  position: absolute; top: -8px; right: -8px; z-index: 3; width: 20px; height: 20px;
+  border-radius: 50%; border: 1px solid #e0b4bd; background: #fff; color: #b23;
+  font-size: 11px; line-height: 1; cursor: pointer; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,.18);
+}
+.rgroup-hide:hover { background: #fdecef; }
+.rgroup-tray { border-style: dashed !important; border-color: #cbb9dd !important; background: #faf7fd !important; }
+.tray-chip {
+  background: #fff; border: 1px solid #cfcfcf; border-radius: 12px; padding: 3px 9px;
+  font-size: 12px; cursor: pointer; margin: 1px; white-space: nowrap;
+}
+.tray-chip:hover { background: var(--accent-soft); border-color: var(--accent); }
+.tray-empty { font-size: 11px; color: #999; font-style: italic; padding: 4px; }
+.rgroup-tray .tray-row { flex-wrap: wrap; max-width: 320px; }
+.swatch { display: inline-flex; align-items: center; gap: 3px; }
+.swatch input[type=color] { width: 18px; height: 18px; border: none; background: none; padding: 0; cursor: pointer; }
+.shapes-row .shape-btn { padding: 4px !important; }
+.shape-ico { display: block; }
+.themes-row { gap: 6px; }
+.theme-btn {
+  width: 74px; height: 56px; border: 1px solid #ccc !important; border-radius: 4px !important;
+  display: flex !important; flex-direction: column; align-items: center; justify-content: center; position: relative;
+}
+.theme-btn b { font-size: 18px; }
+.theme-btn span { width: 40px; height: 4px; border-radius: 2px; margin-top: 2px; }
+.theme-btn small { font-size: 9px; position: absolute; bottom: 1px; opacity: .8; }
+
+/* ===================== Alt çubuk (Excel formül çubuğu) ===================== */
+#formula-bar { display: flex; align-items: center; border-bottom: 1px solid var(--line); background: var(--bar-bg); }
+#namebox {
+  width: 110px; padding: 5px 8px; border-right: 1px solid var(--line);
+  font-weight: 600; text-align: center; outline: none; white-space: nowrap; overflow: hidden;
+}
+#namebox:focus { background: #fff; box-shadow: inset 0 0 0 2px var(--accent); }
+#formula-bar .fx { padding: 0 10px; color: #888; font-style: italic; }
+#formula-input { flex: 1; border: none; outline: none; padding: 6px 8px; font-size: 13px; font-family: Consolas, monospace; background: transparent; }
+
+/* ===================== Çalışma alanı ===================== */
+#workarea { flex: 1; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+
+/* ---------- Excel ---------- */
+#xl-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
+/* Görünmez ama odaklanabilir klavye yakalayıcı (display:none odak alamaz) */
+#xl-keysink { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; pointer-events: none; }
+#grid-scroll { flex: 1; overflow: auto; position: relative; }
+table#grid { border-collapse: collapse; table-layout: fixed; }
+#grid th, #grid td {
+  border: 1px solid var(--line); height: 22px; min-width: 80px; width: 80px; max-width: 80px;
+  padding: 0 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 13px; background: #fff; user-select: none;
+}
+#grid th { background: var(--head-bg); text-align: center; font-weight: 600; color: #555; position: sticky; z-index: 2; }
+#grid thead th { top: 0; }
+#grid th.rowhead { left: 0; z-index: 3; width: 44px; min-width: 44px; max-width: 44px; }
+#grid thead th.corner { left: 0; top: 0; z-index: 5; }
+#grid th.active-head { background: #c6e0b4; color: #222; }
+#grid td.selected { background-color: var(--sel-fill) !important; }
+#grid td.active { outline: 2px solid var(--accent); outline-offset: -2px; }
+#grid td.num { text-align: right; }
+#grid td.err { color: #c00000; }
+#grid td input { width: 100%; height: 100%; border: none; outline: none; font: inherit; padding: 0; }
+#grid.no-grid td { border-color: transparent; }
+#grid.freeze-row tbody tr:first-child td, #grid.freeze-row tbody tr:first-child th { position: sticky; top: 23px; z-index: 2; border-bottom: 2px solid #9a9a9a; }
+#grid.freeze-col td:nth-child(2) { position: sticky; left: 44px; z-index: 1; border-right: 2px solid #9a9a9a; }
+#grid.freeze-row.freeze-col tbody tr:first-child td:nth-child(2) { z-index: 4; }
+
+#sheetbar { display: flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--bar-bg); border-top: 1px solid var(--line); }
+#add-sheet { border: 1px solid var(--line); background: #fff; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; line-height: 1; }
+#sheettabs { display: flex; gap: 2px; overflow-x: auto; }
+.sheettab { padding: 3px 14px; cursor: pointer; border-radius: 0 0 4px 4px; color: #444; white-space: nowrap; }
+.sheettab:hover { background: #ececec; }
+.sheettab.active { background: #fff; color: var(--accent-dark); font-weight: 600; border-bottom: 3px solid var(--accent); }
+
+/* ---------- Word ---------- */
+#wd-scroll { flex: 1; overflow: auto; background: #e9e9e9; padding: 24px 0 60px; }
+#wd-page {
+  margin: 0 auto; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.25);
+  font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.15;
+  color: #111; word-wrap: break-word;
+  display: flex; flex-direction: column;
+  /* Her sayfa yüksekliğinde ince bir sayfa sınırı çizgisi */
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--page-h, 29.7cm) - 1px), #c8c8c8 calc(var(--page-h, 29.7cm) - 1px), #c8c8c8 var(--page-h, 29.7cm));
+}
+#wd-body { flex: 1 1 auto; outline: none; }
+#wd-body:focus, #wd-header:focus, #wd-footer:focus { outline: none; }
+/* Üst / alt bilgi alanları (açıkken) */
+.wd-hf-wrap { position: relative; flex: 0 0 auto; }
+.wd-hf-x {
+  position: absolute; top: -6px; right: 0; z-index: 2;
+  font-size: 11px; line-height: 1; padding: 2px 7px; cursor: pointer;
+  background: #fff; color: #b23; border: 1px solid #e0b4bd; border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.12); opacity: 0; transition: opacity .12s;
+}
+.wd-hf-wrap:hover .wd-hf-x, .wd-hf-x:focus { opacity: 1; }
+.wd-hf-x:hover { background: #fdecef; border-color: #d98a99; }
+.wd-hf { outline: none; color: #3a3a3a; position: relative; }
+.wd-hf::before {
+  content: attr(data-label); position: absolute; left: 0; font-size: 9px;
+  letter-spacing: .5px; color: #9aa6bb; text-transform: uppercase; pointer-events: none;
+}
+.wd-header { border-bottom: 1px dashed #c8c8c8; padding-bottom: 6pt; margin-bottom: 8pt; }
+.wd-header::before { top: -14px; }
+.wd-footer { border-top: 1px dashed #c8c8c8; padding-top: 6pt; margin-top: 8pt; }
+.wd-footer::before { bottom: -14px; }
+.wd-field { color: inherit; }
+#wd-page p { margin: 0 0 8pt; }
+#wd-page h1 { font-size: 20pt; color: #2f5496; margin: 12pt 0 6pt; font-weight: 600; }
+#wd-page h2 { font-size: 16pt; color: #2f5496; margin: 10pt 0 4pt; font-weight: 600; }
+#wd-page h3 { font-size: 13pt; color: #1f3763; margin: 8pt 0 4pt; font-weight: 600; }
+#wd-page h4 { font-size: 11pt; color: #2f5496; margin: 8pt 0 4pt; font-style: italic; }
+#wd-page blockquote { margin: 8pt 24pt; padding-left: 10pt; border-left: 3px solid #bbb; font-style: italic; color: #444; }
+#wd-page pre { font-family: Consolas, "Courier New", monospace; background: #f4f4f4; padding: 6pt; font-size: 10pt; white-space: pre-wrap; }
+#wd-page table { border-collapse: collapse; width: 100%; margin: 6pt 0; }
+#wd-page td, #wd-page th { border: 1px solid #8a8a8a; padding: 3pt 6pt; vertical-align: top; min-width: 30px; }
+#wd-page img { max-width: 100%; }
+#wd-page img.sel { outline: 2px solid var(--accent); }
+#wd-page hr { border: none; border-top: 1px solid #999; margin: 8pt 0; }
+#wd-page a { color: #0563c1; }
+#wd-page .page-break { border-top: 2px dashed #9bb3df; margin: 14pt 0; height: 0; position: relative; }
+#wd-page .page-break::after {
+  content: "Sayfa Sonu"; position: absolute; left: 50%; top: -9px; transform: translateX(-50%);
+  background: #fff; color: #6c87bd; font-size: 10px; padding: 0 6px;
+}
+.tbl-picker { display: grid; grid-template-columns: repeat(10, 18px); gap: 2px; margin-bottom: 8px; }
+.tbl-picker span { width: 18px; height: 18px; border: 1px solid #bbb; background: #fff; cursor: pointer; }
+.tbl-picker span.on { background: var(--accent-soft); border-color: var(--accent); }
+.sym-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
+.sym-grid button { font-size: 18px; padding: 4px 0; cursor: pointer; background: #fff; border: 1px solid #ddd; border-radius: 3px; }
+.sym-grid button:hover { background: var(--accent-soft); }
+
+/* ---------- PowerPoint ---------- */
+#pp-wrap { flex: 1; display: flex; min-height: 0; }
+#pp-thumbs { width: 210px; overflow-y: auto; background: #f3f3f3; border-right: 1px solid var(--line); padding: 10px 8px; }
+.pp-thumb { display: flex; gap: 6px; margin-bottom: 10px; cursor: pointer; align-items: flex-start; }
+.pp-num { width: 18px; text-align: right; color: #666; font-size: 12px; padding-top: 2px; }
+.pp-thumb-frame {
+  width: 173px; height: 97px; overflow: hidden; position: relative; background: #fff;
+  border: 2px solid transparent; outline: 1px solid #ccc; border-radius: 2px;
+}
+.pp-thumb.active .pp-thumb-frame { border-color: var(--accent); outline-color: var(--accent); }
+.pp-thumb:hover .pp-thumb-frame { outline-color: #999; }
+.pp-thumb.drop .pp-thumb-frame { border-top: 4px solid var(--accent); }
+.pp-thumb.dragging { opacity: .4; }
+.pp-thumb-frame .pp-slide { pointer-events: none; }
+
+#pp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #e6e6e6; }
+#pp-stage-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
+#pp-stage { position: relative; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+#pp-notes {
+  height: 72px; border: none; border-top: 1px solid var(--line); resize: vertical; padding: 8px 12px;
+  font-family: inherit; font-size: 13px; outline: none;
+}
+
+.pp-slide { width: 960px; height: 540px; position: absolute; left: 0; top: 0; transform-origin: 0 0; overflow: hidden; }
+.pp-footer { position: absolute; left: 24px; right: 24px; bottom: 10px; height: 20px; display: flex; align-items: center;
+  font-size: 11pt; opacity: .72; pointer-events: none; }
+.pp-footer > div { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+.pp-foot-l { text-align: left; }
+.pp-foot-c { text-align: center; }
+.pp-foot-r { text-align: right; }
+.pp-el { position: absolute; display: flex; flex-direction: column; }
+.pp-el.pp-t-image img { width: 100%; height: 100%; object-fit: fill; display: block; pointer-events: none; }
+.pp-svg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; }
+.pp-text { position: relative; padding: 5px 9px; outline: none; line-height: 1.15; overflow-wrap: break-word; }
+.pp-text ul, .pp-text ol { margin: 0; padding-left: 1.2em; }
+.pp-text li { margin: 0.2em 0; }
+.pp-text p, .pp-text div { margin: 0; }
+.pp-text table, .pp-table { border-collapse: collapse; width: 100%; }
+.pp-text td, .pp-text th { border: 1px solid #8a8a8a; padding: 4px 8px; }
+.pp-text th { background: rgba(0,0,0,.08); }
+.editing-stage .pp-el { cursor: move; }
+.editing-stage .pp-el.empty { outline: 1px dashed #9a9a9a; }
+.editing-stage .pp-el.empty .pp-text::before { content: attr(data-ph); color: #888; }
+.editing-stage .pp-el.selected { outline: 1px solid #5a5a5a; }
+.editing-stage .pp-el.editing { outline: 1px dashed #5a5a5a; cursor: text; }
+.editing-stage .pp-el.editing .pp-text::before { content: none; }
+.pp-h { position: absolute; width: 11px; height: 11px; background: #fff; border: 1px solid #555; border-radius: 50%; z-index: 5; }
+.pp-h-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.pp-h-n  { left: calc(50% - 6px); top: -6px; cursor: ns-resize; }
+.pp-h-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.pp-h-e  { right: -6px; top: calc(50% - 6px); cursor: ew-resize; }
+.pp-h-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.pp-h-s  { left: calc(50% - 6px); bottom: -6px; cursor: ns-resize; }
+.pp-h-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.pp-h-w  { left: -6px; top: calc(50% - 6px); cursor: ew-resize; }
+
+/* Slayt gösterisi */
+#pp-show { position: fixed; inset: 0; background: #000; z-index: 1000; display: flex; align-items: center; justify-content: center; cursor: none; }
+#pp-show-stage { position: relative; overflow: hidden; }
+#pp-show-hint { position: absolute; bottom: 8px; right: 12px; color: rgba(255,255,255,.35); font-size: 12px; }
+.pp-show-end { color: #fff; font-size: 22px; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; width: 100vw; height: 100vh; position: fixed; }
+.tr-fade { animation: trFade .6s ease; }
+.tr-push { animation: trPush .5s ease; }
+.tr-zoom { animation: trZoom .5s ease; }
+.tr-flip { animation: trFlip .6s ease; backface-visibility: hidden; }
+@keyframes trFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes trPush { from { translate: 100% 0; } to { translate: 0 0; } }
+@keyframes trZoom { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+@keyframes trFlip { from { opacity: 0; rotate: y 90deg; } to { opacity: 1; rotate: y 0deg; } }
+
+/* ===================== Belge çubuğu (alt) ===================== */
+#docbar {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  border-top: 1px solid var(--line); background: #efefef; min-height: 36px;
+}
+#new-wrap { position: relative; }
+#btn-new {
+  width: 30px; height: 28px; font-size: 18px; line-height: 1; cursor: pointer;
+  background: #fff; border: 1px solid #bbb; border-radius: 4px; color: #333;
+}
+#btn-new:hover { background: #e6e6e6; }
+#new-menu {
+  position: absolute; bottom: 36px; left: 0; background: #fff; border: 1px solid #bbb;
+  border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.2); padding: 6px; z-index: 60; width: 260px;
+}
+#new-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px;
+  background: none; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; text-align: left;
+}
+#new-menu button:hover { background: #f0f0f0; }
+#new-menu small { margin-left: auto; color: #888; }
+#new-menu .ic { width: 26px; height: 26px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; }
+#new-menu .ic.x { background: #e2efda; } #new-menu .ic.w { background: #dde6f6; } #new-menu .ic.p { background: #fbe3dc; }
+
+#doctabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; }
+.doctab {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; cursor: pointer;
+  background: #fff; border: 1px solid #ccc; border-radius: 4px; white-space: nowrap; border-bottom: 3px solid #ccc;
+}
+.doctab.t-xlsx { border-bottom-color: #107c41; }
+.doctab.t-docx { border-bottom-color: #185abd; }
+.doctab.t-pptx { border-bottom-color: #c43e1c; }
+.doctab.active { font-weight: 600; box-shadow: 0 0 0 1px var(--accent); }
+.doctab .x { border: none; background: none; cursor: pointer; color: #999; font-size: 15px; padding: 0 3px; border-radius: 3px; }
+.doctab .x:hover { background: #e5e5e5; color: #333; }
+#status { color: #666; white-space: nowrap; padding-left: 8px; }
+
+/* ===================== Panel ===================== */
+#panel {
+  position: fixed; right: 16px; bottom: 50px; width: 520px; max-width: 92vw;
+  max-height: 70vh; background: #fff; border: 1px solid #bbb; border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25); display: flex; flex-direction: column; z-index: 50;
+}
+.panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; background: var(--accent); color: #fff; border-radius: 8px 8px 0 0;
+}
+.panel-head button { background: none; border: none; color: #fff; font-size: 16px; cursor: pointer; }
+#panel-body { padding: 12px; overflow: auto; }
+#panel-body label { display: inline-block; margin: 4px 8px 4px 0; }
+#panel-body select, #panel-body button, #panel-body input[type=text], #panel-body input[type=number] { padding: 4px 6px; margin-right: 6px; }
+#panel-body table { border-collapse: collapse; margin-top: 10px; }
+#panel-body th, #panel-body td { border: 1px solid var(--line); padding: 3px 8px; font-size: 12px; }
+#panel-body th { background: var(--head-bg); }
+.fn-list { display: flex; flex-wrap: wrap; gap: 4px; max-height: 300px; overflow: auto; margin: 8px 0; }
+.fn-list button { font-family: Consolas, monospace; font-size: 12px; cursor: pointer; background: #f5f5f5; border: 1px solid #ddd; border-radius: 3px; }
+.fn-list button:hover { background: var(--accent-soft); }
+
+/* ===================== Görünüm / ayar paneli ===================== */
+.settings .muted, p.muted { color: #777; font-size: 12px; }
+.theme-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.theme-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccc; cursor: pointer; padding: 0; }
+.theme-dot:hover { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.08); }
+.btn-secondary { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+.btn-secondary:hover { background: #e3e3e3; }
+
+/* ===================== Yazdırma (Word) ===================== */
+@media print {
+  body { display: block; overflow: visible; height: auto; }
+  #topbar, #ribbon, #subbar, #docbar, #panel { display: none !important; }
+  #workarea { display: block; overflow: visible; }
+  #wd-scroll { overflow: visible; background: none; padding: 0; }
+  #wd-page { box-shadow: none; margin: 0; zoom: 1 !important; background-image: none; }
+  #wd-page .page-break { page-break-after: always; break-after: page; border: none; margin: 0; }
+  #wd-page .page-break::after { content: none; }
+  /* Üst/alt bilgi düzenleme ipuçlarını yazdırmada gizle, ayraçları kaldır */
+  .wd-hf::before { content: none !important; }
+  .wd-header { border-bottom: none; }
+  .wd-footer { border-top: none; }
+}
+
+/* ===================== Dar ekran (telefon hazırlığı) ===================== */
+@media (max-width: 700px) {
+  #doc-title { display: none; }
+  #pp-thumbs { width: 120px; }
+  .pp-thumb-frame { width: 96px; height: 54px; }
+  .pp-thumb-frame .pp-slide { transform: scale(0.1) !important; }
+  #panel { right: 8px; left: 8px; width: auto; }
+}

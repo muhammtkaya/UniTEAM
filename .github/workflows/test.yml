@@ -1,0 +1,30 @@
+name: Testler
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Ubuntu runner'da Chrome kurulu gelir; yolunu doğrula.
+      - name: Chrome yolunu bul
+        id: chrome
+        run: echo "path=$(which google-chrome || which chromium-browser || which chromium)" >> "$GITHUB_OUTPUT"
+
+      - name: Bağımlılıklar
+        working-directory: test
+        run: npm install
+
+      - name: Testleri çalıştır
+        working-directory: test
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.path }}
+        run: npm test

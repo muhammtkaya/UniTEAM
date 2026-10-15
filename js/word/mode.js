@@ -1,0 +1,930 @@
+/* word/mode.js — Word modu: sayfa düzenleyici, şerit ve komutlar */
+XL.modes.docx = {
+  type: "docx",
+  label: "Word",
+  icon: "📄",
+  ext: ".docx",
+  docPrefix: "Belge",
+  accept: [".docx"],
+  editor: null,
+  savedRange: null,
+  globalsBound: false,
+  zoom: 1,
+
+  FONTS: ["Calibri", "Arial", "Times New Roman", "Cambria", "Georgia", "Verdana", "Tahoma",
+    "Segoe UI", "Trebuchet MS", "Garamond", "Courier New", "Comic Sans MS"],
+  SIZES: [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72],
+
+  createData() {
+    return { html: "<p><br></p>", page: { size: "A4", orientation: "portrait", margin: "normal",
+      header: { on: false, html: "" }, footer: { on: false, html: "" } } };
+  },
+
+  // page nesnesini eksik alanlar için tamamla (eski belgeler header/footer içermez)
+  normalizePage(p) {
+    const page = Object.assign({ size: "A4", orientation: "portrait", margin: "normal" }, p);
+    page.header = Object.assign({ on: false, html: "" }, page.header);
+    page.footer = Object.assign({ on: false, html: "" }, page.footer);
+    return page;
+  },
+
+  /* ---------- Şerit ---------- */
+  ribbon() {
+    const fonts = this.FONTS.map((f) => `<option value="${f}" style="font-family:'${f}'">${f}</option>`).join("");
+    const sizes = this.SIZES.map((s) => `<option value="${s}">${s}</option>`).join("");
+    return [
+      { name: "Giriş", html: `
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="undo" title="Geri al (Ctrl+Z)">↶</button>
+          <button data-cmd="redo" title="İleri al (Ctrl+Y)">↷</button>
+        </div><label>Geri Al</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="cut" title="Kes (Ctrl+X)">✂</button>
+          <button data-cmd="copy" title="Kopyala (Ctrl+C)">⧉</button>
+          <button data-cmd="paste" title="Yapıştır (Ctrl+V)">📋</button>
+          <button data-cmd="paste-plain" title="Yalnızca metni yapıştır">📋ᵀ</button>
+        </div><label>Pano</label></div>
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="fontName" id="wd-font" title="Yazı tipi" style="width:130px">${fonts}</select>
+          <select data-cmd="fontSize" id="wd-size" title="Yazı tipi boyutu">${sizes}</select>
+          <button data-cmd="grow" title="Büyüt">A⁺</button>
+          <button data-cmd="shrink" title="Küçült">A⁻</button>
+        </div><div class="rrow">
+          <button data-cmd="bold" data-state="bold" title="Kalın (Ctrl+B)"><b>K</b></button>
+          <button data-cmd="italic" data-state="italic" title="İtalik (Ctrl+I)"><i>T</i></button>
+          <button data-cmd="underline" data-state="underline" title="Altı çizili (Ctrl+U)"><u>A</u></button>
+          <button data-cmd="strikeThrough" data-state="strikeThrough" title="Üstü çizili"><s>abc</s></button>
+          <button data-cmd="superscript" data-state="superscript" title="Üst simge">x²</button>
+          <button data-cmd="subscript" data-state="subscript" title="Alt simge">x₂</button>
+          <label class="swatch" title="Yazı rengi">A<input type="color" data-cmd="foreColor" value="#c00000"></label>
+          <label class="swatch" title="Vurgu rengi">🖍<input type="color" data-cmd="hiliteColor" value="#ffff00"></label>
+          <button data-cmd="removeFormat" title="Biçimlendirmeyi temizle">⌫</button>
+        </div><label>Yazı Tipi</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="insertUnorderedList" data-state="insertUnorderedList" title="Madde işaretleri">• ≡</button>
+          <button data-cmd="insertOrderedList" data-state="insertOrderedList" title="Numaralandırma">1. ≡</button>
+          <button data-cmd="outdent" title="Girintiyi azalt">⇤</button>
+          <button data-cmd="indent" title="Girintiyi artır">⇥</button>
+          <select data-cmd="lineHeight" title="Satır aralığı">
+            <option value="">Aralık</option><option value="1">1,0</option><option value="1.15">1,15</option>
+            <option value="1.5">1,5</option><option value="2">2,0</option><option value="2.5">2,5</option><option value="3">3,0</option>
+          </select>
+        </div><div class="rrow">
+          <button data-cmd="justifyLeft" data-state="justifyLeft" title="Sola hizala (Ctrl+L)">⯇≡</button>
+          <button data-cmd="justifyCenter" data-state="justifyCenter" title="Ortala (Ctrl+E)">≡</button>
+          <button data-cmd="justifyRight" data-state="justifyRight" title="Sağa hizala (Ctrl+R)">≡⯈</button>
+          <button data-cmd="justifyFull" data-state="justifyFull" title="İki yana yasla (Ctrl+J)">☰</button>
+        </div><label>Paragraf</label></div>
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="formatBlock" id="wd-style" title="Stiller">
+            <option value="P">Normal</option>
+            <option value="H1">Başlık 1</option>
+            <option value="H2">Başlık 2</option>
+            <option value="H3">Başlık 3</option>
+            <option value="H4">Başlık 4</option>
+            <option value="BLOCKQUOTE">Alıntı</option>
+            <option value="PRE">Kod</option>
+          </select>
+        </div><label>Stiller</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="find" title="Bul ve değiştir (Ctrl+H)">🔍 Bul</button>
+          <button data-cmd="selectAll" title="Tümünü seç (Ctrl+A)">⬚ Tümü</button>
+        </div><label>Düzenleme</label></div>` },
+
+      { name: "Ekle", html: `
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="page-break" class="big">⤓<span>Sayfa Sonu</span></button>
+        </div><label>Sayfalar</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="ins-header" data-state="header" class="big" title="Üst bilgi alanını aç/kapat">▔<span>Üst Bilgi</span></button>
+          <button data-cmd="ins-footer" data-state="footer" class="big" title="Alt bilgi alanını aç/kapat">▁<span>Alt Bilgi</span></button>
+          <button data-cmd="ins-pagenum" class="big" title="İmlecin bulunduğu üst/alt bilgiye sayfa numarası ekle">#<span>Sayfa No</span></button>
+        </div><label>Üst Bilgi ve Alt Bilgi</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="table" class="big">▦<span>Tablo</span></button>
+          <div class="rcol">
+            <button data-cmd="tbl-row" title="İmlecin altına satır ekle">+ Satır</button>
+            <button data-cmd="tbl-col" title="İmlecin sağına sütun ekle">+ Sütun</button>
+          </div>
+          <div class="rcol">
+            <button data-cmd="tbl-delrow" title="Satırı sil">− Satır</button>
+            <button data-cmd="tbl-delcol" title="Sütunu sil">− Sütun</button>
+          </div>
+        </div><label>Tablolar</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="image" class="big">🖼<span>Resim</span></button>
+          <select data-cmd="img-size" title="Seçili resmin genişliği">
+            <option value="">Resim boyutu</option><option value="25%">%25</option><option value="50%">%50</option>
+            <option value="75%">%75</option><option value="100%">%100</option>
+          </select>
+        </div><label>Çizimler</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="link" class="big">🔗<span>Bağlantı</span></button>
+          <button data-cmd="unlink" class="big">⛓<span>Bağlantıyı Kaldır</span></button>
+        </div><label>Bağlantılar</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="hr" class="big">―<span>Yatay Çizgi</span></button>
+          <button data-cmd="date" class="big">📅<span>Tarih</span></button>
+          <button data-cmd="symbol" class="big">Ω<span>Simge</span></button>
+        </div><label>Metin & Simgeler</label></div>` },
+
+      { name: "Düzen", html: `
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="page-margin" id="wd-margin" title="Kenar boşlukları">
+            <option value="normal">Normal (2,54 cm)</option>
+            <option value="narrow">Dar (1,27 cm)</option>
+            <option value="wide">Geniş (5,08 cm yanlar)</option>
+            <option value="none">Yok (0 — tam sayfa)</option>
+            <option value="custom">Özel…</option>
+          </select>
+        </div><label>Kenar Boşlukları</label></div>
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="page-orient" id="wd-orient" title="Yönlendirme">
+            <option value="portrait">Dikey</option>
+            <option value="landscape">Yatay</option>
+          </select>
+        </div><label>Yönlendirme</label></div>
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="page-size" id="wd-psize" title="Kağıt boyutu">
+            <option value="A4">A4 (21 × 29,7 cm)</option>
+            <option value="Letter">Letter (21,6 × 27,9 cm)</option>
+            <option value="A5">A5 (14,8 × 21 cm)</option>
+          </select>
+        </div><label>Boyut</label></div>` },
+
+      { name: "Gözden Geçir", html: `
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="wordcount" class="big">🔢<span>Sözcük Sayısı</span></button>
+          <button data-cmd="spellcheck" data-state="spellcheck" class="big">✔<span>Yazım Denetimi</span></button>
+        </div><label>Yazım Denetleme</label></div>` },
+
+      { name: "Görünüm", html: `
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="zoom" id="wd-zoom">
+            <option value="0.5">%50</option><option value="0.75">%75</option><option value="1" selected>%100</option>
+            <option value="1.25">%125</option><option value="1.5">%150</option><option value="2">%200</option>
+          </select>
+        </div><label>Yakınlaştır</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="print" class="big">🖨<span>Yazdır / PDF</span></button>
+        </div><label>Çıktı</label></div>` },
+    ];
+  },
+
+  /* ---------- Bağlama / ayırma ---------- */
+  mount(doc) {
+    document.getElementById("subbar").innerHTML = "";
+    document.getElementById("workarea").innerHTML = `
+      <div id="wd-scroll"><div id="wd-page">
+        <div id="wd-header-wrap" class="wd-hf-wrap">
+          <button class="wd-hf-x" data-hf="header" contenteditable="false" title="Üst bilgiyi kaldır">✕ Kaldır</button>
+          <div id="wd-header" class="wd-hf wd-header" data-label="Üst Bilgi" contenteditable="true" spellcheck="true"></div>
+        </div>
+        <div id="wd-body" contenteditable="true" spellcheck="true"></div>
+        <div id="wd-footer-wrap" class="wd-hf-wrap">
+          <button class="wd-hf-x" data-hf="footer" contenteditable="false" title="Alt bilgiyi kaldır">✕ Kaldır</button>
+          <div id="wd-footer" class="wd-hf wd-footer" data-label="Alt Bilgi" contenteditable="true" spellcheck="true"></div>
+        </div>
+      </div></div>`;
+    this.doc = doc;
+    this.pageEl = document.getElementById("wd-page");
+    this.body = document.getElementById("wd-body");
+    this.header = document.getElementById("wd-header");
+    this.footer = document.getElementById("wd-footer");
+    this.headerWrap = document.getElementById("wd-header-wrap");
+    this.footerWrap = document.getElementById("wd-footer-wrap");
+    this.pageEl.querySelectorAll(".wd-hf-x").forEach((b) =>
+      b.addEventListener("click", () => this.toggleHF(b.dataset.hf)));
+    this.editor = this.body; // o an düzenlenen etkin alan (body/header/footer)
+    this.page = this.normalizePage(doc.data.page);
+    this.body.innerHTML = doc.data.html || "<p><br></p>";
+    this.header.innerHTML = this.page.header.html || "<p><br></p>";
+    this.footer.innerHTML = this.page.footer.html || "<p><br></p>";
+    this.savedRange = null;
+    this.applyPage();
+    this.applyHF();
+
+    try {
+      document.execCommand("defaultParagraphSeparator", false, "p");
+      document.execCommand("styleWithCSS", false, true);
+    } catch (e) {}
+
+    [this.body, this.header, this.footer].forEach((ed) => {
+      ed.addEventListener("input", () => { this.ensureParagraph(); this.normalize(); this.saveRange(); this.updateCount(); XL.ws.changed(); });
+      ed.addEventListener("keydown", (e) => this.onKey(e));
+      // selectionchange'e ek olarak: imleç her hareket ettiğinde seçimi sakla
+      ed.addEventListener("keyup", () => this.saveRange());
+      ed.addEventListener("mouseup", () => this.saveRange());
+      ed.addEventListener("focus", () => { this.editor = ed; });
+      ed.addEventListener("click", (e) => {
+        // Ctrl+tık bağlantıyı açar (Word'deki gibi)
+        const a = e.target.closest("a");
+        if (a && (e.ctrlKey || e.metaKey)) window.open(a.href, "_blank", "noopener");
+        // Resim seçimi
+        ed.querySelectorAll("img.sel").forEach((i) => i.classList.remove("sel"));
+        if (e.target.tagName === "IMG") { e.target.classList.add("sel"); this.selectedImg = e.target; }
+        else this.selectedImg = null;
+      });
+      ed.addEventListener("paste", (e) => this.onPaste(e));
+    });
+    this.bindGlobals();
+    this.updateCount();
+    setTimeout(() => {
+      this.body.focus();
+      // İmleci başa koy
+      const r = document.createRange();
+      r.setStart(this.body, 0); r.collapse(true);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      this.saveRange();
+    }, 0);
+  },
+
+  unmount(doc) {
+    doc.data = this.serialize();
+    this.editor = this.body = this.header = this.footer = this.pageEl = this.headerWrap = this.footerWrap = null;
+  },
+
+  // Bir düzenleme alanının temizlenmiş innerHTML'ini döndür
+  cleanField(el) {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll("img.sel").forEach((i) => i.classList.remove("sel"));
+    clone.querySelectorAll('[class=""]').forEach((e) => e.removeAttribute("class"));
+    return clone.innerHTML;
+  },
+
+  serialize() {
+    if (!this.body) return this.doc ? this.doc.data : this.createData();
+    const page = Object.assign({}, this.page);
+    // Kapalı olsa bile içeriği sakla (tekrar açınca gelsin)
+    page.header = { on: this.page.header.on, html: this.header ? this.cleanField(this.header) : this.page.header.html };
+    page.footer = { on: this.page.footer.on, html: this.footer ? this.cleanField(this.footer) : this.page.footer.html };
+    return { html: this.cleanField(this.body), page };
+  },
+
+  async importFile(file) {
+    const buf = await XL.readAsArrayBuffer(file);
+    return XL.docxIO.importArrayBuffer(buf);
+  },
+
+  async save(doc) {
+    const data = this.serialize();
+    // Dönüştürücü gerçek DOM ölçülerine (resim boyutları) ihtiyaç duyar: canlı gövdeyi kullan
+    const root = this.body || Object.assign(document.createElement("div"), { innerHTML: data.html });
+    const blob = await XL.docxIO.exportBlob(root, data.page);
+    XL.download(blob, doc.name + ".docx");
+  },
+
+  bindGlobals() {
+    if (this.globalsBound) return;
+    this.globalsBound = true;
+    document.addEventListener("selectionchange", () => {
+      if (!this.body || document.body.dataset.mode !== "docx") return;
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      // Seçim hangi alandaysa (gövde/üst bilgi/alt bilgi) etkin editör odur
+      const zone = [this.body, this.header, this.footer].find((z) => z && z.contains(sel.anchorNode));
+      if (zone) {
+        this.editor = zone;
+        this.saveRange();
+        this.syncToolbar();
+      }
+    });
+  },
+
+  /* ---------- Seçim koruma ---------- */
+  saveRange() {
+    const sel = window.getSelection();
+    if (sel.rangeCount && this.editor && this.editor.contains(sel.anchorNode)) {
+      this.savedRange = sel.getRangeAt(0).cloneRange();
+    }
+  },
+  // Şeride tıklanmadan hemen önce (workspace çağırır): seçim hâlâ editördeyken sakla
+  beforeRibbon() {
+    this.saveRange();
+  },
+
+  restoreRange() {
+    if (!this.editor) return;
+    const sel = window.getSelection();
+    // Odak ve seçim zaten editördeyse en güncel seçim odur; eski kaydı geri yükleme
+    if (document.activeElement === this.editor && sel.rangeCount && this.editor.contains(sel.anchorNode)) return;
+    this.editor.focus({ preventScroll: true });
+    if (this.savedRange && this.editor.contains(this.savedRange.startContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(this.savedRange.cloneRange());
+    }
+  },
+
+  // Editör hiç blok içermiyorsa bir paragraf aç (çıplak metin olmasın)
+  ensureParagraph() {
+    const ed = this.editor;
+    if (!ed.firstChild || (ed.childNodes.length === 1 && ed.firstChild.nodeName === "BR")) {
+      ed.innerHTML = "<p><br></p>";
+      const r = document.createRange();
+      r.setStart(ed.firstChild, 0);
+      r.collapse(true);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+  },
+
+  /* ---------- Komutlar ---------- */
+  exec(cmd, value = null) {
+    this.restoreRange();
+    document.execCommand(cmd, false, value);
+    this.saveRange();
+    this.afterChange();
+  },
+
+  afterChange() {
+    this.normalize();
+    this.syncToolbar();
+    this.updateCount();
+    XL.ws.changed();
+  },
+
+  // Tarayıcı düzenleme komutları bazen geçersiz iç içe yapı üretir (<p><ul>…</ul></p>, <p><p>…</p></p>).
+  // Blok içeren paragrafları aç; imleci koru (düğümler taşınır, yeniden oluşturulmaz).
+  normalize() {
+    const ed = this.editor;
+    if (!ed) return;
+    const bad = [...ed.querySelectorAll("p")].filter((p) => p.querySelector(":scope > p, :scope > ul, :scope > ol, :scope > table, :scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > blockquote, :scope > pre, :scope > div"));
+    if (!bad.length) return;
+    const sel = window.getSelection();
+    const saved = sel.rangeCount ? [sel.anchorNode, sel.anchorOffset, sel.focusNode, sel.focusOffset] : null;
+    bad.reverse().forEach((p) => {
+      // Satır içi çocukları kendi paragraflarına topla, blokları olduğu gibi yukarı taşı
+      let inlineBuf = null;
+      const align = p.style.textAlign;
+      [...p.childNodes].forEach((n) => {
+        const isBlock = n.nodeType === 1 && /^(P|UL|OL|TABLE|H[1-6]|BLOCKQUOTE|PRE|DIV)$/.test(n.tagName);
+        if (isBlock) {
+          inlineBuf = null;
+          if (align && !n.style.textAlign && n.tagName !== "TABLE") n.style.textAlign = align;
+          p.before(n);
+        } else {
+          if (n.nodeType === 3 && !n.nodeValue.trim() && !inlineBuf) { n.remove(); return; }
+          if (!inlineBuf) {
+            inlineBuf = document.createElement("p");
+            if (align) inlineBuf.style.textAlign = align;
+            p.before(inlineBuf);
+          }
+          inlineBuf.appendChild(n);
+        }
+      });
+      p.remove();
+    });
+    if (saved && saved[0] && ed.contains(saved[0])) {
+      try { sel.setBaseAndExtent(saved[0], saved[1], saved[2], saved[3]); } catch (e) {}
+    }
+    this.saveRange();
+  },
+
+  // Tablo / çizgi / sayfa sonu gibi blokları imlecin bulunduğu üst düzey bloğun ardına DOM ile ekle.
+  // (insertHTML geçersiz iç içe yapıların içinde tabloları parçalayabiliyor.)
+  insertBlock(html, caretSelector) {
+    this.restoreRange();
+    const ed = this.editor;
+    const sel = window.getSelection();
+    let node = sel.rangeCount ? sel.getRangeAt(0).endContainer : null;
+    if (node && !ed.contains(node)) node = null;
+    while (node && node.parentNode !== ed) node = node.parentNode;
+    if (node === ed) node = null;
+
+    const holder = document.createElement("div");
+    holder.innerHTML = html;
+    const nodes = [...holder.childNodes];
+    const frag = document.createDocumentFragment();
+    nodes.forEach((n) => frag.appendChild(n));
+
+    if (!node) ed.appendChild(frag);
+    else if (node.nodeType === 1 && !node.textContent.trim() && !node.querySelector("img,table,hr")) node.replaceWith(frag);
+    else node.after(frag);
+
+    // İmleci istenen yere (ör. tablonun ilk hücresi) koy
+    const target = nodes.map((n) => (n.nodeType === 1 && n.matches(caretSelector) ? n : n.nodeType === 1 && n.querySelector(caretSelector))).find(Boolean);
+    if (target) {
+      const r = document.createRange();
+      r.selectNodeContents(target);
+      r.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    this.saveRange();
+    this.afterChange();
+  },
+
+  command(cmd, value) {
+    const simple = ["bold", "italic", "underline", "strikeThrough", "superscript", "subscript",
+      "insertUnorderedList", "insertOrderedList", "outdent", "indent",
+      "justifyLeft", "justifyCenter", "justifyRight", "justifyFull", "removeFormat", "unlink", "selectAll"];
+    if (simple.includes(cmd)) return this.exec(cmd);
+
+    switch (cmd) {
+      case "undo": return this.exec("undo");
+      case "redo": return this.exec("redo");
+      case "cut": return this.exec("cut");
+      case "copy": return this.exec("copy");
+      case "paste": return this.pasteFromClipboard(false);
+      case "paste-plain": return this.pasteFromClipboard(true);
+      case "fontName": return this.exec("fontName", value);
+      case "fontSize": return this.setFontSize(parseFloat(value));
+      case "grow": return this.setFontSize(this.nextSize(1));
+      case "shrink": return this.setFontSize(this.nextSize(-1));
+      case "foreColor": return this.exec("foreColor", value);
+      case "hiliteColor": return this.exec("hiliteColor", value);
+      case "formatBlock": return this.exec("formatBlock", value);
+      case "lineHeight": return this.setLineHeight(value);
+      case "find": return this.findReplace();
+      case "page-break": return this.insertPageBreak();
+      case "ins-header": return this.toggleHF("header");
+      case "ins-footer": return this.toggleHF("footer");
+      case "ins-pagenum": return this.insertPageNumber();
+      case "table": return this.insertTableDialog();
+      case "tbl-row": return this.tableOp("row");
+      case "tbl-col": return this.tableOp("col");
+      case "tbl-delrow": return this.tableOp("delrow");
+      case "tbl-delcol": return this.tableOp("delcol");
+      case "image": return this.insertImage();
+      case "img-size":
+        if (this.selectedImg && value) { this.selectedImg.style.width = value; this.selectedImg.style.height = "auto"; XL.ws.changed(); }
+        else if (value) alert("Önce belgede bir resme tıklayın.");
+        document.querySelector('#ribbon select[data-cmd="img-size"]').value = "";
+        return;
+      case "link": {
+        this.restoreRange();
+        const url = prompt("Bağlantı adresi (URL):", "https://");
+        if (!url || url === "https://") return;
+        const sel = window.getSelection();
+        if (sel.isCollapsed) this.exec("insertHTML", `<a href="${XL.esc(url)}">${XL.esc(url)}</a>`);
+        else this.exec("createLink", url);
+        return;
+      }
+      case "hr": return this.insertBlock("<hr><p><br></p>", "p");
+      case "date": return this.exec("insertText", new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }));
+      case "symbol": return this.symbolDialog();
+      case "page-margin":
+        if (value === "custom") return this.marginDialog();
+        this.page.margin = value; this.applyPage(); return XL.ws.changed();
+      case "page-orient": this.page.orientation = value; this.applyPage(); return XL.ws.changed();
+      case "page-size": this.page.size = value; this.applyPage(); return XL.ws.changed();
+      case "wordcount": {
+        const c = this.counts();
+        return alert(`Sayfalar (yaklaşık): ${c.pages}\nSözcükler: ${c.words}\nKarakterler (boşluklu): ${c.chars}\nKarakterler (boşluksuz): ${c.charsNoSpace}\nParagraflar: ${c.paras}`);
+      }
+      case "spellcheck": this.editor.spellcheck = !this.editor.spellcheck; return XL.ws.syncRibbonState();
+      case "zoom": this.zoom = parseFloat(value) || 1; return this.applyPage();
+      case "print": return this.print();
+    }
+  },
+
+  isOn(state) {
+    if (state === "header") return !!(this.page && this.page.header && this.page.header.on);
+    if (state === "footer") return !!(this.page && this.page.footer && this.page.footer.on);
+    if (!this.editor) return false;
+    if (state === "spellcheck") return this.editor.spellcheck;
+    try { return document.queryCommandState(state); } catch (e) { return false; }
+  },
+
+  // Şeritteki yazı tipi / boyut / stil seçicilerini imlecin bulunduğu yere göre güncelle
+  syncToolbar() {
+    XL.ws.syncRibbonState();
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    let node = sel.anchorNode;
+    if (node && node.nodeType === 3) node = node.parentElement;
+    if (!node || !this.editor.contains(node)) return;
+    const cs = getComputedStyle(node);
+    const fam = cs.fontFamily.split(",")[0].replace(/["']/g, "").trim();
+    const fEl = document.getElementById("wd-font");
+    if (fEl && this.FONTS.includes(fam)) fEl.value = fam;
+    const sEl = document.getElementById("wd-size");
+    if (sEl) {
+      const pt = Math.round(parseFloat(cs.fontSize) * 0.75 * 2) / 2;
+      if (![...sEl.options].some((o) => +o.value === pt)) {
+        const o = document.createElement("option");
+        o.value = pt; o.textContent = pt; o.dataset.temp = "1";
+        sEl.querySelectorAll("option[data-temp]").forEach((x) => x.remove());
+        sEl.appendChild(o);
+      }
+      sEl.value = pt;
+    }
+    const block = node.closest("h1,h2,h3,h4,blockquote,pre,p,li");
+    const stEl = document.getElementById("wd-style");
+    if (stEl && block) {
+      const t = block.tagName;
+      stEl.value = ["H1", "H2", "H3", "H4", "BLOCKQUOTE", "PRE"].includes(t) ? t : "P";
+    }
+  },
+
+  /* ---------- Yazı boyutu ---------- */
+  setFontSize(pt) {
+    if (!pt) return;
+    this.restoreRange();
+    const sel = window.getSelection();
+    if (sel.isCollapsed) {
+      // İmleçte: yeni yazılacak metin için boş bir span aç
+      const span = document.createElement("span");
+      span.style.fontSize = pt + "pt";
+      span.appendChild(document.createTextNode("​"));
+      const r = sel.getRangeAt(0);
+      r.insertNode(span);
+      r.setStart(span.firstChild, 1);
+      r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+    } else {
+      // execCommand fontSize yalnızca 1-7 bilir: 7 ile işaretleyip gerçek punto ile değiştir
+      document.execCommand("styleWithCSS", false, false);
+      document.execCommand("fontSize", false, "7");
+      document.execCommand("styleWithCSS", false, true);
+      const spans = [];
+      this.editor.querySelectorAll('font[size="7"]').forEach((f) => {
+        const span = document.createElement("span");
+        span.style.fontSize = pt + "pt";
+        while (f.firstChild) span.appendChild(f.firstChild);
+        f.replaceWith(span);
+        spans.push(span);
+      });
+      // execCommand bazen CSS ile "xxx-large" üretir; onları da düzelt
+      this.editor.querySelectorAll('span[style*="xxx-large"]').forEach((s) => { s.style.fontSize = pt + "pt"; spans.push(s); });
+      // Değişim seçimi bozar: yeni metni yeniden seç ki ardından renk vb. uygulanabilsin
+      if (spans.length) {
+        const r = document.createRange();
+        r.setStartBefore(spans[0]);
+        r.setEndAfter(spans[spans.length - 1]);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    }
+    this.saveRange();
+    this.afterChange();
+  },
+
+  nextSize(dir) {
+    const cur = parseFloat(document.getElementById("wd-size").value) || 11;
+    if (dir > 0) return this.SIZES.find((s) => s > cur) || cur + 8;
+    return [...this.SIZES].reverse().find((s) => s < cur) || Math.max(1, cur - 1);
+  },
+
+  // Seçimin kapsadığı blokları bul
+  selectedBlocks() {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return [];
+    const range = sel.getRangeAt(0);
+    const blocks = [...this.editor.querySelectorAll("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre,div:not(.page-break)")]
+      .filter((b) => range.intersectsNode(b) && !b.querySelector("p,h1,h2,h3,h4,li,blockquote,pre"));
+    if (!blocks.length) {
+      let n = range.startContainer;
+      if (n.nodeType === 3) n = n.parentElement;
+      const b = n.closest && n.closest("p,h1,h2,h3,h4,h5,h6,li,blockquote,pre");
+      if (b && this.editor.contains(b)) blocks.push(b);
+    }
+    return blocks;
+  },
+
+  setLineHeight(v) {
+    if (!v) return;
+    this.restoreRange();
+    this.selectedBlocks().forEach((b) => (b.style.lineHeight = v));
+    document.querySelector('#ribbon select[data-cmd="lineHeight"]').value = "";
+    this.afterChange();
+  },
+
+  /* ---------- Klavye ---------- */
+  onKey(e) {
+    const ctrl = e.ctrlKey || e.metaKey;
+    const k = e.key.toLowerCase();
+    if (ctrl && k === "e") { e.preventDefault(); return this.exec("justifyCenter"); }
+    if (ctrl && k === "l") { e.preventDefault(); return this.exec("justifyLeft"); }
+    if (ctrl && k === "r") { e.preventDefault(); return this.exec("justifyRight"); }
+    if (ctrl && k === "j") { e.preventDefault(); return this.exec("justifyFull"); }
+    if (ctrl && k === "h") { e.preventDefault(); return this.findReplace(); }
+    if (ctrl && k === "p") { e.preventDefault(); return this.print(); }
+    if (ctrl && e.key === "Enter") { e.preventDefault(); return this.insertPageBreak(); }
+    if (ctrl && (e.key === "]" || e.key === "[")) { e.preventDefault(); return this.setFontSize(this.nextSize(e.key === "]" ? 1 : -1)); }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const sel = window.getSelection();
+      let n = sel.anchorNode;
+      if (n && n.nodeType === 3) n = n.parentElement;
+      if (n && n.closest("li")) return this.exec(e.shiftKey ? "outdent" : "indent");
+      if (n && n.closest("td,th")) return this.moveCell(n.closest("td,th"), e.shiftKey ? -1 : 1);
+      return this.exec("insertText", "  ");
+    }
+  },
+
+  // Tabloda Tab ile hücreler arası gezin; son hücrede yeni satır aç
+  moveCell(cell, dir) {
+    const table = cell.closest("table");
+    const cells = [...table.querySelectorAll("td,th")];
+    let i = cells.indexOf(cell) + dir;
+    if (i >= cells.length) { this.tableOp("row"); i = cells.length; }
+    const target = table.querySelectorAll("td,th")[Math.max(0, i)];
+    if (!target) return;
+    const r = document.createRange();
+    r.selectNodeContents(target);
+    r.collapse(false);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    this.saveRange();
+  },
+
+  /* ---------- Yapıştırma ---------- */
+  onPaste(e) {
+    const html = e.clipboardData.getData("text/html");
+    if (!html) return; // düz metin: tarayıcı halletsin
+    e.preventDefault();
+    this.exec("insertHTML", this.cleanHTML(html));
+  },
+
+  async pasteFromClipboard(plain) {
+    this.restoreRange();
+    try {
+      if (!plain && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const it of items) {
+          if (it.types.includes("text/html")) {
+            const html = await (await it.getType("text/html")).text();
+            return this.exec("insertHTML", this.cleanHTML(html));
+          }
+        }
+      }
+      const text = await navigator.clipboard.readText();
+      this.exec("insertText", text);
+    } catch (err) {
+      alert("Tarayıcı panoya erişime izin vermedi. Ctrl+V kullanın.");
+    }
+  },
+
+  // Dışarıdan yapıştırılan HTML'den script, stil blokları ve olay özniteliklerini temizle
+  cleanHTML(html) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    tmp.querySelectorAll("script,style,meta,link,title,xml,o\\:p").forEach((n) => n.remove());
+    tmp.querySelectorAll("*").forEach((el) => {
+      [...el.attributes].forEach((a) => {
+        const n = a.name.toLowerCase();
+        if (n.startsWith("on") || n === "class" || n === "id" || (n === "href" && /^\s*javascript:/i.test(a.value))) el.removeAttribute(a.name);
+      });
+    });
+    return tmp.innerHTML;
+  },
+
+  /* ---------- Ekle ---------- */
+  insertPageBreak() {
+    this.insertBlock('<div class="page-break" contenteditable="false"></div><p><br></p>', "p");
+  },
+
+  insertTableDialog() {
+    this.saveRange();
+    let html = '<div class="tbl-picker" id="tbl-picker">';
+    for (let r = 1; r <= 8; r++)
+      for (let c = 1; c <= 10; c++) html += `<span data-r="${r}" data-c="${c}"></span>`;
+    html += "</div>";
+    XL.showPanel("Tablo Ekle", `
+      <p style="margin-top:0">Boyutu seçin: <b id="tbl-lbl">1 × 1</b></p>${html}
+      <p>veya: <input id="tbl-r" type="number" min="1" max="100" value="3" style="width:60px"> satır ×
+      <input id="tbl-c" type="number" min="1" max="30" value="3" style="width:60px"> sütun
+      <button id="tbl-ok">Ekle</button></p>
+      <label><input id="tbl-head" type="checkbox" checked> İlk satır başlık</label>`);
+    const picker = document.getElementById("tbl-picker");
+    picker.onmouseover = (e) => {
+      const s = e.target.closest("span"); if (!s) return;
+      const R = +s.dataset.r, C = +s.dataset.c;
+      document.getElementById("tbl-lbl").textContent = `${R} × ${C}`;
+      picker.querySelectorAll("span").forEach((x) => x.classList.toggle("on", +x.dataset.r <= R && +x.dataset.c <= C));
+    };
+    picker.onclick = (e) => {
+      const s = e.target.closest("span"); if (!s) return;
+      this.insertTable(+s.dataset.r, +s.dataset.c);
+    };
+    document.getElementById("tbl-ok").onclick = () =>
+      this.insertTable(+document.getElementById("tbl-r").value || 3, +document.getElementById("tbl-c").value || 3);
+  },
+
+  insertTable(rows, cols) {
+    const head = document.getElementById("tbl-head") && document.getElementById("tbl-head").checked;
+    XL.hidePanel();
+    let html = "<table><tbody>";
+    for (let r = 0; r < rows; r++) {
+      html += "<tr>";
+      for (let c = 0; c < cols; c++) html += head && r === 0 ? '<td style="font-weight:bold;background-color:#dde6f3"><br></td>' : "<td><br></td>";
+      html += "</tr>";
+    }
+    html += "</tbody></table><p><br></p>";
+    this.insertBlock(html, "td");
+  },
+
+  currentCell() {
+    const sel = window.getSelection();
+    let n = (this.savedRange && this.savedRange.startContainer) || (sel.rangeCount && sel.anchorNode);
+    if (n && n.nodeType === 3) n = n.parentElement;
+    return n && n.closest ? n.closest("td,th") : null;
+  },
+
+  tableOp(op) {
+    const cell = this.currentCell();
+    if (!cell || !this.editor.contains(cell)) return alert("Önce imleci bir tablo hücresine yerleştirin.");
+    const tr = cell.parentElement, table = cell.closest("table");
+    const ci = [...tr.cells].indexOf(cell);
+    if (op === "row") {
+      const nr = tr.cloneNode(true);
+      [...nr.cells].forEach((c) => { c.innerHTML = "<br>"; c.removeAttribute("style"); });
+      tr.after(nr);
+    } else if (op === "col") {
+      [...table.rows].forEach((row) => {
+        const ref = row.cells[Math.min(ci, row.cells.length - 1)];
+        const nc = document.createElement(ref.tagName);
+        nc.innerHTML = "<br>";
+        ref.after(nc);
+      });
+    } else if (op === "delrow") {
+      if (table.rows.length <= 1) table.remove(); else tr.remove();
+    } else if (op === "delcol") {
+      if (tr.cells.length <= 1) table.remove();
+      else [...table.rows].forEach((row) => row.cells[ci] && row.cells[ci].remove());
+    }
+    this.afterChange();
+  },
+
+  insertImage() {
+    this.saveRange();
+    XL.pickFile("image/png,image/jpeg,image/gif,image/bmp", (file) => this.insertImageFile(file));
+  },
+
+  async insertImageFile(file) {
+    const url = await XL.readAsDataURL(file);
+    this.exec("insertHTML", `<img src="${url}" style="max-width:100%">`);
+  },
+
+  symbolDialog() {
+    this.saveRange();
+    const chars = "©®™€£$¥₺§¶•…–—«»“”‘’±×÷≤≥≠≈∞√∑∏∫∂πΩμ°‰αβγδελσφωΔ←→↑↓↔⇒⇔✓✗★☆♥♦♣♠☺☎✉♪";
+    XL.showPanel("Simge", `<div class="sym-grid">${[...chars].map((c) => `<button data-ch="${c}">${c}</button>`).join("")}</div>`);
+    document.querySelector(".sym-grid").onclick = (e) => {
+      const b = e.target.closest("button[data-ch]");
+      if (b) this.exec("insertText", b.dataset.ch);
+    };
+  },
+
+  /* ---------- Bul / Değiştir ---------- */
+  findReplace() {
+    this.saveRange();
+    XL.showPanel("Bul ve Değiştir", `
+      <label>Aranan: <input id="wf-find" type="text"></label><br>
+      <label>Yeni: <input id="wf-repl" type="text"></label><br>
+      <label><input id="wf-case" type="checkbox"> Büyük/küçük harf duyarlı</label><br>
+      <button id="wf-next">Sonrakini Bul</button>
+      <button id="wf-all">Tümünü Değiştir</button>
+      <div id="wf-msg" style="margin-top:8px;color:#555"></div>`);
+    const $ = (id) => document.getElementById(id);
+    $("wf-find").focus();
+    $("wf-next").onclick = () => {
+      const q = $("wf-find").value;
+      if (!q) return;
+      this.editor.focus();
+      // window.find standart değil ama Chrome/Edge/Firefox destekliyor
+      const ok = window.find && window.find(q, $("wf-case").checked, false, true);
+      $("wf-msg").textContent = ok ? "" : "Bulunamadı.";
+    };
+    $("wf-all").onclick = () => {
+      const q = $("wf-find").value, rep = $("wf-repl").value;
+      if (!q) return;
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $("wf-case").checked ? "g" : "gi");
+      let n = 0;
+      const walker = document.createTreeWalker(this.editor, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach((t) => {
+        const m = t.nodeValue.match(re);
+        if (m) { n += m.length; t.nodeValue = t.nodeValue.replace(re, rep); }
+      });
+      $("wf-msg").textContent = n + " eşleşme değiştirildi.";
+      this.afterChange();
+    };
+  },
+
+  /* ---------- Sayfa düzeni ---------- */
+  applyPage() {
+    if (!this.pageEl) return;
+    const ed = this.pageEl;
+    const sizes = { A4: [21, 29.7], Letter: [21.59, 27.94], A5: [14.8, 21] };
+    let [w, h] = sizes[this.page.size] || sizes.A4;
+    if (this.page.orientation === "landscape") [w, h] = [h, w];
+    ed.style.width = w + "cm";
+    ed.style.minHeight = h + "cm";
+    if (this.page.margin && typeof this.page.margin === "object") {
+      const o = this.page.margin; // {t,r,b,l} cm
+      ed.style.padding = `${o.t}cm ${o.r}cm ${o.b}cm ${o.l}cm`;
+    } else {
+      const m = { normal: [2.54, 2.54], narrow: [1.27, 1.27], wide: [2.54, 5.08], none: [0, 0] }[this.page.margin] || [2.54, 2.54];
+      ed.style.padding = `${m[0]}cm ${m[1]}cm`;
+    }
+    ed.style.zoom = this.zoom;
+    ed.style.setProperty("--page-h", h + "cm");
+    // Yazdırma için @page kuralı
+    let st = document.getElementById("print-page-style");
+    if (!st) { st = document.createElement("style"); st.id = "print-page-style"; document.head.appendChild(st); }
+    st.textContent = `@page { size: ${this.page.size === "Letter" ? "letter" : this.page.size} ${this.page.orientation}; margin: 0; }`;
+
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set("wd-margin", typeof this.page.margin === "object" ? "custom" : this.page.margin);
+    set("wd-orient", this.page.orientation);
+    set("wd-psize", this.page.size);
+    set("wd-zoom", String(this.zoom));
+  },
+
+  // Özel kenar boşluğu iletişim kutusu (cm, 4 kenar)
+  marginDialog() {
+    const cur = typeof this.page.margin === "object"
+      ? this.page.margin
+      : { normal: { t: 2.54, r: 2.54, b: 2.54, l: 2.54 }, narrow: { t: 1.27, r: 1.27, b: 1.27, l: 1.27 },
+          wide: { t: 2.54, r: 5.08, b: 2.54, l: 5.08 }, none: { t: 0, r: 0, b: 0, l: 0 } }[this.page.margin]
+        || { t: 2.54, r: 2.54, b: 2.54, l: 2.54 };
+    const inp = (id, v) => `<input id="${id}" type="number" min="0" max="10" step="0.1" value="${v}" style="width:70px"> cm`;
+    XL.showPanel("Özel Kenar Boşlukları", `
+      <div class="margin-dialog" style="display:grid;grid-template-columns:auto auto;gap:8px 10px;align-items:center">
+        <label>Üst</label>${inp("mg-t", cur.t)}
+        <label>Alt</label>${inp("mg-b", cur.b)}
+        <label>Sol</label>${inp("mg-l", cur.l)}
+        <label>Sağ</label>${inp("mg-r", cur.r)}
+      </div>
+      <p style="margin-top:12px"><button id="mg-ok">Uygula</button>
+      <button id="mg-cancel" class="btn-secondary">Vazgeç</button></p>`);
+    const num = (id, d) => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? d : Math.max(0, Math.min(10, v)); };
+    document.getElementById("mg-ok").onclick = () => {
+      this.page.margin = { t: num("mg-t", 2.54), r: num("mg-r", 2.54), b: num("mg-b", 2.54), l: num("mg-l", 2.54) };
+      this.applyPage(); XL.ws.changed(); XL.hidePanel();
+    };
+    document.getElementById("mg-cancel").onclick = () => { XL.hidePanel(); this.applyPage(); };
+  },
+
+  /* ---------- Üst / Alt bilgi ---------- */
+  // Alanların görünürlüğünü page.header/footer.on'a göre uygula
+  applyHF() {
+    if (!this.headerWrap) return;
+    this.headerWrap.style.display = this.page.header.on ? "" : "none";
+    this.footerWrap.style.display = this.page.footer.on ? "" : "none";
+    this.pageEl.classList.toggle("has-header", this.page.header.on);
+    this.pageEl.classList.toggle("has-footer", this.page.footer.on);
+  },
+
+  // Üst/alt bilgiyi aç/kapat. Kapalıyken gövde tüm sayfayı kullanır.
+  toggleHF(which) {
+    const zone = this.page[which];
+    zone.on = !zone.on;
+    const el = which === "header" ? this.header : this.footer;
+    if (zone.on && !el.textContent.trim() && !el.querySelector("img,table")) el.innerHTML = "<p><br></p>";
+    this.applyHF();
+    XL.ws.syncRibbonState();
+    XL.ws.changed();
+    if (zone.on) {
+      // Açınca o alana odaklan
+      el.focus();
+      const r = document.createRange();
+      r.selectNodeContents(el); r.collapse(true);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      this.editor = el;
+      this.saveRange();
+    } else if (this.editor === el) {
+      this.editor = this.body;
+      this.body.focus();
+    }
+    this.updateCount();
+  },
+
+  // İmlecin bulunduğu üst/alt bilgiye sayfa numarası alanı ekle
+  insertPageNumber() {
+    if (this.editor !== this.header && this.editor !== this.footer) {
+      return alert("Sayfa numarası yalnızca üst bilgi veya alt bilgi alanına eklenebilir.\nÖnce üst/alt bilgiyi açıp imleci oraya yerleştirin.");
+    }
+    this.restoreRange();
+    // data-field ile işaretli, dışa aktarımda gerçek sayfa numarası alanına çevrilir
+    this.exec("insertHTML", '<span class="wd-field" data-field="page" contenteditable="false">1</span>&#8203;');
+  },
+
+  print() {
+    window.print();
+  },
+
+  /* ---------- Sayımlar ---------- */
+  counts() {
+    const body = this.body;
+    const text = body.innerText || "";
+    const words = (text.match(/\S+/g) || []).length;
+    const pageH = this.pageEl ? parseFloat(getComputedStyle(this.pageEl).minHeight) || 1123 : 1123;
+    const breaks = body.querySelectorAll(".page-break").length;
+    return {
+      words,
+      chars: text.replace(/\n/g, "").length,
+      charsNoSpace: text.replace(/\s/g, "").length,
+      paras: body.querySelectorAll("p,h1,h2,h3,h4,li,blockquote,pre").length,
+      // Küçük yuvarlama payı: tam bir sayfa yüksekliği 1 sayfa sayılsın
+      pages: Math.max(1, Math.ceil((body.scrollHeight - 4) / pageH) + breaks),
+    };
+  },
+
+  updateCount() {
+    if (!this.editor) return;
+    const c = this.counts();
+    XL.status(`Sayfa ${c.pages}   ·   ${c.words} sözcük   ·   ${c.chars} karakter`);
+  },
+};

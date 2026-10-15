@@ -1,0 +1,4 @@
+node_modules/
+# Korpus Office dosyaları yerelde kalır (telif/gizlilik); README izlenir.
+corpus/*
+!corpus/README.md

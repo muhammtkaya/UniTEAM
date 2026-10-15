@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UniTEAM</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23107c41'/%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold'%3EW%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- Açık kaynak motorlar (CDN) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+</head>
+<body data-mode="xlsx">
+  <!-- ÜST ÇUBUK: ortak dosya işlemleri -->
+  <header id="topbar">
+    <div class="brand"><span id="mode-icon">📊</span> <span id="mode-name">Excel</span></div>
+    <div id="doc-title"></div>
+    <div class="top-actions">
+      <button id="btn-theme" title="Görünümü özelleştir (renk)">🎨</button>
+      <button id="btn-open" title="Dosya aç (.xlsx .csv .docx .pptx)">📂 Aç</button>
+      <button id="btn-save" title="Etkin belgeyi indir">💾 Kaydet</button>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.docx,.pptx" hidden />
+    </div>
+  </header>
+
+  <!-- ŞERİT: etkin modun araçları -->
+  <nav id="ribbon"></nav>
+
+  <!-- ALT ÇUBUK: Excel'de formül çubuğu -->
+  <div id="subbar"></div>
+
+  <!-- ÇALIŞMA ALANI: etkin modun içeriği -->
+  <main id="workarea"></main>
+
+  <!-- BELGE ÇUBUĞU: ＋ menüsü ve belge sekmeleri -->
+  <footer id="docbar">
+    <div id="new-wrap">
+      <button id="btn-new" title="Yeni belge ekle">＋</button>
+      <div id="new-menu" class="hidden">
+        <button data-new="xlsx"><span class="ic x">📊</span> Excel Çalışma Kitabı <small>.xlsx</small></button>
+        <button data-new="docx"><span class="ic w">📄</span> Word Belgesi <small>.docx</small></button>
+        <button data-new="pptx"><span class="ic p">📙</span> PowerPoint Sunusu <small>.pptx</small></button>
+      </div>
+    </div>
+    <div id="doctabs"></div>
+    <div id="status"></div>
+  </footer>
+
+  <!-- Grafik / Pivot / iletişim paneli -->
+  <div id="panel" class="hidden">
+    <div class="panel-head">
+      <span id="panel-title">Panel</span>
+      <button id="panel-close">✕</button>
+    </div>
+    <div id="panel-body"></div>
+  </div>
+
+  <!-- Ortak -->
+  <script src="js/core.js"></script>
+  <script src="js/storage.js"></script>
+  <!-- Excel modu -->
+  <script src="js/excel/formula.js"></script>
+  <script src="js/excel/engine.js"></script>
+  <script src="js/excel/format.js"></script>
+  <script src="js/excel/grid.js"></script>
+  <script src="js/excel/io.js"></script>
+  <script src="js/excel/charts.js"></script>
+  <script src="js/excel/pivot.js"></script>
+  <script src="js/excel/mode.js"></script>
+  <!-- Word modu -->
+  <script src="js/word/docx-io.js"></script>
+  <script src="js/word/mode.js"></script>
+  <!-- PowerPoint modu -->
+  <script src="js/pptx/pptx-io.js"></script>
+  <script src="js/pptx/mode.js"></script>
+  <!-- Çalışma alanı (belgeler + başlatma) -->
+  <script src="js/workspace.js"></script>
+</body>
+</html>

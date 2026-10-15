@@ -1,0 +1,23 @@
+# Bağımlılıklar
+node_modules/
+**/node_modules/
+
+# Test korpusu — gerçek Office dosyaları yerelde kalır (telif/gizlilik)
+test/corpus/*
+!test/corpus/README.md
+
+# Ortam / gizli anahtarlar (backend aşamasında)
+.env
+.env.*
+!.env.example
+
+# Derleme çıktıları (ileride Vite/esbuild)
+dist/
+build/
+
+# Editör / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

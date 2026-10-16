@@ -15,7 +15,10 @@ import JSZip from "jszip";
 import PptxGenJS from "pptxgenjs";
 import { createClient } from "@supabase/supabase-js";
 
-window.XLSX = XLSX;
+// `import * as XLSX` bir salt-okunur ES modül namespace'idir. Eski CDN UMD global'i
+// ise düz/yazılabilir bir nesneydi; bazı kodlar (ör. testler writeFile'ı geçici
+// override ediyor) buna güvenir. Yazılabilir sığ kopya ile eski davranışı koru.
+window.XLSX = { ...XLSX };
 window.Chart = Chart;
 window.mammoth = mammoth;
 window.docx = docx;

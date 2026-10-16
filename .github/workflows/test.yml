@@ -19,7 +19,12 @@ jobs:
         id: chrome
         run: echo "path=$(which google-chrome || which chromium-browser || which chromium)" >> "$GITHUB_OUTPUT"
 
-      - name: Bağımlılıklar
+      # Kök bağımlılıklar: Vite + kütüphaneler. Testler çalışmadan önce
+      # `vite build` ile uygulama derlenir (run.js bunu tetikler).
+      - name: Kök bağımlılıklar (Vite + kütüphaneler)
+        run: npm install
+
+      - name: Test bağımlılıkları
         working-directory: test
         run: npm install
 

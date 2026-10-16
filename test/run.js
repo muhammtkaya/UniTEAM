@@ -2,7 +2,7 @@
 // Statik sunucuyu bir kez başlatır, tüm spec'leri sırayla çalıştırır, özet verir.
 // Kullanım:  node test/run.js            (hepsi)
 //            node test/run.js corpus     (sadece eşleşen spec'ler)
-const { startServer } = require("./lib");
+const { startServer, buildApp } = require("./lib");
 
 const SPECS = [
   require("./e2e"),
@@ -17,8 +17,10 @@ const SPECS = [
     ? SPECS.filter((s, i) => fileNames[i].includes(filter) || s.name.toLowerCase().includes(filter))
     : SPECS;
 
-  const server = await startServer();
-  console.log("Statik sunucu:", server.url, "\n");
+  console.log("Uygulama derleniyor (vite build)…");
+  buildApp();
+  const server = await startServer(); // derlenmiş dist/'i sunar
+  console.log("Statik sunucu (dist):", server.url, "\n");
   let totalPass = 0, totalFail = 0;
   try {
     for (const spec of chosen) {

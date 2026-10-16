@@ -3,8 +3,16 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
 
-const ROOT = path.join(__dirname, ".."); // proje kökü (index.html burada)
+const ROOT = path.join(__dirname, ".."); // proje kökü (package.json, vite.config.js)
+const DIST = path.join(ROOT, "dist");     // Vite derleme çıktısı (sunulan kök)
+
+// Testler artık DERLENMİŞ uygulamayı sunar: index.html ES modül + bare import
+// kullandığı için ham dosyalar düz statik sunucuda çalışmaz; önce `vite build`.
+function buildApp() {
+  execSync("npx vite build", { cwd: ROOT, stdio: "inherit" });
+}
 
 // Chrome yürütülebilir yolunu çöz: önce ortam değişkeni, sonra bilinen yollar.
 function resolveChrome() {
@@ -30,7 +38,7 @@ const MIME = {
 };
 
 // Proje kökünü servis eden statik HTTP sunucusu başlat. {url, close} döner.
-function startServer(root = ROOT) {
+function startServer(root = DIST) {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       let p = decodeURIComponent(req.url.split("?")[0]);
@@ -68,4 +76,4 @@ async function waitReady(page) {
   );
 }
 
-module.exports = { ROOT, resolveChrome, startServer, createChecker, waitReady };
+module.exports = { ROOT, DIST, buildApp, resolveChrome, startServer, createChecker, waitReady };

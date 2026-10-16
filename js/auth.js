@@ -93,12 +93,17 @@ XL.auth = {
       <div class="ap-email" title="${XL.esc(this.user.email || "")}">${XL.esc(this.user.email || "Hesabım")}</div>
       <div class="ap-sub">Giriş yapıldı</div>
       <hr>
+      <button id="ap-cloud-save" class="ap-item ap-action">☁ Buluta kaydet</button>
+      <button id="ap-cloud-list" class="ap-item ap-action">📥 Bulut belgelerim</button>
+      <hr>
       <button id="ap-signout" class="ap-item">Çıkış yap</button>`;
     document.body.appendChild(pop);
     // Düğmenin altına hizala
     const r = btn.getBoundingClientRect();
     pop.style.top = r.bottom + 6 + "px";
     pop.style.right = Math.max(8, window.innerWidth - r.right) + "px";
+    document.getElementById("ap-cloud-save").addEventListener("click", () => { this._closePopover(); XL.cloud.saveActive(); });
+    document.getElementById("ap-cloud-list").addEventListener("click", () => { this._closePopover(); XL.cloud.openPicker(); });
     document.getElementById("ap-signout").addEventListener("click", () => this.signOut());
   },
   _closePopover() {

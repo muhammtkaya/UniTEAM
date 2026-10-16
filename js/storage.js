@@ -49,7 +49,8 @@ XL.store = {
   },
 
   saveDoc(doc) {
-    return this._write("docs", (os) => os.put({ id: doc.id, type: doc.type, name: doc.name, data: doc.data }));
+    // cloudId: bu belgenin bulut (Supabase) karşılığının UUID'si (varsa).
+    return this._write("docs", (os) => os.put({ id: doc.id, type: doc.type, name: doc.name, data: doc.data, cloudId: doc.cloudId }));
   },
   deleteDoc(id) {
     return this._write("docs", (os) => os.delete(id));

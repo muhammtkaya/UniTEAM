@@ -390,6 +390,21 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
   padding: 7px 8px; border-radius: 6px; font-size: 13px; color: #b42318;
 }
 #account-popover .ap-item:hover { background: #fdecea; }
+/* Bulut eylemleri: normal renk (çıkış kırmızı kalır) */
+#account-popover .ap-action { color: #222; }
+#account-popover .ap-action:hover { background: var(--accent-soft); }
+
+/* Bulut belgeleri listesi (panelde) */
+.cloud-list { display: flex; flex-direction: column; gap: 4px; }
+.cloud-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: #fff;
+}
+.cloud-item:hover { background: var(--accent-soft); border-color: var(--accent); }
+.cloud-item .ci-ic { flex: none; }
+.cloud-item .ci-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cloud-item .ci-del { flex: none; background: none; border: none; cursor: pointer; opacity: .5; padding: 2px 4px; border-radius: 4px; }
+.cloud-item .ci-del:hover { opacity: 1; background: #fdecea; }
 
 /* Giriş / Kayıt modalı */
 #auth-overlay {

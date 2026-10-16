@@ -41,6 +41,7 @@ XL.auth = {
       this.user = data.session ? data.session.user : null;
       this._ready = true;
       this._renderButton();
+      if (XL.cloud) XL.cloud.handleUrlLink();  // ?link=<token> varsa aç
     });
 
     // Oturum değişince (giriş/çıkış/token yenileme) arayüzü güncelle.
@@ -48,6 +49,7 @@ XL.auth = {
       this.user = session ? session.user : null;
       this._renderButton();
       this._closePopover();
+      if (XL.cloud) XL.cloud.handleUrlLink();  // giriş sonrası bekleyen linki aç
     });
 
     this._wireButton();

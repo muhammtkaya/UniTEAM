@@ -148,6 +148,66 @@ XL.cloud = {
     if (error) throw error;
   },
 
+  /* ---------- Link ile paylaşım ---------- */
+
+  async createLink(docId, role, expiresAt = null) {
+    this._assert();
+    // Tahmin edilemez token (iki UUID, tirelersiz).
+    const token = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "");
+    const { data, error } = await this.client().from("share_links")
+      .insert({ document_id: docId, token, role, is_public: false, expires_at: expiresAt, created_by: XL.auth.user.id })
+      .select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async listLinks(docId) {
+    this._assert();
+    const { data, error } = await this.client().from("share_links")
+      .select("id, token, role, expires_at, created_at").eq("document_id", docId)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async revokeLink(linkId) {
+    this._assert();
+    const { error } = await this.client().from("share_links").delete().eq("id", linkId);
+    if (error) throw error;
+  },
+
+  // Token'ı bozdur → erişim ver, document_id döner.
+  async redeemLink(token) {
+    this._assert();
+    const { data, error } = await this.client().rpc("redeem_share_link", { p_token: token });
+    if (error) throw error;
+    return data;
+  },
+
+  // Bir token için paylaşılabilir tam URL.
+  linkUrl(token) { return location.origin + location.pathname + "?link=" + token; },
+
+  // Sayfa açılışında ?link=<token> varsa: giriş varsa bozdur+aç, yoksa giriş iste.
+  async handleUrlLink() {
+    const token = new URLSearchParams(location.search).get("link");
+    if (!token) return;
+    if (!this.enabled()) {
+      if (XL.auth && !XL.auth.user) XL.auth.openModal();  // giriş sonrası tekrar denenir
+      return;
+    }
+    // URL'yi temizle (tekrar bozdurmayı önle)
+    history.replaceState(null, "", location.origin + location.pathname);
+    XL.status("Paylaşılan belge açılıyor…");
+    try {
+      const docId = await this.redeemLink(token);
+      await this.openDoc(docId);
+    } catch (e) {
+      console.error(e);
+      alert("Bağlantı açılamadı: " + (e.message || e));
+      XL.status("");
+    }
+  },
+
   /* ---------- UI (workspace ile köprü) ---------- */
 
   // Etkin belgeyi buluta kaydet (yeni ise oluştur, varsa güncelle).
@@ -231,6 +291,12 @@ XL.cloud = {
         <div id="sh-msg" class="share-msg hidden"></div>
         <div class="share-sub">Erişimi olanlar</div>
         <div id="sh-list"><p class="muted">Yükleniyor…</p></div>
+        <div class="share-sub">Bağlantıyla paylaş</div>
+        <div class="share-form">
+          <select id="lk-role">${roles.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
+          <button id="lk-add" class="share-add">🔗 Oluştur</button>
+        </div>
+        <div id="lk-list"><p class="muted">Yükleniyor…</p></div>
       </div>`);
 
     const roleName = Object.fromEntries(roles);
@@ -254,6 +320,29 @@ XL.cloud = {
       } catch (e) { list.innerHTML = '<p class="muted">Hata: ' + XL.esc(e.message || String(e)) + "</p>"; }
     };
 
+    const refreshLinks = async () => {
+      const list = document.getElementById("lk-list");
+      try {
+        const links = await this.listLinks(docId);
+        list.innerHTML = links.length
+          ? links.map((lk) => `<div class="share-row link-row" data-token="${lk.token}">
+               <span class="sr-role">${roleName[lk.role] || lk.role}</span>
+               <button class="lk-copy" data-token="${lk.token}" title="Bağlantıyı kopyala">📋 Kopyala</button>
+               <button class="sr-del" data-lid="${lk.id}" title="Bağlantıyı iptal et">✕</button>
+             </div>`).join("")
+          : '<p class="muted">Henüz bağlantı yok.</p>';
+        list.querySelectorAll(".lk-copy").forEach((b) => b.addEventListener("click", async () => {
+          const url = this.linkUrl(b.dataset.token);
+          try { await navigator.clipboard.writeText(url); msg("Bağlantı kopyalandı", "ok"); }
+          catch { prompt("Bağlantıyı kopyalayın:", url); }
+        }));
+        list.querySelectorAll("[data-lid]").forEach((b) => b.addEventListener("click", async () => {
+          try { await this.revokeLink(b.dataset.lid); refreshLinks(); }
+          catch (e) { msg(e.message || String(e)); }
+        }));
+      } catch (e) { list.innerHTML = '<p class="muted">Hata: ' + XL.esc(e.message || String(e)) + "</p>"; }
+    };
+
     document.getElementById("sh-back").addEventListener("click", () => this.openPicker());
     document.getElementById("sh-add").addEventListener("click", async () => {
       const email = document.getElementById("sh-email").value.trim();
@@ -269,7 +358,19 @@ XL.cloud = {
         msg(this._shareError(e));
       }
     });
+    document.getElementById("lk-add").addEventListener("click", async () => {
+      const role = document.getElementById("lk-role").value;
+      msg("");
+      try {
+        const lk = await this.createLink(docId, role);
+        const url = this.linkUrl(lk.token);
+        try { await navigator.clipboard.writeText(url); msg("Bağlantı oluşturuldu ve kopyalandı", "ok"); }
+        catch { msg("Bağlantı oluşturuldu", "ok"); }
+        refreshLinks();
+      } catch (e) { msg(e.message || String(e)); }
+    });
     refresh();
+    refreshLinks();
   },
 
   _shareError(e) {

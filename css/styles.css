@@ -532,3 +532,11 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 .ntf-text { font-size: 13px; }
 .ntf-ex { font-size: 12px; margin-top: 2px; }
 .ntf-time { font-size: 11px; margin-top: 2px; }
+
+/* Anchored (konuma iliştirilmiş) yorumlar */
+#cmt-anchorbar { font-size: 12px; background: #fff7ed; color: #9a3412; padding: 4px 8px; border-radius: 6px; }
+#cmt-anchorbar button { margin-left: 6px; border: none; background: transparent; cursor: pointer; color: #9a3412; }
+.cmt-anchor { margin-left: auto; font-size: 11px; padding: 1px 7px; background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; border-radius: 10px; cursor: pointer; }
+.cmt-anchor:hover { background: #ffedd5; }
+.cmt-flash { animation: cmtFlash 1.2s ease-out; }
+@keyframes cmtFlash { 0% { box-shadow: 0 0 0 3px rgba(251,146,60,.6); background: rgba(254,215,170,.5); } 100% { box-shadow: 0 0 0 0 rgba(251,146,60,0); } }

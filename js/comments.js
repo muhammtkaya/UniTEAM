@@ -87,15 +87,77 @@ XL.comments = {
     return c ? c.role : null;
   },
 
+  /* ---------- Konum bağlama (anchor) ---------- */
+  // Etkin belgedeki geçerli seçimi bir anchor nesnesine çevir (yoksa null).
+  // anchor jsonb olarak saklanır; label gösterim için denormalize edilir.
+  _captureAnchor() {
+    const doc = XL.ws.active();
+    if (!doc) return null;
+    if (doc.type === "xlsx" && XL.state && XL.state.sheets && XL.state.sheets.length) {
+      const idx = XL.state.sheets.findIndex((s) => s.id === XL.state.activeSheetId);
+      const a = XL.state.active || { r: 0, c: 0 };
+      const multi = XL.state.sheets.length > 1;
+      const label = (multi ? XL.state.sheets[idx].name + "!" : "") + XL.addrLabel(a.r, a.c);
+      return { kind: "xlsx", sheet: idx, r: a.r, c: a.c, label };
+    }
+    if (doc.type === "docx") {
+      const body = XL.modes.docx && XL.modes.docx.body;
+      if (!body) return null;
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      let n = sel.getRangeAt(0).startContainer;
+      n = n.nodeType === 1 ? n : n.parentElement;
+      let top = n;
+      while (top && top.parentElement !== body) top = top.parentElement;
+      if (!top || top.parentElement !== body) return null;
+      const bi = [...body.children].indexOf(top);
+      if (bi < 0) return null;
+      return { kind: "docx", bi, label: "Paragraf " + (bi + 1) };
+    }
+    if (doc.type === "pptx") {
+      const m = XL.modes.pptx;
+      if (!m || !m.data) return null;
+      return { kind: "pptx", slide: m.cur || 0, el: m.selId || null, label: "Slayt " + ((m.cur || 0) + 1) + (m.selId ? " · öğe" : "") };
+    }
+    return null;
+  },
+
+  // Bir anchor'a git (etkin belge anchor.kind ile aynı olmalı).
+  _gotoAnchor(anchor) {
+    if (!anchor || !anchor.kind) return;
+    const doc = XL.ws.active();
+    if (!doc || doc.type !== anchor.kind) { XL.status("Yorum konumu bu belgede değil."); return; }
+    if (anchor.kind === "xlsx") {
+      const m = XL.modes.xlsx;
+      const sid = XL.state.sheets[anchor.sheet] && XL.state.sheets[anchor.sheet].id;
+      if (sid != null && sid !== XL.state.activeSheetId) m.switchSheet(sid);
+      XL.state.active = { r: anchor.r, c: anchor.c };
+      XL.state.sel = { r1: anchor.r, c1: anchor.c, r2: anchor.r, c2: anchor.c };
+      XL.grid.updateSelection();   // seçime kaydırır
+      const td = XL.grid.cells[anchor.r] && XL.grid.cells[anchor.r][anchor.c];
+      if (td) { td.classList.add("cmt-flash"); setTimeout(() => td.classList.remove("cmt-flash"), 1200); }
+    } else if (anchor.kind === "docx") {
+      const body = XL.modes.docx && XL.modes.docx.body;
+      const el = body && body.children[anchor.bi];
+      if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("cmt-flash"); setTimeout(() => el.classList.remove("cmt-flash"), 1200); }
+    } else if (anchor.kind === "pptx") {
+      const m = XL.modes.pptx;
+      m.goTo(anchor.slide || 0);
+      if (anchor.el) m.select(anchor.el);
+    }
+  },
+
   /* ---------- Yorum paneli ---------- */
-  async openComments(docId, docName) {
+  async openComments(docId, docName, anchor) {
     this._docId = docId;
     this._replyTo = null;
+    this._pendingAnchor = anchor || null;
     XL.showPanel("💬 Yorumlar — " + (docName || ""), `
       <div id="cmt-wrap">
         <div id="cmt-list"><p class="muted">Yükleniyor…</p></div>
         <div id="cmt-compose">
           <div id="cmt-replybar" class="hidden"></div>
+          <div id="cmt-anchorbar" class="hidden"></div>
           <textarea id="cmt-body" rows="2" placeholder="Yorum yaz…  @ ile birini bahset"></textarea>
           <div id="cmt-collab" class="cmt-chips"></div>
           <div class="cmt-send-row"><button id="cmt-send">Gönder</button>
@@ -116,11 +178,21 @@ XL.comments = {
       ta.value += (ta.value && !ta.value.endsWith(" ") ? " " : "") + "@" + b.dataset.at + " ";
       ta.focus();
     });
+    this._renderAnchorBar();
     document.getElementById("cmt-send").onclick = () => this._send();
     document.getElementById("cmt-body").addEventListener("keydown", (e) => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this._send(); }
     });
     await this._refreshList();
+  },
+
+  _renderAnchorBar() {
+    const bar = document.getElementById("cmt-anchorbar");
+    if (!bar) return;
+    if (!this._pendingAnchor) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
+    bar.classList.remove("hidden");
+    bar.innerHTML = `📍 Konuma iliştiriliyor: <b>${XL.esc(this._pendingAnchor.label || "")}</b> <button id="cmt-anchorclear" title="İliştirmeyi kaldır">✕</button>`;
+    document.getElementById("cmt-anchorclear").onclick = () => { this._pendingAnchor = null; this._renderAnchorBar(); };
   },
 
   async _refreshList() {
@@ -140,6 +212,8 @@ XL.comments = {
       const canMod = r.author_id === me || owner;
       const mentions = (r.mentions || []).length
         ? `<div class="cmt-mentions">${r.mentions.map((m) => `<span class="cmt-at">@${XL.esc(m.split("@")[0])}</span>`).join(" ")}</div>` : "";
+      const anchor = r.anchor && r.anchor.label
+        ? `<button class="cmt-anchor" data-goto="1" title="Konuma git">📍 ${XL.esc(r.anchor.label)}</button>` : "";
       const replies = (byParent[r.id] || []).map((c) => card(c, true)).join("");
       return `
         <div class="cmt${isReply ? " cmt-reply" : ""}${r.resolved ? " cmt-resolved" : ""}" data-id="${r.id}">
@@ -147,6 +221,7 @@ XL.comments = {
             <b>${XL.esc(r.author_name || r.author_email)}</b>
             <span class="muted">${this._timeAgo(r.created_at)}</span>
             ${r.resolved ? '<span class="cmt-badge">çözüldü</span>' : ""}
+            ${anchor}
           </div>
           <div class="cmt-text">${this._highlight(r.body)}</div>
           ${mentions}
@@ -159,6 +234,14 @@ XL.comments = {
         </div>`;
     };
     box.innerHTML = (byParent._root || []).map((r) => card(r, false)).join("");
+
+    // Konuma git (📍) — her yorumun anchor'ını id ile eşle.
+    const anchorById = {};
+    rows.forEach((r) => { if (r.anchor && r.anchor.label) anchorById[r.id] = r.anchor; });
+    box.querySelectorAll(".cmt-anchor[data-goto]").forEach((b) => b.onclick = (e) => {
+      e.stopPropagation();
+      this._gotoAnchor(anchorById[b.closest(".cmt").dataset.id]);
+    });
 
     box.querySelectorAll("[data-act]").forEach((b) => b.onclick = async () => {
       const id = b.closest(".cmt").dataset.id;
@@ -188,9 +271,12 @@ XL.comments = {
     if (!body) return;
     msg.textContent = "Gönderiliyor…";
     try {
-      await this.add(this._docId, body, { parent: this._replyTo, mentions: this._parseMentions(body) });
+      // Yanıtlarda anchor taşınmaz (kök yoruma ait); yalnız kök yorumda iliştir.
+      const anchor = this._replyTo ? null : this._pendingAnchor;
+      await this.add(this._docId, body, { parent: this._replyTo, anchor, mentions: this._parseMentions(body) });
       ta.value = ""; msg.textContent = "";
       this._replyTo = null;
+      this._pendingAnchor = null; this._renderAnchorBar();
       const bar = document.getElementById("cmt-replybar"); if (bar) bar.classList.add("hidden");
       await this._refreshList();
       this.refreshBadge();
@@ -253,11 +339,12 @@ XL.comments = {
       if (!this.enabled()) return alert("Yorumlar için giriş yapın.");
       const doc = XL.ws.active();
       if (!doc) return;
+      const anchor = this._captureAnchor();   // panel açılmadan ÖNCE (seçim hâlâ editörde)
       if (!doc.cloudId) {
         if (!confirm("Yorum yapmak için belge buluta kaydedilsin mi?")) return;
         try { await XL.cloud.saveActive(); } catch (e) { return alert("Kaydedilemedi: " + (e.message || e)); }
       }
-      this.openComments(XL.ws.active().cloudId, doc.name);
+      this.openComments(XL.ws.active().cloudId, doc.name, anchor);
     };
     const nbtn = document.getElementById("btn-notif");
     if (nbtn) nbtn.onclick = () => this.openNotifications();

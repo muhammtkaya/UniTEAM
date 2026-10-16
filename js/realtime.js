@@ -175,6 +175,7 @@ XL.realtime = {
   disconnect() {
     this._unbindWord();
     this._unbindPptx();
+    this._unbindXlsx();
     this._awTeardown();
     if (this.doc && this._onUpdate) { try { this.doc.off("update", this._onUpdate); } catch (e) {} }
     if (this.ws) { try { this.ws.close(); } catch (e) {} }
@@ -194,17 +195,18 @@ XL.realtime = {
 
   // Etkin (Word/PowerPoint + bulut) belge için canlı düzenlemeyi aç/kapat.
   async toggleLiveActive() {
-    if (this._word || this._pptx) { this.disconnect(); XL.status("Canlı düzenleme kapatıldı."); return false; }
+    if (this._word || this._pptx || this._xl) { this.disconnect(); XL.status("Canlı düzenleme kapatıldı."); return false; }
     const doc = XL.ws.active();
-    if (!doc || (doc.type !== "docx" && doc.type !== "pptx")) {
-      alert("Canlı düzenleme şimdilik yalnız Word ve PowerPoint belgelerinde."); return false;
+    if (!doc || !["docx", "pptx", "xlsx"].includes(doc.type)) {
+      alert("Canlı düzenleme şimdilik Word, PowerPoint ve Excel belgelerinde."); return false;
     }
     if (!XL.cloud || !XL.cloud.enabled()) { alert("Canlı düzenleme için giriş yapın."); return false; }
     XL.status("Canlı düzenlemeye bağlanılıyor…");
     try {
       if (!doc.cloudId) { await XL.cloud.saveActive(); }   // oda id'si = cloudId
       if (doc.type === "docx") await this.bindWord(doc.cloudId);
-      else await this.bindPptx(doc.cloudId);
+      else if (doc.type === "pptx") await this.bindPptx(doc.cloudId);
+      else await this.bindXlsx(doc.cloudId);
       XL.status("🟢 Canlı düzenleme açık");
       return true;
     } catch (e) {
@@ -488,6 +490,168 @@ XL.realtime = {
       mode.history = [mode.snap()];   // uzak durum yeni temel; geçmişi sıfırla
       mode.future = [];
       mode.renderAll();
+    } finally {
+      p.applying = false;
+    }
+  },
+
+  /* =========================================================================
+   * RT5 — Excel editörüne bağlama (hücre seviyesi)  [en zor: HyperFormula + CRDT]
+   * -------------------------------------------------------------------------
+   * Excel modeli HyperFormula motorudur (hücre ham içeriği) + XL.state.formats
+   * (biçimler, "sheetId:r:c") + sayfa listesi + yazdırma düzeni.
+   * CRDT eşlemesi (yine "birim başına LWW"; birim = HÜCRE):
+   *   xlSheets (Y.Array): sayfa adları/sırası → kanonik sayfa İNDEKSİ (id değil,
+   *     çünkü HF id'leri motora göre değişir; indeks istemciler arası kararlı).
+   *   xlCells   (Y.Map): "idx:r:c" → ham içerik (formül dahil)
+   *   xlFormats (Y.Map): "idx:r:c" → biçim JSON
+   *   xlMeta    (Y.Map): rows / cols / page(JSON)
+   * Not: satır/sütun ekle-sil, koordinatları kaydırdığı için Y'ye toplu hücre
+   * güncellemesi olarak yansır (içerik doğru birleşir; atomik "satır ekle" değil).
+   * Uzak değişiklik gelince data Y'den kurulup engine.load + grid.build ile
+   * yeniden yüklenir (RT4 felsefesi); kullanıcı yazarken ertelenir, aktif
+   * hücre/seçim korunur.
+   * ========================================================================= */
+
+  async bindXlsx(docId) {
+    if (!XL.state || !XL.state.hf || document.body.dataset.mode !== "xlsx") {
+      throw new Error("Önce bir Excel belgesi açık olmalı.");
+    }
+    const ydoc = new Y.Doc();
+    await this.connect(docId, ydoc);
+    await new Promise((r) => setTimeout(r, 400));   // saklı güncellemeler yerleşsin
+
+    const xlSheets = ydoc.getArray("xlSheets");
+    const xlCells = ydoc.getMap("xlCells");
+    const xlFormats = ydoc.getMap("xlFormats");
+    const xlMeta = ydoc.getMap("xlMeta");
+    this._xl = { ydoc, xlSheets, xlCells, xlFormats, xlMeta, applying: false, pushT: null, renderT: null };
+
+    if (xlSheets.length === 0) this._xlPush();   // ilk kullanıcı: motordan tohumla
+    else this._xlRender();                        // mevcut oda içeriğini yükle
+
+    const onChange = (evt, tr) => {
+      if (tr && tr.origin === "local") return;
+      clearTimeout(this._xl.renderT);
+      this._xl.renderT = setTimeout(() => this._xlRender(), 150);
+    };
+    [xlSheets, xlCells, xlFormats, xlMeta].forEach((y) => y.observe(onChange));
+    this._xl.onChange = onChange;
+
+    this._xl.origChanged = XL.ws.changed.bind(XL.ws);
+    const self = this;
+    XL.ws.changed = function () {
+      self._xl.origChanged();
+      if (self._xl && !self._xl.applying) {
+        clearTimeout(self._xl.pushT);
+        self._xl.pushT = setTimeout(() => self._xlPush(), 300);
+      }
+    };
+  },
+
+  _unbindXlsx() {
+    const p = this._xl;
+    if (!p) return;
+    try { [p.xlSheets, p.xlCells, p.xlFormats, p.xlMeta].forEach((y) => y.unobserve(p.onChange)); } catch (e) {}
+    if (p.origChanged) { try { XL.ws.changed = p.origChanged; } catch (e) {} }
+    clearTimeout(p.pushT);
+    clearTimeout(p.renderT);
+    clearTimeout(p.renderRetry);
+    this._xl = null;
+  },
+
+  // Kullanıcı hücre/formül çubuğunda yazıyor mu? (uzak render ertelenir)
+  _xlBusy() {
+    return !!(XL.grid && XL.grid.editing) ||
+      document.activeElement === document.getElementById("formula-input");
+  },
+
+  // Motor → Y (yalnız değişen hücre/biçimleri dokun).
+  _xlPush() {
+    const p = this._xl; if (!p) return;
+    const st = XL.state;
+    Y.transact(p.ydoc, () => {
+      if (p.xlMeta.get("rows") !== XL.ROWS) p.xlMeta.set("rows", XL.ROWS);
+      if (p.xlMeta.get("cols") !== XL.COLS) p.xlMeta.set("cols", XL.COLS);
+      const pageJson = JSON.stringify(st.page || null);
+      if (p.xlMeta.get("page") !== pageJson) p.xlMeta.set("page", pageJson);
+
+      const names = st.sheets.map((s) => s.name), cur = p.xlSheets.toArray();
+      if (cur.length !== names.length || cur.some((n, i) => n !== names[i])) {
+        p.xlSheets.delete(0, p.xlSheets.length);
+        p.xlSheets.insert(0, names);
+      }
+
+      const seenC = new Set(), seenF = new Set();
+      st.sheets.forEach((s, idx) => {
+        const dims = st.hf.getSheetDimensions(s.id);
+        for (let r = 0; r < dims.height; r++)
+          for (let c = 0; c < dims.width; c++) {
+            const raw = XL.engine.getRaw(r, c, s.id);
+            if (raw !== "") { const k = idx + ":" + r + ":" + c; seenC.add(k); if (p.xlCells.get(k) !== raw) p.xlCells.set(k, raw); }
+          }
+        const prefix = s.id + ":";
+        Object.entries(st.formats).forEach(([key, fmt]) => {
+          if (!key.startsWith(prefix)) return;
+          const k = idx + ":" + key.slice(prefix.length);
+          const fj = JSON.stringify(fmt);
+          seenF.add(k); if (p.xlFormats.get(k) !== fj) p.xlFormats.set(k, fj);
+        });
+      });
+      [...p.xlCells.keys()].forEach((k) => { if (!seenC.has(k)) p.xlCells.delete(k); });
+      [...p.xlFormats.keys()].forEach((k) => { if (!seenF.has(k)) p.xlFormats.delete(k); });
+    }, "local");
+  },
+
+  // Oda içeriğini XL.engine.load'un beklediği data şekline çevir.
+  _xlBuildData() {
+    const p = this._xl;
+    const names = p.xlSheets.toArray();
+    const sheets = names.map((name) => ({ name, cells: {}, formats: {} }));
+    p.xlCells.forEach((raw, k) => {
+      const [idx, r, c] = k.split(":").map(Number);
+      if (sheets[idx]) sheets[idx].cells[r + "," + c] = raw;
+    });
+    p.xlFormats.forEach((fj, k) => {
+      const [idx, r, c] = k.split(":").map(Number);
+      if (sheets[idx]) { try { sheets[idx].formats[r + ":" + c] = JSON.parse(fj); } catch (e) {} }
+    });
+    const data = { rows: p.xlMeta.get("rows") || 100, cols: p.xlMeta.get("cols") || 26, activeSheet: 0, sheets };
+    const pr = p.xlMeta.get("page"); if (pr) { try { const pg = JSON.parse(pr); if (pg) data.page = pg; } catch (e) {} }
+    return data;
+  },
+
+  // Y → motor (data yeniden kurulup yüklenir; kullanıcı meşgulse ertele).
+  _xlRender() {
+    const p = this._xl; if (!p) return;
+    if (document.body.dataset.mode !== "xlsx" || !XL.state.hf) return;
+    if (!p.xlSheets.length) return;   // oda henüz tohumlanmadı
+
+    if (this._xlBusy()) {
+      clearTimeout(p.renderRetry);
+      p.renderRetry = setTimeout(() => this._xlRender(), 700);
+      return;
+    }
+
+    p.applying = true;
+    try {
+      const st = XL.state, m = XL.modes.xlsx;
+      const keepIdx = Math.max(0, st.sheets.findIndex((s) => s.id === st.activeSheetId));
+      const keepActive = { ...st.active }, keepSel = { ...st.sel };
+
+      XL.engine.load(this._xlBuildData());
+
+      const ns = st.sheets;
+      st.activeSheetId = ns[Math.min(keepIdx, ns.length - 1)].id;
+      const clampR = (v) => Math.max(0, Math.min(v, XL.ROWS - 1));
+      const clampC = (v) => Math.max(0, Math.min(v, XL.COLS - 1));
+      st.active = { r: clampR(keepActive.r), c: clampC(keepActive.c) };
+      st.sel = { r1: clampR(keepSel.r1), c1: clampC(keepSel.c1), r2: clampR(keepSel.r2), c2: clampC(keepSel.c2) };
+
+      XL.grid.build();
+      m.applyView();
+      m.renderSheetTabs();
+      m.syncFormulaBar();
     } finally {
       p.applying = false;
     }

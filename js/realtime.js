@@ -174,6 +174,7 @@ XL.realtime = {
 
   disconnect() {
     this._unbindWord();
+    this._unbindPptx();
     this._awTeardown();
     if (this.doc && this._onUpdate) { try { this.doc.off("update", this._onUpdate); } catch (e) {} }
     if (this.ws) { try { this.ws.close(); } catch (e) {} }
@@ -191,16 +192,19 @@ XL.realtime = {
    * düzenleme temiz birleşir (blok başına LWW). İmleç, değişmeyen blokta korunur.
    * ========================================================================= */
 
-  // Etkin (Word + bulut) belge için canlı düzenlemeyi aç/kapat.
+  // Etkin (Word/PowerPoint + bulut) belge için canlı düzenlemeyi aç/kapat.
   async toggleLiveActive() {
-    if (this._word) { this.disconnect(); XL.status("Canlı düzenleme kapatıldı."); return false; }
+    if (this._word || this._pptx) { this.disconnect(); XL.status("Canlı düzenleme kapatıldı."); return false; }
     const doc = XL.ws.active();
-    if (!doc || doc.type !== "docx") { alert("Canlı düzenleme şimdilik yalnız Word belgelerinde."); return false; }
+    if (!doc || (doc.type !== "docx" && doc.type !== "pptx")) {
+      alert("Canlı düzenleme şimdilik yalnız Word ve PowerPoint belgelerinde."); return false;
+    }
     if (!XL.cloud || !XL.cloud.enabled()) { alert("Canlı düzenleme için giriş yapın."); return false; }
     XL.status("Canlı düzenlemeye bağlanılıyor…");
     try {
       if (!doc.cloudId) { await XL.cloud.saveActive(); }   // oda id'si = cloudId
-      await this.bindWord(doc.cloudId);
+      if (doc.type === "docx") await this.bindWord(doc.cloudId);
+      else await this.bindPptx(doc.cloudId);
       XL.status("🟢 Canlı düzenleme açık");
       return true;
     } catch (e) {
@@ -333,6 +337,160 @@ XL.realtime = {
     const sel = window.getSelection(), r = document.createRange();
     if (target) r.setStart(target, toff); else { r.selectNodeContents(top); r.collapse(false); }
     r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+  },
+
+  /* =========================================================================
+   * RT4 — PowerPoint editörüne bağlama (slayt + öğe seviyesi)
+   * -------------------------------------------------------------------------
+   * PPT modeli contenteditable değil, yapılandırılmış JSON'dır:
+   *   data = { theme, aspect, footer, slides:[{ id, layout, bg, transition,
+   *            notes, elements:[{ id, type, x, y, w, h, html, ... }] }] }
+   * CRDT eşlemesi (RT2'deki "birim başına LWW, birimler arası birleşme" fikri):
+   *   ppMeta  (Y.Map)   : theme / aspect / footer(JSON)   — sunum geneli
+   *   ppOrder (Y.Array) : slayt id sırası
+   *   ppSlides(Y.Map)   : slaytId → { layout, bg, transition, notes, els:[elId] }
+   *   ppEls   (Y.Map)   : elId → öğe JSON'u        — ÖĞE başına LWW
+   * Böylece farklı slaytları / farklı metin kutularını eş zamanlı düzenleme
+   * temiz birleşir; yalnız aynı öğeyi aynı anda yazanlar son-yazan-kazanır.
+   *
+   * Değişiklikler tek kanaldan akar: mod her değişiklikte XL.ws.changed() çağırır
+   * → ona bağlanıp (debounce) Y'ye yazarız. Uzak değişiklik gelince data yeniden
+   * kurulur + renderAll; ama kullanıcı metin yazıyor / sürüklüyor / not giriyorsa
+   * render ertelenir (imleç ve sürükleme bozulmasın).
+   * ========================================================================= */
+
+  async bindPptx(docId) {
+    const mode = XL.modes.pptx;
+    if (!mode || !mode.data || document.body.dataset.mode !== "pptx") {
+      throw new Error("Önce bir PowerPoint belgesi açık olmalı.");
+    }
+    const ydoc = new Y.Doc();
+    await this.connect(docId, ydoc);
+    await new Promise((r) => setTimeout(r, 400));   // saklı güncellemeler yerleşsin
+
+    const meta = ydoc.getMap("ppMeta");
+    const order = ydoc.getArray("ppOrder");
+    const slides = ydoc.getMap("ppSlides");
+    const els = ydoc.getMap("ppEls");
+    this._pptx = { ydoc, meta, order, slides, els, mode, applying: false, pushT: null, renderT: null };
+
+    if (order.length === 0) this._pptxPush();   // ilk kullanıcı: editörden tohumla
+    else this._pptxRender();                     // mevcut oda içeriğini yükle
+
+    // Uzak değişiklikleri render et (kendi yerel yazımımızı atla).
+    const onChange = (evt, tr) => {
+      if (tr && tr.origin === "local") return;
+      clearTimeout(this._pptx.renderT);
+      this._pptx.renderT = setTimeout(() => this._pptxRender(), 120);
+    };
+    [meta, order, slides, els].forEach((y) => y.observe(onChange));
+    this._pptx.onChange = onChange;
+
+    // Yerel değişiklik → Y: mod XL.ws.changed() üzerinden akar, oraya bağlan (debounce).
+    this._pptx.origChanged = XL.ws.changed.bind(XL.ws);
+    const self = this;
+    XL.ws.changed = function () {
+      self._pptx.origChanged();
+      if (self._pptx && !self._pptx.applying) {
+        clearTimeout(self._pptx.pushT);
+        self._pptx.pushT = setTimeout(() => self._pptxPush(), 300);
+      }
+    };
+  },
+
+  _unbindPptx() {
+    const p = this._pptx;
+    if (!p) return;
+    try { [p.meta, p.order, p.slides, p.els].forEach((y) => y.unobserve(p.onChange)); } catch (e) {}
+    if (p.origChanged) { try { XL.ws.changed = p.origChanged; } catch (e) {} }
+    clearTimeout(p.pushT);
+    clearTimeout(p.renderT);
+    clearTimeout(p.renderRetry);
+    this._pptx = null;
+  },
+
+  // Kullanıcı düzenleme/sürükleme/not yazma ortasında mı? (uzak render ertelenir)
+  _pptxBusy(mode) {
+    return !!(mode.editingId || mode.drag ||
+      document.activeElement === document.getElementById("pp-notes"));
+  },
+
+  // Editör → Y (yerel durumu yaz; yalnız değişen slayt/öğeleri dokun).
+  _pptxPush() {
+    const p = this._pptx; if (!p) return;
+    const d = p.mode.data;
+    Y.transact(p.ydoc, () => {
+      if (p.meta.get("theme") !== d.theme) p.meta.set("theme", d.theme);
+      if (p.meta.get("aspect") !== d.aspect) p.meta.set("aspect", d.aspect);
+      const fj = JSON.stringify(d.footer || {});
+      if (p.meta.get("footer") !== fj) p.meta.set("footer", fj);
+
+      const seenS = new Set(), seenE = new Set();
+      d.slides.forEach((s) => {
+        seenS.add(s.id);
+        (s.elements || []).forEach((e) => {
+          seenE.add(e.id);
+          const ej = JSON.stringify(e);
+          if (p.els.get(e.id) !== ej) p.els.set(e.id, ej);
+        });
+        const srec = JSON.stringify({
+          layout: s.layout, bg: s.bg, transition: s.transition,
+          notes: s.notes || "", els: (s.elements || []).map((e) => e.id),
+        });
+        if (p.slides.get(s.id) !== srec) p.slides.set(s.id, srec);
+      });
+      [...p.slides.keys()].forEach((id) => { if (!seenS.has(id)) p.slides.delete(id); });
+      [...p.els.keys()].forEach((id) => { if (!seenE.has(id)) p.els.delete(id); });
+
+      const next = d.slides.map((s) => s.id), cur = p.order.toArray();
+      if (cur.length !== next.length || cur.some((b, i) => b !== next[i])) {
+        p.order.delete(0, p.order.length);
+        p.order.insert(0, next);
+      }
+    }, "local");
+  },
+
+  // Y → editör (uzak durumu uygula; kullanıcı meşgulse ertele).
+  _pptxRender() {
+    const p = this._pptx; if (!p) return;
+    const mode = p.mode;
+    if (document.body.dataset.mode !== "pptx" || !mode.data) return;
+
+    // Oda içeriğini data modeline çevir.
+    const newSlides = p.order.toArray().map((sid) => {
+      const raw = p.slides.get(sid);
+      if (!raw) return null;
+      const srec = JSON.parse(raw);
+      const elements = (srec.els || []).map((eid) => {
+        const r = p.els.get(eid);
+        return r ? JSON.parse(r) : null;
+      }).filter(Boolean);
+      return { id: sid, layout: srec.layout, bg: srec.bg, transition: srec.transition, notes: srec.notes || "", elements };
+    }).filter(Boolean);
+    if (!newSlides.length) return;   // oda henüz tohumlanmadı
+
+    // Kullanıcı yazıyor/sürüklüyorsa: thumb'ları tazele, sahneyi bozma, sonra tekrar dene.
+    if (this._pptxBusy(mode)) {
+      clearTimeout(p.renderRetry);
+      p.renderRetry = setTimeout(() => this._pptxRender(), 700);
+      return;
+    }
+
+    p.applying = true;
+    try {
+      mode.data.slides = newSlides;
+      const th = p.meta.get("theme"); if (th && mode.THEMES[th]) mode.data.theme = th;
+      const asp = p.meta.get("aspect"); if (asp && mode.ASPECTS[asp]) mode.data.aspect = asp;
+      const fr = p.meta.get("footer"); if (fr) { try { mode.data.footer = JSON.parse(fr); } catch (e) {} }
+      mode.applyAspect();
+      mode.cur = Math.max(0, Math.min(mode.cur, newSlides.length - 1));
+      if (mode.selId && !newSlides.some((s) => s.elements.some((e) => e.id === mode.selId))) mode.selId = null;
+      mode.history = [mode.snap()];   // uzak durum yeni temel; geçmişi sıfırla
+      mode.future = [];
+      mode.renderAll();
+    } finally {
+      p.applying = false;
+    }
   },
 };
 

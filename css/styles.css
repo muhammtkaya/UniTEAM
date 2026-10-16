@@ -403,8 +403,28 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 .cloud-item:hover { background: var(--accent-soft); border-color: var(--accent); }
 .cloud-item .ci-ic { flex: none; }
 .cloud-item .ci-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cloud-item .ci-del { flex: none; background: none; border: none; cursor: pointer; opacity: .5; padding: 2px 4px; border-radius: 4px; }
+.cloud-item .ci-del, .cloud-item .ci-share { flex: none; background: none; border: none; cursor: pointer; opacity: .55; padding: 2px 4px; border-radius: 4px; font-size: 13px; }
 .cloud-item .ci-del:hover { opacity: 1; background: #fdecea; }
+.cloud-item .ci-share:hover { opacity: 1; background: var(--accent-soft); }
+.cloud-item .ci-shared { color: #6b7280; font-weight: normal; font-size: 11px; }
+
+/* Paylaşım paneli */
+.share-ui { display: flex; flex-direction: column; gap: 10px; }
+.share-back { align-self: flex-start; background: none; border: none; color: var(--accent-dark); cursor: pointer; padding: 2px 0; font-size: 13px; }
+.share-form { display: flex; gap: 6px; }
+.share-form #sh-email { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+.share-form #sh-role { padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; }
+.share-add { padding: 8px 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+.share-add:hover { background: var(--accent-dark); }
+.share-msg { font-size: 13px; padding: 7px 10px; border-radius: 6px; }
+.share-msg.error { background: #fdecea; color: #b42318; }
+.share-msg.ok { background: #e7f6ec; color: #197245; }
+.share-sub { font-size: 12px; color: #6b7280; margin-top: 4px; font-weight: 600; }
+.share-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.share-row .sr-email { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-row .sr-role { font-size: 12px; color: #6b7280; }
+.share-row .sr-del { background: none; border: none; cursor: pointer; opacity: .5; padding: 2px 6px; border-radius: 4px; }
+.share-row .sr-del:hover { opacity: 1; background: #fdecea; }
 
 /* Giriş / Kayıt modalı */
 #auth-overlay {

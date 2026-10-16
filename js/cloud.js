@@ -120,6 +120,34 @@ XL.cloud = {
     return { cloudId: meta.id, type: meta.type, name: meta.name, data };
   },
 
+  /* ---------- Paylaşım ---------- */
+
+  // Belgeyi e-posta ile paylaş (SECURITY DEFINER fonksiyon üzerinden).
+  async shareByEmail(docId, email, role) {
+    this._assert();
+    const { data, error } = await this.client().rpc("share_document", {
+      p_document_id: docId, p_email: email, p_role: role,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  // Belgenin paylaşımlarını listele (e-posta + rol) — yalnız sahibi.
+  async listShares(docId) {
+    this._assert();
+    const { data, error } = await this.client().rpc("list_document_shares", { p_document_id: docId });
+    if (error) throw error;
+    return data;
+  },
+
+  // Bir paylaşımı kaldır (owner RLS ile doğrudan silme).
+  async revokeShare(docId, userId) {
+    this._assert();
+    const { error } = await this.client().from("document_shares").delete()
+      .eq("document_id", docId).eq("user_id", userId);
+    if (error) throw error;
+  },
+
   /* ---------- UI (workspace ile köprü) ---------- */
 
   // Etkin belgeyi buluta kaydet (yeni ise oluştur, varsa güncelle).
@@ -154,17 +182,28 @@ XL.cloud = {
       return;
     }
     const icon = { xlsx: "📊", docx: "📄", pptx: "📙" };
-    body.innerHTML = '<div class="cloud-list">' + rows.map((r) =>
-      `<div class="cloud-item" data-id="${r.id}" title="Aç">
+    const me = XL.auth.user.id;
+    body.innerHTML = '<div class="cloud-list">' + rows.map((r) => {
+      const mine = r.owner_id === me;
+      return `<div class="cloud-item" data-id="${r.id}" data-name="${XL.esc(r.name)}" title="Aç">
          <span class="ci-ic">${icon[r.type] || "📄"}</span>
-         <span class="ci-name">${XL.esc(r.name)}</span>
-         <button class="ci-del" data-del="${r.id}" title="Buluttan sil">🗑</button>
-       </div>`).join("") + "</div>";
+         <span class="ci-name">${XL.esc(r.name)}${mine ? "" : ' <small class="ci-shared">paylaşılan</small>'}</span>
+         ${mine ? `<button class="ci-share" data-share="${r.id}" title="Paylaş">👥</button>
+                   <button class="ci-del" data-del="${r.id}" title="Buluttan sil">🗑</button>` : ""}
+       </div>`;
+    }).join("") + "</div>";
 
     body.querySelectorAll(".cloud-item").forEach((el) => {
       el.addEventListener("click", (e) => {
-        if (e.target.closest("[data-del]")) return;
+        if (e.target.closest("[data-del]") || e.target.closest("[data-share]")) return;
         this.openDoc(el.dataset.id);
+      });
+    });
+    body.querySelectorAll("[data-share]").forEach((b) => {
+      b.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const item = b.closest(".cloud-item");
+        this.openShare(b.dataset.share, item.dataset.name);
       });
     });
     body.querySelectorAll("[data-del]").forEach((b) => {
@@ -175,6 +214,70 @@ XL.cloud = {
         catch (err) { alert("Silinemedi: " + (err.message || err)); }
       });
     });
+  },
+
+  // Bir belgenin paylaşım panelini aç (e-posta ile paylaş + mevcut paylaşımlar).
+  async openShare(docId, docName) {
+    if (!this.enabled()) return alert("Önce giriş yapın.");
+    const roles = [["viewer", "Görüntüleyen"], ["commenter", "Yorumcu"], ["editor", "Düzenleyen"]];
+    XL.showPanel("Paylaş — " + (docName || ""), `
+      <div class="share-ui">
+        <button class="share-back" id="sh-back">← Belgelerim</button>
+        <div class="share-form">
+          <input type="email" id="sh-email" placeholder="kullanici@eposta.com">
+          <select id="sh-role">${roles.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
+          <button id="sh-add" class="share-add">Paylaş</button>
+        </div>
+        <div id="sh-msg" class="share-msg hidden"></div>
+        <div class="share-sub">Erişimi olanlar</div>
+        <div id="sh-list"><p class="muted">Yükleniyor…</p></div>
+      </div>`);
+
+    const roleName = Object.fromEntries(roles);
+    const msg = (t, kind) => { const e = document.getElementById("sh-msg"); if (!e) return; e.textContent = t || ""; e.className = "share-msg" + (t ? " " + (kind || "error") : " hidden"); };
+
+    const refresh = async () => {
+      const list = document.getElementById("sh-list");
+      try {
+        const shares = await this.listShares(docId);
+        list.innerHTML = shares.length
+          ? shares.map((s) => `<div class="share-row">
+               <span class="sr-email">${XL.esc(s.email)}</span>
+               <span class="sr-role">${roleName[s.role] || s.role}</span>
+               <button class="sr-del" data-uid="${s.user_id}" title="Erişimi kaldır">✕</button>
+             </div>`).join("")
+          : '<p class="muted">Henüz kimseyle paylaşılmadı.</p>';
+        list.querySelectorAll("[data-uid]").forEach((b) => b.addEventListener("click", async () => {
+          try { await this.revokeShare(docId, b.dataset.uid); refresh(); }
+          catch (e) { msg(e.message || String(e)); }
+        }));
+      } catch (e) { list.innerHTML = '<p class="muted">Hata: ' + XL.esc(e.message || String(e)) + "</p>"; }
+    };
+
+    document.getElementById("sh-back").addEventListener("click", () => this.openPicker());
+    document.getElementById("sh-add").addEventListener("click", async () => {
+      const email = document.getElementById("sh-email").value.trim();
+      const role = document.getElementById("sh-role").value;
+      if (!email) return msg("E-posta girin.");
+      msg("");
+      try {
+        await this.shareByEmail(docId, email, role);
+        document.getElementById("sh-email").value = "";
+        msg("Paylaşıldı: " + email, "ok");
+        refresh();
+      } catch (e) {
+        msg(this._shareError(e));
+      }
+    });
+    refresh();
+  },
+
+  _shareError(e) {
+    const m = (e && e.message) || String(e);
+    if (/kayıtlı kullanıcı yok/i.test(m)) return "Bu e-posta ile kayıtlı kullanıcı yok. Önce o kişi hesap açmalı.";
+    if (/Kendinizle/i.test(m)) return "Kendinizle paylaşamazsınız.";
+    if (/sahibi paylaşabilir/i.test(m)) return "Yalnızca belge sahibi paylaşabilir.";
+    return m;
   },
 
   // Bir bulut belgesini yeni sekmede aç.

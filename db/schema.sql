@@ -272,8 +272,10 @@ create policy documents_select on public.documents
   for select using (
     owner_id = auth.uid()
     or exists (
+      -- ⚠️ dış sütunu NİTELE (documents.id): document_shares'in de "id" sütunu var,
+      -- niteliksiz "id" iç tabloya bağlanıp s.document_id = s.id olurdu → hiç eşleşmez.
       select 1 from public.document_shares s
-      where s.document_id = id and s.user_id = auth.uid() and s.status = 'active'
+      where s.document_id = documents.id and s.user_id = auth.uid() and s.status = 'active'
     )
   );
 create policy documents_insert on public.documents

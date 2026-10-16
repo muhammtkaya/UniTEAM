@@ -25,4 +25,8 @@ XL.config = {
     url: ENV.SUPABASE_URL || "http://127.0.0.1:54321",
     anonKey: ENV.SUPABASE_ANON_KEY || LOCAL_ANON,
   },
+  // Gerçek zamanlı backend (Cloudflare Worker + Durable Objects).
+  worker: {
+    url: ENV.WORKER_URL || "http://127.0.0.1:8787",
+  },
 };

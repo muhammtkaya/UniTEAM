@@ -16,6 +16,7 @@ import "../js/core.js";
 import "../js/config.js";
 import "../js/auth.js";
 import "../js/cloud.js";
+import "../js/realtime.js";
 import "../js/storage.js";
 
 // --- Excel modu (formula, HyperFormula'yı yayımladığı için ÖNCE) ---

@@ -18,3 +18,14 @@ JWT_AUDIENCE = "authenticated"
 # --- GİZLİ anahtarlar burada TUTULMAZ ---
 # service_role anahtarı gibi sırlar `wrangler secret put ADI` ile ayrı saklanır,
 # koda/git'e girmez. (B3'te gerekince eklenecek.)
+
+# --- Durable Object: belge başına gerçek zamanlı "oda" ---
+# Her belge = 1 DocRoom örneği (doğal sharding). WebSocket'leri tutar, Yjs
+# güncellemelerini bağlı istemciler arasında dağıtır ve saklar.
+[[durable_objects.bindings]]
+name = "DOCROOM"
+class_name = "DocRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["DocRoom"]

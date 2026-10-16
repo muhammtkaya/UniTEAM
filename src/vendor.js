@@ -14,6 +14,7 @@ import * as docx from "docx";
 import JSZip from "jszip";
 import PptxGenJS from "pptxgenjs";
 import { createClient } from "@supabase/supabase-js";
+import * as Y from "yjs";
 
 // `import * as XLSX` bir salt-okunur ES modül namespace'idir. Eski CDN UMD global'i
 // ise düz/yazılabilir bir nesneydi; bazı kodlar (ör. testler writeFile'ı geçici
@@ -26,6 +27,7 @@ window.JSZip = JSZip;
 window.PptxGenJS = PptxGenJS;
 // auth.js `supabase.createClient(...)` bekliyor → aynı şekle sok.
 window.supabase = { createClient };
+window.Y = Y;  // Yjs (gerçek zamanlı CRDT) — realtime.js kullanır
 
 // --- Ortam değişkenleri (.env → tarayıcı) ---
 // Vite, import.meta.env.VITE_* değerlerini derleme anında koda gömer.
@@ -33,4 +35,5 @@ window.supabase = { createClient };
 window.__ENV__ = {
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || "",
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
+  WORKER_URL: import.meta.env.VITE_WORKER_URL || "",
 };

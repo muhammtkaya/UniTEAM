@@ -1,0 +1,20 @@
+# wrangler.toml — Cloudflare Worker yapılandırması
+#
+# "wrangler dev" bu Worker'ı yerelde http://127.0.0.1:8787 adresinde çalıştırır
+# (Docker/hesap gerekmez). "wrangler deploy" ise Cloudflare'e yayınlar (sonra).
+
+name = "uniteam-worker"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# --- Ortam değişkenleri (GİZLİ OLMAYAN) ---
+# Gizli olmayan ayarlar burada durabilir. Supabase URL'si public bilgidir.
+[vars]
+SUPABASE_URL = "http://127.0.0.1:54321"
+# Token doğrularken beklenen "issuer" ve "audience" (Supabase Auth standartları).
+JWT_ISSUER = "http://127.0.0.1:54321/auth/v1"
+JWT_AUDIENCE = "authenticated"
+
+# --- GİZLİ anahtarlar burada TUTULMAZ ---
+# service_role anahtarı gibi sırlar `wrangler secret put ADI` ile ayrı saklanır,
+# koda/git'e girmez. (B3'te gerekince eklenecek.)

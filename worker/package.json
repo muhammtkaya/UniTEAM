@@ -1,0 +1,17 @@
+{
+  "name": "uniteam-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UniTEAM ince backend — Cloudflare Worker (JWT doğrulama, realtime-token, paylaşım/BYOS)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "jose": "5.9.6"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.0"
+  }
+}

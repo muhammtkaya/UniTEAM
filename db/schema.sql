@@ -264,8 +264,18 @@ create policy folders_owner_all on public.folders
   for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 
 -- documents: sahibi VEYA paylaşılan görür; değiştirmek için ≥ editor; silmek owner.
+-- NOT: Sahip kontrolü doğrudan owner_id ile yapılır (user_doc_role çağrılmaz).
+-- Neden: user_doc_role documents'ı KENDİ İÇİNDE sorgular; INSERT ... RETURNING
+-- sırasında yeni satır o alt-sorguya görünmez → yanlış RLS reddi. owner_id ise
+-- satırda anında mevcut. (Paylaşım kontrolü farklı tablodan geldiği için sorunsuz.)
 create policy documents_select on public.documents
-  for select using (public.user_doc_role(id) is not null);
+  for select using (
+    owner_id = auth.uid()
+    or exists (
+      select 1 from public.document_shares s
+      where s.document_id = id and s.user_id = auth.uid() and s.status = 'active'
+    )
+  );
 create policy documents_insert on public.documents
   for insert with check (owner_id = auth.uid());
 create policy documents_update on public.documents

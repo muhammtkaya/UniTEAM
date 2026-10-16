@@ -1,0 +1,24 @@
+{
+  "name": "uniteam",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UniTEAM — tarayıcıda çalışan çok uygulamalı ofis (Excel/Word/PowerPoint muadili)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
+    "chart.js": "4.4.1",
+    "docx": "8.5.0",
+    "jszip": "3.10.1",
+    "mammoth": "1.8.0",
+    "pptxgenjs": "3.12.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "vite": "6.3.5"
+  }
+}

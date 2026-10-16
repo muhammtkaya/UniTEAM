@@ -15,6 +15,9 @@ const XL = {
     formats: {},         // "sheetId:r:c" -> {bold,italic,underline,color,bg,align,numfmt}
   },
 };
+// Bundle köprüsü: diğer dosyalar (artık modül) XL'e global olarak erişsin.
+// (Vite/Rollup her dosyayı modül kapsamında derler; bu satır olmadan XL paylaşılmaz.)
+window.XL = XL;
 
 /* --- Koordinat yardımcıları (Excel) --- */
 XL.colLetter = function (c) {

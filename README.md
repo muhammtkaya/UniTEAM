@@ -10,17 +10,22 @@ Proje şu an yalnızca web tabanlıdır. İleride masaüstü (Electron/Tauri) ve
 
 ## Çalıştırma
 
-Kurulum gerekmez. `index.html` dosyasını çift tıklayarak tarayıcıda açın.
-
-- İnternet bağlantısı gerekir: hesap ve dosya motorları CDN'den yüklenir.
-- Chrome, Edge ve Firefox'un güncel sürümleri hedeflenir.
-
-İsterseniz yerel bir sunucuyla da açabilirsiniz:
+Proje artık **Vite** ile paketlenir (kütüphaneler npm'den gelir, CDN gerekmez,
+çevrimdışı çalışır). Node.js 18+ gerekir.
 
 ```bash
-python -m http.server 8777
-# tarayıcıda: http://localhost:8777
+npm install        # bağımlılıkları kur (ilk sefer)
+npm run dev        # geliştirme sunucusu → http://localhost:5173 (anında yenileme)
+npm run build      # üretim derlemesi → dist/
+npm run preview    # dist/ çıktısını önizle
 ```
+
+- Chrome, Edge ve Firefox'un güncel sürümleri hedeflenir.
+- Ortam değişkenleri `.env` ile yönetilir (bkz. `.env.example`). Supabase
+  bağlantısı boş bırakılırsa kod yerel varsayılanlara düşer.
+
+> Not: ES modülleri kullanıldığı için `index.html` artık çift tıklanarak
+> (`file://`) açılamaz; `npm run dev` ya da derlenmiş `dist/` üzerinden sunulur.
 
 ---
 

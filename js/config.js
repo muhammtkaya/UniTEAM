@@ -11,11 +11,18 @@
  * konması sakıncasızdır. Buluta geçince bu değerler gerçek proje değerleriyle
  * değişecek (ve o anon anahtar da public olduğu için yine istemciye gömülebilir).
  */
+// Değerler önce .env'den (window.__ENV__, src/vendor.js tarafından doldurulur),
+// yoksa YEREL geliştirme varsayılanına düşer. Böylece anahtarlar koda sabitlenmez;
+// buluta geçince yalnız .env değişir, kod aynı kalır.
+const ENV = (typeof window !== "undefined" && window.__ENV__) || {};
+
+// Yerel standart "anon" (public) anahtarı — her yerel Supabase'de aynıdır.
+const LOCAL_ANON =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+
 XL.config = {
   supabase: {
-    url: "http://127.0.0.1:54321",
-    // Yerel standart "anon" (public) anahtarı — supabase start çıktısındaki ANON_KEY
-    anonKey:
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
+    url: ENV.SUPABASE_URL || "http://127.0.0.1:54321",
+    anonKey: ENV.SUPABASE_ANON_KEY || LOCAL_ANON,
   },
 };

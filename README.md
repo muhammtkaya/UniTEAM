@@ -23,6 +23,9 @@ npm run preview    # dist/ çıktısını önizle
 - Chrome, Edge ve Firefox'un güncel sürümleri hedeflenir.
 - Ortam değişkenleri `.env` ile yönetilir (bkz. `.env.example`). Supabase
   bağlantısı boş bırakılırsa kod yerel varsayılanlara düşer.
+- **PWA:** Uygulama yüklenebilir (tarayıcıda "Uygulamayı yükle") ve **çevrimdışı
+  çalışır** (service worker uygulama kabuğunu önbelleğe alır). SW yalnız üretim
+  derlemesinde (`build`/`preview`) etkindir; `dev`'de kapalıdır.
 
 > Not: ES modülleri kullanıldığı için `index.html` artık çift tıklanarak
 > (`file://`) açılamaz; `npm run dev` ya da derlenmiş `dist/` üzerinden sunulur.

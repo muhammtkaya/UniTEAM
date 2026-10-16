@@ -19,6 +19,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vite-plugin-pwa": "2.0.0"
   }
 }

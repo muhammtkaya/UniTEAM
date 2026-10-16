@@ -1,17 +1,43 @@
 import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 // Vite yapılandırması
-// - root: proje kökü (index.html burada)
-// - base: "./" → çıktı göreli yollarla çalışır (herhangi bir alt dizinden sunulabilir)
-// - build.outDir: "dist" → `npm run build` çıktısı
+// - base "./" → çıktı göreli yollarla çalışır
+// - VitePWA → manifest + service worker (Workbox) ile yüklenebilir/çevrimdışı uygulama
 export default defineConfig({
   base: "./",
   build: {
     outDir: "dist",
     emptyOutDir: true,
   },
-  server: {
-    port: 5173,
-    open: true,
-  },
+  server: { port: 5173, open: true },
+  plugins: [
+    VitePWA({
+      registerType: "autoUpdate",      // yeni sürüm çıkınca sessizce güncelle
+      injectRegister: "auto",           // SW kaydını otomatik ekle
+      includeAssets: ["icons/icon.svg"],
+      manifest: {
+        name: "UniTEAM",
+        short_name: "UniTEAM",
+        description: "Tarayıcıda Excel/Word/PowerPoint muadili ofis uygulaması",
+        lang: "tr",
+        theme_color: "#107c41",
+        background_color: "#ffffff",
+        display: "standalone",
+        start_url: ".",
+        scope: ".",
+        icons: [
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
+      },
+      workbox: {
+        // Uygulama kabuğunu (JS/CSS/HTML) çevrimdışı için önbelleğe al.
+        // Ana paket ~2.4 MB olduğu için varsayılan 2 MB sınırını yükseltiyoruz.
+        globPatterns: ["**/*.{js,css,html,svg,png,woff,woff2,ico}"],
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+      },
+    }),
+  ],
 });

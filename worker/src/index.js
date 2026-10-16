@@ -54,6 +54,30 @@ async function toBytes(data) {
   return null; // string vb.
 }
 
+// [type baytı][payload] çerçevesi (0 = Yjs doc update, 1 = awareness).
+function framed(type, bytes) {
+  const out = new Uint8Array(bytes.length + 1);
+  out[0] = type;
+  out.set(bytes, 1);
+  return out;
+}
+
+// Kullanıcının belgeye erişimi var mı? Kendi token'ıyla Supabase'e sorar; RLS
+// bir satır döndürürse (sahip veya paylaşılan) erişim vardır. service_role GEREKMEZ.
+async function checkDocAccess(docId, token, env) {
+  try {
+    const res = await fetch(
+      `${env.SUPABASE_URL}/rest/v1/documents?id=eq.${encodeURIComponent(docId)}&select=id`,
+      { headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) return false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch (e) {
+    return false;
+  }
+}
+
 /* --- Token doğrulama çekirdeği (jose/JWKS, ES256) --- */
 // Geçerliyse kullanıcıyı döndürür; değilse null.
 async function verifyToken(token, env) {
@@ -111,9 +135,11 @@ export default {
       const token = url.searchParams.get("token");
       const user = await verifyToken(token, env);
       if (!user) return fail("invalid_token", "Geçersiz oturum (token).", 401);
-      // TODO(güvenlik): belge erişim yetkisini (owner/shared) de doğrula
-      // (service_role ile user_doc_role sorgusu) — şimdilik yalnız kimlik.
       const docId = decodeURIComponent(room[1]);
+      // Belge erişim yetkisi (owner/shared) — RLS üzerinden doğrula.
+      if (!(await checkDocAccess(docId, token, env))) {
+        return fail("forbidden", "Bu belgeye erişiminiz yok.", 403);
+      }
       const id = env.DOCROOM.idFromName(docId);
       return env.DOCROOM.get(id).fetch(request);
     }
@@ -150,33 +176,46 @@ export class DocRoom {
     return this.updates;
   }
 
+  _broadcast(exceptSession, msg) {
+    for (const s of this.sessions) {
+      if (s !== exceptSession) { try { s.ws.send(msg); } catch (e) {} }
+    }
+  }
+
   async fetch(request) {
     const pair = new WebSocketPair();
     const client = pair[0], server = pair[1];
     server.accept();
-    this.sessions.add(server);
+    const session = { ws: server, aw: null }; // aw = son awareness (geç gelenlere)
+    this.sessions.add(session);
 
-    // Yeni istemciye saklı tüm güncellemeleri gönder (ilk senkron).
+    // 1) Saklı doc güncellemelerini gönder ([0]=doc). 2) Diğerlerinin awareness'ı ([1]).
     const updates = await this._loadUpdates();
-    for (const u of updates) {
-      try { server.send(u); } catch (e) {}
+    for (const u of updates) { try { server.send(framed(0, u)); } catch (e) {} }
+    for (const s of this.sessions) {
+      if (s !== session && s.aw) { try { server.send(framed(1, s.aw)); } catch (e) {} }
     }
 
     server.addEventListener("message", async (evt) => {
-      // İkili mesaj Workers'a ArrayBuffer, Blob veya TypedArray olarak gelebilir.
-      const update = await toBytes(evt.data);
-      if (!update) return; // metin vb. yoksay
-      // Sakla (kalıcılaştır)
-      const list = await this._loadUpdates();
-      list.push(update);
-      await this.state.storage.put("updates", list.map((u) => Array.from(u)));
-      // Diğer oturumlara yayınla (gönderen hariç)
-      for (const s of this.sessions) {
-        if (s !== server) { try { s.send(update); } catch (e) {} }
+      const bytes = await toBytes(evt.data);
+      if (!bytes || bytes.length < 1) return;
+      const type = bytes[0];
+      const payload = bytes.subarray(1);
+      if (type === 0) {
+        // Yjs doc güncellemesi → sakla + yayınla
+        const copy = payload.slice();
+        const list = await this._loadUpdates();
+        list.push(copy);
+        await this.state.storage.put("updates", list.map((u) => Array.from(u)));
+        this._broadcast(session, framed(0, copy));
+      } else if (type === 1) {
+        // Awareness (presence/imleç) → saklanmaz, yalnız yayınlanır
+        session.aw = payload.slice();
+        this._broadcast(session, framed(1, session.aw));
       }
     });
 
-    const close = () => this.sessions.delete(server);
+    const close = () => this.sessions.delete(session);
     server.addEventListener("close", close);
     server.addEventListener("error", close);
 

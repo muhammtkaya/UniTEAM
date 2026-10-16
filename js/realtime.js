@@ -42,34 +42,139 @@ XL.realtime = {
     this.doc = ydoc;
     this.docId = docId;
 
-    // Sunucudan gelen güncellemeler → belgeye uygula (remote origin).
+    // Gelen mesajlar: [0]=Yjs doc güncellemesi, [1]=awareness (presence/imleç).
     ws.addEventListener("message", (evt) => {
       if (!(evt.data instanceof ArrayBuffer)) return;
-      Y.applyUpdate(ydoc, new Uint8Array(evt.data), "remote");
+      const bytes = new Uint8Array(evt.data);
+      if (bytes.length < 1) return;
+      const payload = bytes.subarray(1);
+      if (bytes[0] === 0) Y.applyUpdate(ydoc, payload, "remote");
+      else if (bytes[0] === 1) this._onAwareness(payload);
     });
 
-    // Yerel güncellemeler → sunucuya gönder (remote kaynaklı olanlar hariç).
+    // Yerel güncellemeler → sunucuya gönder ([0] öntakılı; remote hariç).
     this._onUpdate = (update, origin) => {
       if (origin === "remote") return;
-      if (ws.readyState === WebSocket.OPEN) ws.send(update);
+      if (ws.readyState === WebSocket.OPEN) ws.send(this._framed(0, update));
     };
     ydoc.on("update", this._onUpdate);
 
+    // Awareness (presence) kurulumu.
+    this._awSetup(ydoc);
+
     return new Promise((resolve, reject) => {
       ws.addEventListener("open", () => {
-        // Mevcut yerel durumu sunucuya tohumla (oda boşsa işe yarar).
         try {
           const state = Y.encodeStateAsUpdate(ydoc);
-          if (state && state.length) ws.send(state);
+          if (state && state.length) ws.send(this._framed(0, state));
         } catch (e) {}
+        this._sendAwareness();   // hemen "buradayım" bildir
         resolve(this);
       }, { once: true });
       ws.addEventListener("error", () => reject(new Error("WebSocket bağlanamadı")), { once: true });
     });
   },
 
+  /* ---------- Çerçeveleme + Awareness (RT3) ---------- */
+
+  // [type][payload] çerçevesi.
+  _framed(type, bytes) {
+    const out = new Uint8Array(bytes.length + 1);
+    out[0] = type; out.set(bytes, 1);
+    return out;
+  },
+
+  _colorFor(id) { return `hsl(${(id * 47) % 360} 70% 45%)`; },
+
+  _awSetup(ydoc) {
+    this._aw = { remote: new Map(), color: this._colorFor(ydoc.clientID), cursor: null, hb: null, prune: null };
+    this._aw.hb = setInterval(() => this._sendAwareness(), 4000);
+    this._aw.prune = setInterval(() => {
+      let changed = false;
+      const now = Date.now();
+      for (const [id, v] of this._aw.remote) { if (now - v.ts > 12000) { this._aw.remote.delete(id); changed = true; } }
+      if (changed) { this._renderPresence(); this._renderCursors(); }
+    }, 3000);
+    this._onScroll = () => this._renderCursors();
+    window.addEventListener("scroll", this._onScroll, true);
+    window.addEventListener("resize", this._onScroll);
+  },
+
+  _sendAwareness() {
+    if (!this.connected() || !this.doc || !this._aw) return;
+    const email = (XL.auth && XL.auth.user && XL.auth.user.email) || "?";
+    const state = { id: this.doc.clientID, email, color: this._aw.color, cursor: this._aw.cursor };
+    this.ws.send(this._framed(1, new TextEncoder().encode(JSON.stringify(state))));
+  },
+
+  _onAwareness(payload) {
+    if (!this._aw) return;
+    try {
+      const state = JSON.parse(new TextDecoder().decode(payload));
+      if (!state || state.id == null) return;
+      if (this.doc && state.id === this.doc.clientID) return; // kendimiz
+      this._aw.remote.set(state.id, { state, ts: Date.now() });
+      this._renderPresence();
+      this._renderCursors();
+    } catch (e) {}
+  },
+
+  _awTeardown() {
+    if (!this._aw) return;
+    clearInterval(this._aw.hb); clearInterval(this._aw.prune);
+    if (this._onScroll) { window.removeEventListener("scroll", this._onScroll, true); window.removeEventListener("resize", this._onScroll); this._onScroll = null; }
+    const p = document.getElementById("rt-presence"); if (p) p.remove();
+    const c = document.getElementById("rt-cursors"); if (c) c.remove();
+    this._aw = null;
+  },
+
+  _renderPresence() {
+    if (!this._aw) return;
+    let el = document.getElementById("rt-presence");
+    if (!el) { el = document.createElement("div"); el.id = "rt-presence"; document.body.appendChild(el); }
+    const chips = [...this._aw.remote.values()].map(({ state }) =>
+      `<span class="rt-chip" title="${XL.esc(state.email)}" style="background:${state.color}">${XL.esc((state.email || "?")[0].toUpperCase())}</span>`).join("");
+    el.innerHTML = chips ? `<span class="rt-plabel">Canlı:</span>${chips}` : "";
+  },
+
+  _renderCursors() {
+    if (!this._aw) return;
+    let cont = document.getElementById("rt-cursors");
+    if (!cont) { cont = document.createElement("div"); cont.id = "rt-cursors"; document.body.appendChild(cont); }
+    cont.innerHTML = "";
+    const body = XL.modes.docx && XL.modes.docx.body;
+    if (!body) return;
+    for (const { state } of this._aw.remote.values()) {
+      const cur = state.cursor;
+      if (!cur || !cur.bid) continue;
+      const top = body.querySelector(`[data-bid="${cur.bid}"]`);
+      if (!top) continue;
+      let remaining = cur.offset, target = null, toff = 0;
+      const walker = document.createTreeWalker(top, NodeFilter.SHOW_TEXT);
+      let n; while ((n = walker.nextNode())) { if (remaining <= n.length) { target = n; toff = remaining; break; } remaining -= n.length; }
+      const r = document.createRange();
+      if (target) r.setStart(target, toff); else { r.selectNodeContents(top); r.collapse(false); }
+      r.collapse(true);
+      const rect = r.getBoundingClientRect();
+      if (!rect || (rect.left === 0 && rect.top === 0)) continue;
+      const caret = document.createElement("div");
+      caret.className = "rt-caret";
+      caret.style.left = rect.left + "px";
+      caret.style.top = rect.top + "px";
+      caret.style.height = (rect.height || 16) + "px";
+      caret.style.background = state.color;
+      const label = document.createElement("div");
+      label.className = "rt-caret-label";
+      label.textContent = (state.email || "?").split("@")[0];
+      label.style.background = state.color;
+      caret.appendChild(label);
+      cont.appendChild(caret);
+    }
+  },
+
   disconnect() {
     this._unbindWord();
+    this._awTeardown();
     if (this.doc && this._onUpdate) { try { this.doc.off("update", this._onUpdate); } catch (e) {} }
     if (this.ws) { try { this.ws.close(); } catch (e) {} }
     this.ws = null;
@@ -133,6 +238,15 @@ XL.realtime = {
       this._word.pushT = setTimeout(() => this._wordPush(), 250);
     };
     mode.body.addEventListener("input", this._word.onInput);
+
+    // İmleç konumunu awareness ile paylaş (canlı imleçler).
+    this._word.onSel = () => {
+      if (!this._aw) return;
+      if (document.activeElement !== mode.body) return;
+      this._aw.cursor = this._saveCaret(mode.body);
+      this._sendAwareness();
+    };
+    document.addEventListener("selectionchange", this._word.onSel);
   },
 
   _unbindWord() {
@@ -140,6 +254,7 @@ XL.realtime = {
     if (!w) return;
     try { w.order.unobserve(w.onChange); w.blocks.unobserve(w.onChange); } catch (e) {}
     try { if (w.body && w.onInput) w.body.removeEventListener("input", w.onInput); } catch (e) {}
+    try { if (w.onSel) document.removeEventListener("selectionchange", w.onSel); } catch (e) {}
     clearTimeout(w.pushT);
     this._word = null;
   },
@@ -193,6 +308,7 @@ XL.realtime = {
       w.applying = false;
     }
     if (caret) this._restoreCaret(body, caret);
+    this._renderCursors();   // uzak imleç konumları kaydı
   },
 
   _saveCaret(body) {

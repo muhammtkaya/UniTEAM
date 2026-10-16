@@ -377,6 +377,28 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 #btn-live { opacity: .6; }
 #btn-live.live-on { opacity: 1; background: rgba(63,224,122,.35); border-color: #3fe07a; animation: livePulse 1.8s ease-in-out infinite; }
 @keyframes livePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(63,224,122,.5); } 50% { box-shadow: 0 0 0 4px rgba(63,224,122,0); } }
+
+/* Canlı: çevrimiçi kullanıcılar (presence) */
+#rt-presence {
+  position: fixed; top: 44px; right: 12px; z-index: 900;
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,.95); border: 1px solid var(--line);
+  border-radius: 20px; padding: 3px 8px; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  font-size: 12px; pointer-events: none;
+}
+#rt-presence:empty { display: none; }
+#rt-presence .rt-plabel { color: #6b7280; margin-right: 2px; }
+#rt-presence .rt-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 11px;
+}
+/* Canlı: uzak imleçler */
+#rt-cursors { position: fixed; inset: 0; z-index: 899; pointer-events: none; }
+#rt-cursors .rt-caret { position: fixed; width: 2px; }
+#rt-cursors .rt-caret-label {
+  position: absolute; top: -14px; left: 0; white-space: nowrap;
+  color: #fff; font-size: 10px; line-height: 1; padding: 2px 4px; border-radius: 3px 3px 3px 0;
+}
 #btn-account .acct-label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #btn-account .acct-dot { width: 8px; height: 8px; border-radius: 50%; background: #3fe07a; box-shadow: 0 0 0 2px rgba(255,255,255,.4); flex: none; }
 

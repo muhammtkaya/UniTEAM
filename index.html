@@ -14,6 +14,8 @@
   <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <!-- Kimlik & bulut (Supabase) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js"></script>
 </head>
 <body data-mode="xlsx">
   <!-- ÜST ÇUBUK: ortak dosya işlemleri -->
@@ -25,6 +27,7 @@
       <button id="btn-open" title="Dosya aç (.xlsx .csv .docx .pptx)">📂 Aç</button>
       <button id="btn-save" title="Etkin belgeyi indir">💾 Kaydet</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.docx,.pptx" hidden />
+      <button id="btn-account" title="Giriş yap / Kayıt ol">👤 Giriş</button>
     </div>
   </header>
 
@@ -62,6 +65,8 @@
 
   <!-- Ortak -->
   <script src="js/core.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/storage.js"></script>
   <!-- Excel modu -->
   <script src="js/excel/formula.js"></script>

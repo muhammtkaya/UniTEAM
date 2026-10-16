@@ -488,3 +488,47 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 .auth-msg.error { background: #fdecea; color: #b42318; }
 .auth-msg.ok { background: #e7f6ec; color: #197245; }
 .auth-hint { font-size: 12px; color: #9ca3af; text-align: center; margin: 12px 0 0; }
+
+/* ---------- Yorumlar & Bildirimler (işbirliği) ---------- */
+#btn-notif { position: relative; }
+#btn-notif.has-unread { color: #c2410c; }
+#btn-notif .notif-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px;
+  background: #e11d48; color: #fff; border-radius: 8px; font-size: 10px; line-height: 15px;
+  text-align: center; font-weight: 700;
+}
+
+#cmt-wrap { display: flex; flex-direction: column; gap: 10px; min-width: 360px; max-width: 420px; }
+#cmt-list { max-height: 50vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.cmt { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: #fff; }
+.cmt-resolved { opacity: .6; background: #f7f8fa; }
+.cmt-head { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.cmt-head .muted { font-size: 11px; }
+.cmt-badge { margin-left: auto; font-size: 10px; background: #e7f6ec; color: #197245; padding: 1px 6px; border-radius: 10px; }
+.cmt-text { font-size: 13px; margin: 4px 0; white-space: pre-wrap; word-break: break-word; }
+.cmt-at { color: #2563eb; font-weight: 600; }
+.cmt-mentions { font-size: 11px; margin-bottom: 4px; }
+.cmt-row { display: flex; gap: 6px; }
+.cmt-row button { font-size: 11px; padding: 2px 7px; background: #f3f4f6; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+.cmt-row button:hover { background: #e9ebef; }
+.cmt-replies { margin-top: 8px; padding-left: 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.cmt-reply { background: #fafbfc; }
+#cmt-compose { border-top: 1px solid var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+#cmt-body { width: 100%; resize: vertical; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; box-sizing: border-box; }
+#cmt-replybar { font-size: 12px; background: #eef2ff; padding: 4px 8px; border-radius: 6px; }
+#cmt-replybar button { margin-left: 6px; border: none; background: transparent; cursor: pointer; color: #6b7280; }
+.cmt-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.cmt-chip { font-size: 11px; padding: 2px 8px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; border-radius: 12px; cursor: pointer; }
+.cmt-chip:hover { background: #e0e7ff; }
+.cmt-send-row { display: flex; align-items: center; gap: 8px; }
+#cmt-send { padding: 5px 14px; }
+
+#ntf-list { min-width: 340px; max-width: 420px; max-height: 60vh; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.ntf-top { display: flex; justify-content: flex-end; }
+.ntf-top button { font-size: 12px; }
+.ntf { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.ntf:hover { background: #f7f8fa; }
+.ntf-unread { background: #eff6ff; border-color: #bfdbfe; }
+.ntf-text { font-size: 13px; }
+.ntf-ex { font-size: 12px; margin-top: 2px; }
+.ntf-time { font-size: 11px; margin-top: 2px; }

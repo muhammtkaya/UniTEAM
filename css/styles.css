@@ -373,6 +373,10 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 /* Üst çubuktaki hesap düğmesi */
 #btn-account { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; }
 #btn-account.signed-in { background: rgba(255,255,255,.28); }
+/* Canlı düzenleme düğmesi — kapalıyken soluk, açıkken yeşil yanıp söner */
+#btn-live { opacity: .6; }
+#btn-live.live-on { opacity: 1; background: rgba(63,224,122,.35); border-color: #3fe07a; animation: livePulse 1.8s ease-in-out infinite; }
+@keyframes livePulse { 0%,100% { box-shadow: 0 0 0 0 rgba(63,224,122,.5); } 50% { box-shadow: 0 0 0 4px rgba(63,224,122,0); } }
 #btn-account .acct-label { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #btn-account .acct-dot { width: 8px; height: 8px; border-radius: 50%; background: #3fe07a; box-shadow: 0 0 0 2px rgba(255,255,255,.4); flex: none; }
 

@@ -52,6 +52,12 @@ XL.ws = {
 
   /* ---------- Mod değiştirme ---------- */
   activate(id, first) {
+    // Belge değişince canlı düzenlemeyi kapat (bağ belgeye özeldir).
+    if (!first && XL.realtime && XL.realtime._word) {
+      XL.realtime.disconnect();
+      const lb = document.getElementById("btn-live");
+      if (lb) lb.classList.remove("live-on");
+    }
     const prev = this.active();
     if (prev && this.mounted && !first) {
       try { this.modeOf(prev).unmount(prev); } catch (e) { console.error(e); }

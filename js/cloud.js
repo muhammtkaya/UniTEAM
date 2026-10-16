@@ -150,12 +150,14 @@ XL.cloud = {
 
   /* ---------- Link ile paylaşım ---------- */
 
-  async createLink(docId, role, expiresAt = null) {
+  async createLink(docId, role, expiresAt = null, isPublic = false) {
     this._assert();
     // Tahmin edilemez token (iki UUID, tirelersiz).
     const token = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, "");
+    // Herkese açık link yalnız görüntüleme (anon kullanıcı document_shares'e eklenemez).
+    const effRole = isPublic ? "viewer" : role;
     const { data, error } = await this.client().from("share_links")
-      .insert({ document_id: docId, token, role, is_public: false, expires_at: expiresAt, created_by: XL.auth.user.id })
+      .insert({ document_id: docId, token, role: effRole, is_public: isPublic, expires_at: expiresAt, created_by: XL.auth.user.id })
       .select().single();
     if (error) throw error;
     return data;
@@ -164,10 +166,38 @@ XL.cloud = {
   async listLinks(docId) {
     this._assert();
     const { data, error } = await this.client().from("share_links")
-      .select("id, token, role, expires_at, created_at").eq("document_id", docId)
+      .select("id, token, role, is_public, expires_at, created_at").eq("document_id", docId)
       .order("created_at", { ascending: false });
     if (error) throw error;
     return data;
+  },
+
+  /* ---------- Anonim (giriş gerektirmeyen) herkese açık link ---------- */
+
+  // Token'ı çöz (giriş gerekmez): { document_id, name, type, role } döner.
+  async resolvePublic(token) {
+    const { data, error } = await this.client().rpc("resolve_public_link", { p_token: token });
+    if (error) throw error;
+    if (!data || !data.length) throw new Error("Bağlantı çözülemedi.");
+    return data[0];
+  },
+
+  // Byte'ı giriş yapmadan indir (anon). _assert YOK — storage anon politikası izin verir.
+  async getBytesPublic(id) {
+    const { data, error } = await this.client().storage.from("documents").download(`${id}.json`);
+    if (error) throw error;
+    return JSON.parse(await data.text());
+  },
+
+  // Public belgeyi anonim (salt görüntüleme) olarak aç — yerel kopya, buluta bağlı değil.
+  async openPublic(token) {
+    const info = await this.resolvePublic(token);
+    const data = await this.getBytesPublic(info.document_id);
+    // URL'yi temizle (başarılı çözümden sonra; giriş sonrası tekrar deneme bozulmasın diye önce değil).
+    history.replaceState(null, "", location.origin + location.pathname);
+    XL.ws.create(info.type, data, info.name);
+    XL.status("👁 Salt görüntüleme — paylaşılan belgenin yerel kopyası (giriş yapılmadı).");
+    return info;
   },
 
   async revokeLink(linkId) {
@@ -191,20 +221,30 @@ XL.cloud = {
   async handleUrlLink() {
     const token = new URLSearchParams(location.search).get("link");
     if (!token) return;
-    if (!this.enabled()) {
-      if (XL.auth && !XL.auth.user) XL.auth.openModal();  // giriş sonrası tekrar denenir
+
+    // Giriş yapılmışsa: token'ı bozdur (kalıcı erişim ver) ve aç.
+    if (this.enabled()) {
+      history.replaceState(null, "", location.origin + location.pathname);
+      XL.status("Paylaşılan belge açılıyor…");
+      try {
+        const docId = await this.redeemLink(token);
+        await this.openDoc(docId);
+      } catch (e) {
+        console.error(e);
+        alert("Bağlantı açılamadı: " + (e.message || e));
+        XL.status("");
+      }
       return;
     }
-    // URL'yi temizle (tekrar bozdurmayı önle)
-    history.replaceState(null, "", location.origin + location.pathname);
+
+    // Giriş yok: herkese açık link ise anonim (salt görüntüleme) aç; değilse giriş iste.
     XL.status("Paylaşılan belge açılıyor…");
     try {
-      const docId = await this.redeemLink(token);
-      await this.openDoc(docId);
+      await this.openPublic(token);   // başarıda URL'yi kendi temizler
     } catch (e) {
-      console.error(e);
-      alert("Bağlantı açılamadı: " + (e.message || e));
+      // Özel link (herkese açık değil) → giriş gerekir; token URL'de kalır, giriş sonrası tekrar denenir.
       XL.status("");
+      if (XL.auth && !XL.auth.user) XL.auth.openModal();
     }
   },
 
@@ -296,6 +336,7 @@ XL.cloud = {
           <select id="lk-role">${roles.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
           <button id="lk-add" class="share-add">🔗 Oluştur</button>
         </div>
+        <label class="lk-public"><input type="checkbox" id="lk-public"> 🌐 Herkese açık (giriş gerekmez, salt görüntüleme)</label>
         <div id="lk-list"><p class="muted">Yükleniyor…</p></div>
       </div>`);
 
@@ -326,7 +367,7 @@ XL.cloud = {
         const links = await this.listLinks(docId);
         list.innerHTML = links.length
           ? links.map((lk) => `<div class="share-row link-row" data-token="${lk.token}">
-               <span class="sr-role">${roleName[lk.role] || lk.role}</span>
+               <span class="sr-role">${lk.is_public ? "🌐 herkese açık" : (roleName[lk.role] || lk.role)}</span>
                <button class="lk-copy" data-token="${lk.token}" title="Bağlantıyı kopyala">📋 Kopyala</button>
                <button class="sr-del" data-lid="${lk.id}" title="Bağlantıyı iptal et">✕</button>
              </div>`).join("")
@@ -360,9 +401,10 @@ XL.cloud = {
     });
     document.getElementById("lk-add").addEventListener("click", async () => {
       const role = document.getElementById("lk-role").value;
+      const isPublic = document.getElementById("lk-public").checked;
       msg("");
       try {
-        const lk = await this.createLink(docId, role);
+        const lk = await this.createLink(docId, role, null, isPublic);
         const url = this.linkUrl(lk.token);
         try { await navigator.clipboard.writeText(url); msg("Bağlantı oluşturuldu ve kopyalandı", "ok"); }
         catch { msg("Bağlantı oluşturuldu", "ok"); }

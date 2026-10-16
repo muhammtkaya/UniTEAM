@@ -540,3 +540,6 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 .cmt-anchor:hover { background: #ffedd5; }
 .cmt-flash { animation: cmtFlash 1.2s ease-out; }
 @keyframes cmtFlash { 0% { box-shadow: 0 0 0 3px rgba(251,146,60,.6); background: rgba(254,215,170,.5); } 100% { box-shadow: 0 0 0 0 rgba(251,146,60,0); } }
+
+/* Herkese açık link seçeneği */
+.lk-public { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; margin-top: 4px; cursor: pointer; }

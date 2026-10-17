@@ -29,6 +29,9 @@ XL.grid = {
       const th = document.createElement("th");
       th.textContent = XL.colLetter(c);
       th.dataset.c = c;
+      const grip = document.createElement("div");
+      grip.className = "col-resizer";
+      th.appendChild(grip);
       htr.appendChild(th);
     }
     thead.appendChild(htr);
@@ -41,6 +44,9 @@ XL.grid = {
       rh.className = "rowhead";
       rh.textContent = r + 1;
       rh.dataset.r = r;
+      const rgrip = document.createElement("div");
+      rgrip.className = "row-resizer";
+      rh.appendChild(rgrip);
       tr.appendChild(rh);
       const rowCells = [];
       for (let c = 0; c < XL.COLS; c++) {
@@ -57,6 +63,7 @@ XL.grid = {
 
     this.attachTableEvents();
     this.bindGlobals();
+    XL.sheetLayout.applyToGrid();   // sütun genişliği / satır yüksekliği / birleştirme
     this.render();
     this.updateSelection();
   },
@@ -83,6 +90,14 @@ XL.grid = {
   // Tablo her kurulduğunda yeniden oluşturulur, bu yüzden dinleyicileri ona bağlamak güvenli
   attachTableEvents() {
     const table = this.table;
+
+    // Sütun / satır kenarını sürükleyerek yeniden boyutlandırma
+    table.addEventListener("mousedown", (e) => {
+      const cr = e.target.closest(".col-resizer");
+      if (cr) { e.preventDefault(); e.stopPropagation(); this.startColResize(+cr.parentElement.dataset.c, e.clientX); return; }
+      const rr = e.target.closest(".row-resizer");
+      if (rr) { e.preventDefault(); e.stopPropagation(); this.startRowResize(+rr.parentElement.dataset.r, e.clientY); return; }
+    });
 
     table.addEventListener("mousedown", (e) => {
       const td = e.target.closest("td");
@@ -117,6 +132,7 @@ XL.grid = {
 
     // Sütun / satır başlığı = tamamını seç
     table.addEventListener("click", (e) => {
+      if (this._justResized) { this._justResized = false; return; }  // boyutlandırma sonrası seçme
       const th = e.target.closest("th");
       if (!th || th.classList.contains("corner")) return;
       if (th.dataset.c !== undefined) {
@@ -130,6 +146,44 @@ XL.grid = {
       }
       this.updateSelection(false);
     });
+  },
+
+  /* ---- Sütun / satır yeniden boyutlandırma (sürükle) ---- */
+  startColResize(c, startX) {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;
+    const startW = XL.sheetLayout.colWidth(c);
+    const th = this.table.querySelector(`thead th[data-c="${c}"]`);
+    const move = (e) => {
+      const w = Math.max(24, startW + (e.clientX - startX));
+      XL.sheetLayout.setColWidth(c, w);
+      if (th) th.style.cssText += `;width:${w}px;min-width:${w}px;max-width:${w}px`;
+    };
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      this._justResized = true;
+      XL.ws.changed();
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  },
+  startRowResize(r, startY) {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;
+    const startH = XL.sheetLayout.rowHeight(r);
+    const tr = this.table.querySelectorAll("tbody tr")[r];
+    const move = (e) => {
+      const h = Math.max(16, startH + (e.clientY - startY));
+      XL.sheetLayout.setRowHeight(r, h);
+      if (tr) tr.style.height = h + "px";
+    };
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      this._justResized = true;
+      XL.ws.changed();
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
   },
 
   // Belge düzeyindeki dinleyiciler yalnızca bir kez bağlanır
@@ -203,6 +257,7 @@ XL.grid = {
 
   /* ---- Düzenleme ---- */
   startEdit(r, c, initial) {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;  // salt görüntüleme
     this.editing = { r, c };
     const td = this.cells[r][c];
     const raw = initial !== undefined ? initial : XL.engine.getRaw(r, c);
@@ -322,6 +377,7 @@ XL.grid = {
   },
 
   clearSelection() {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;  // salt görüntüleme
     XL.forEachInSelection((r, c) => XL.engine.setCell(r, c, ""));
     this.render();
     this.updateSelection();
@@ -360,6 +416,7 @@ XL.grid = {
   // Sekmeyle ayrılmış metni (Excel/Sheets'ten kopyalanan biçim) etkin hücreden itibaren yapıştır
   pasteText(text) {
     if (!text) return;
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;  // salt görüntüleme
     // Kendi kopyaladığımız aralıksa ham içeriği (formüller dahil) kullan
     const grid = text === this.clipboardText && this.clipboard
       ? this.clipboard

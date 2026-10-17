@@ -35,118 +35,120 @@ XL.modes.xlsx = {
       "PMT", "FV", "PV", "NPV", "IRR", "IFERROR", "ISBLANK", "ISNUMBER", "FILTER", "SORT", "UNIQUE"]
       .map((f) => `<option value="${f}">${f}</option>`).join("");
 
+    const t = XL.t;
     return [
-      { name: "Giriş", html: `
+      { name: t("Giriş", "Home"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="undo" title="Geri al (Ctrl+Z)">↶</button>
-          <button data-cmd="redo" title="İleri al (Ctrl+Y)">↷</button>
-        </div><label>Geri Al</label></div>
+          <button data-cmd="undo" title="${t("Geri al (Ctrl+Z)", "Undo (Ctrl+Z)")}">↶</button>
+          <button data-cmd="redo" title="${t("İleri al (Ctrl+Y)", "Redo (Ctrl+Y)")}">↷</button>
+        </div><label>${t("Geri Al", "Undo")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="cut" title="Kes (Ctrl+X)">✂</button>
-          <button data-cmd="copy" title="Kopyala (Ctrl+C)">⧉</button>
-          <button data-cmd="paste" title="Yapıştır (Ctrl+V)">📋</button>
-        </div><label>Pano</label></div>
+          <button data-cmd="cut" title="${t("Kes (Ctrl+X)", "Cut (Ctrl+X)")}">✂</button>
+          <button data-cmd="copy" title="${t("Kopyala (Ctrl+C)", "Copy (Ctrl+C)")}">⧉</button>
+          <button data-cmd="paste" title="${t("Yapıştır (Ctrl+V)", "Paste (Ctrl+V)")}">📋</button>
+        </div><label>${t("Pano", "Clipboard")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="bold" data-state="bold" title="Kalın (Ctrl+B)"><b>K</b></button>
-          <button data-cmd="italic" data-state="italic" title="İtalik (Ctrl+I)"><i>T</i></button>
-          <button data-cmd="underline" data-state="underline" title="Altı çizili (Ctrl+U)"><u>A</u></button>
-          <label class="swatch" title="Yazı rengi">A<input type="color" data-cmd="color" value="#c00000"></label>
-          <label class="swatch" title="Dolgu rengi">🖌<input type="color" data-cmd="bg" value="#ffff00"></label>
-        </div><label>Yazı Tipi</label></div>
+          <button data-cmd="bold" data-state="bold" title="${t("Kalın (Ctrl+B)", "Bold (Ctrl+B)")}"><b>K</b></button>
+          <button data-cmd="italic" data-state="italic" title="${t("İtalik (Ctrl+I)", "Italic (Ctrl+I)")}"><i>T</i></button>
+          <button data-cmd="underline" data-state="underline" title="${t("Altı çizili (Ctrl+U)", "Underline (Ctrl+U)")}"><u>A</u></button>
+          <label class="swatch" title="${t("Yazı rengi", "Font color")}">A<input type="color" data-cmd="color" value="#c00000"></label>
+          <label class="swatch" title="${t("Dolgu rengi", "Fill color")}">🖌<input type="color" data-cmd="bg" value="#ffff00"></label>
+        </div><label>${t("Yazı Tipi", "Font")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="align-left" title="Sola hizala">⯇</button>
-          <button data-cmd="align-center" title="Ortala">≡</button>
-          <button data-cmd="align-right" title="Sağa hizala">⯈</button>
-        </div><label>Hizalama</label></div>
+          <button data-cmd="align-left" title="${t("Sola hizala", "Align left")}">⯇</button>
+          <button data-cmd="align-center" title="${t("Ortala", "Center")}">≡</button>
+          <button data-cmd="align-right" title="${t("Sağa hizala", "Align right")}">⯈</button>
+          <button data-cmd="merge-center" data-state="merge" title="${t("Hücreleri birleştir ve ortala / çöz", "Merge & center / unmerge")}">⬌ ${t("Birleştir", "Merge")}</button>
+        </div><label>${t("Hizalama", "Alignment")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="numfmt" id="numfmt" title="Sayı biçimi">
-            <option value="general">Genel</option>
-            <option value="number">Sayı</option>
-            <option value="currency">Para (₺)</option>
-            <option value="percent">Yüzde</option>
-            <option value="date">Tarih</option>
+          <select data-cmd="numfmt" id="numfmt" title="${t("Sayı biçimi", "Number format")}">
+            <option value="general">${t("Genel", "General")}</option>
+            <option value="number">${t("Sayı", "Number")}</option>
+            <option value="currency">${t("Para (₺)", "Currency (₺)")}</option>
+            <option value="percent">${t("Yüzde", "Percent")}</option>
+            <option value="date">${t("Tarih", "Date")}</option>
           </select>
-          <button data-cmd="clear-format" title="Biçimi temizle">⌫</button>
-        </div><label>Sayı</label></div>
+          <button data-cmd="clear-format" title="${t("Biçimi temizle", "Clear formatting")}">⌫</button>
+        </div><label>${t("Sayı", "Number")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="insert-row" title="Üste satır ekle">+Satır</button>
-          <button data-cmd="delete-row" title="Satırları sil">−Satır</button>
-          <button data-cmd="insert-col" title="Sola sütun ekle">+Sütun</button>
-          <button data-cmd="delete-col" title="Sütunları sil">−Sütun</button>
-        </div><label>Hücreler</label></div>
+          <button data-cmd="insert-row" title="${t("Üste satır ekle", "Insert row above")}">+${t("Satır", "Row")}</button>
+          <button data-cmd="delete-row" title="${t("Satırları sil", "Delete rows")}">−${t("Satır", "Row")}</button>
+          <button data-cmd="insert-col" title="${t("Sola sütun ekle", "Insert column left")}">+${t("Sütun", "Col")}</button>
+          <button data-cmd="delete-col" title="${t("Sütunları sil", "Delete columns")}">−${t("Sütun", "Col")}</button>
+        </div><label>${t("Hücreler", "Cells")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="autosum" title="Otomatik Toplam">Σ Topla</button>
-          <button data-cmd="sort-asc" title="Artan sırala">A→Z</button>
-          <button data-cmd="sort-desc" title="Azalan sırala">Z→A</button>
-          <button data-cmd="find" title="Bul ve değiştir (Ctrl+H)">🔍</button>
-        </div><label>Düzenleme</label></div>` },
+          <button data-cmd="autosum" title="${t("Otomatik Toplam", "AutoSum")}">Σ ${t("Topla", "Sum")}</button>
+          <button data-cmd="sort-asc" title="${t("Artan sırala", "Sort ascending")}">A→Z</button>
+          <button data-cmd="sort-desc" title="${t("Azalan sırala", "Sort descending")}">Z→A</button>
+          <button data-cmd="find" title="${t("Bul ve değiştir (Ctrl+H)", "Find & replace (Ctrl+H)")}">🔍</button>
+        </div><label>${t("Düzenleme", "Editing")}</label></div>` },
 
-      { name: "Ekle", html: `
+      { name: t("Ekle", "Insert"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="chart" class="big">📈<span>Grafik</span></button>
-          <button data-cmd="pivot" class="big">📋<span>Özet Tablo</span></button>
-        </div><label>Grafikler & Tablolar</label></div>
+          <button data-cmd="chart" class="big">📈<span>${t("Grafik", "Chart")}</span></button>
+          <button data-cmd="pivot" class="big">📋<span>${t("Özet Tablo", "PivotTable")}</span></button>
+        </div><label>${t("Grafikler & Tablolar", "Charts & Tables")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="add-sheet" class="big">🗎<span>Yeni Sayfa</span></button>
-        </div><label>Sayfa</label></div>` },
+          <button data-cmd="add-sheet" class="big">🗎<span>${t("Yeni Sayfa", "New Sheet")}</span></button>
+        </div><label>${t("Sayfa", "Sheet")}</label></div>` },
 
-      { name: "Formüller", html: `
+      { name: t("Formüller", "Formulas"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="autosum" class="big">Σ<span>Otomatik Toplam</span></button>
-          <button data-cmd="fn-library" class="big">ƒx<span>Fonksiyon Kitaplığı</span></button>
-        </div><label>Fonksiyonlar</label></div>
+          <button data-cmd="autosum" class="big">Σ<span>${t("Otomatik Toplam", "AutoSum")}</span></button>
+          <button data-cmd="fn-library" class="big">ƒx<span>${t("Fonksiyon Kitaplığı", "Function Library")}</span></button>
+        </div><label>${t("Fonksiyonlar", "Functions")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="insert-fn" title="Hızlı fonksiyon ekle">
-            <option value="">Fonksiyon ekle…</option>${fnOpts}
+          <select data-cmd="insert-fn" title="${t("Hızlı fonksiyon ekle", "Quick insert function")}">
+            <option value="">${t("Fonksiyon ekle…", "Add function…")}</option>${fnOpts}
           </select>
-        </div><label>Hızlı Ekle</label></div>
+        </div><label>${t("Hızlı Ekle", "Quick Insert")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="show-formulas" data-state="showFormulas" title="Hücrelerde formülleri göster">⟨=⟩ Formülleri Göster</button>
-        </div><label>Denetim</label></div>` },
+          <button data-cmd="show-formulas" data-state="showFormulas" title="${t("Hücrelerde formülleri göster", "Show formulas in cells")}">⟨=⟩ ${t("Formülleri Göster", "Show Formulas")}</button>
+        </div><label>${t("Denetim", "Auditing")}</label></div>` },
 
-      { name: "Veri", html: `
+      { name: t("Veri", "Data"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="sort-asc" class="big">A→Z<span>Artan</span></button>
-          <button data-cmd="sort-desc" class="big">Z→A<span>Azalan</span></button>
-        </div><label>Sırala</label></div>
+          <button data-cmd="sort-asc" class="big">A→Z<span>${t("Artan", "Ascending")}</span></button>
+          <button data-cmd="sort-desc" class="big">Z→A<span>${t("Azalan", "Descending")}</span></button>
+        </div><label>${t("Sırala", "Sort")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="filter" class="big">⏷<span>Filtre</span></button>
-          <button data-cmd="clear-filter" class="big">✕<span>Filtreyi Temizle</span></button>
-        </div><label>Filtre</label></div>
+          <button data-cmd="filter" class="big">⏷<span>${t("Filtre", "Filter")}</span></button>
+          <button data-cmd="clear-filter" class="big">✕<span>${t("Filtreyi Temizle", "Clear Filter")}</span></button>
+        </div><label>${t("Filtre", "Filter")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="dedupe" class="big">⧉✕<span>Yinelenenleri Kaldır</span></button>
-          <button data-cmd="csv" class="big">⇩<span>CSV İndir</span></button>
-        </div><label>Veri Araçları</label></div>` },
+          <button data-cmd="dedupe" class="big">⧉✕<span>${t("Yinelenenleri Kaldır", "Remove Duplicates")}</span></button>
+          <button data-cmd="csv" class="big">⇩<span>${t("CSV İndir", "Download CSV")}</span></button>
+        </div><label>${t("Veri Araçları", "Data Tools")}</label></div>` },
 
-      { name: "Görünüm", html: `
+      { name: t("Görünüm", "View"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="freeze-row" data-state="freezeRow">Üst Satırı Dondur</button>
-          <button data-cmd="freeze-col" data-state="freezeCol">İlk Sütunu Dondur</button>
-        </div><label>Bölmeler</label></div>
+          <button data-cmd="freeze-row" data-state="freezeRow">${t("Üst Satırı Dondur", "Freeze Top Row")}</button>
+          <button data-cmd="freeze-col" data-state="freezeCol">${t("İlk Sütunu Dondur", "Freeze First Column")}</button>
+        </div><label>${t("Bölmeler", "Panes")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="gridlines" data-state="gridlines">Kılavuz Çizgileri</button>
-        </div><label>Göster</label></div>
+          <button data-cmd="gridlines" data-state="gridlines">${t("Kılavuz Çizgileri", "Gridlines")}</button>
+        </div><label>${t("Göster", "Show")}</label></div>
         <div class="rgroup"><div class="rrow">
           <select data-cmd="zoom" id="xl-zoom">
             <option value="0.5">%50</option><option value="0.75">%75</option>
             <option value="1" selected>%100</option><option value="1.25">%125</option>
             <option value="1.5">%150</option>
           </select>
-        </div><label>Yakınlaştır</label></div>` },
+        </div><label>${t("Yakınlaştır", "Zoom")}</label></div>` },
 
-      { name: "Düzen", html: `
+      { name: t("Düzen", "Layout"), html: `
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="print-margin" id="xl-pmargin" title="Yazdırma kenar boşlukları">
-            <option value="normal">Normal</option>
-            <option value="narrow">Dar</option>
-            <option value="wide">Geniş</option>
-            <option value="none">Yok</option>
-            <option value="custom">Özel…</option>
+          <select data-cmd="print-margin" id="xl-pmargin" title="${t("Yazdırma kenar boşlukları", "Print margins")}">
+            <option value="normal">${t("Normal", "Normal")}</option>
+            <option value="narrow">${t("Dar", "Narrow")}</option>
+            <option value="wide">${t("Geniş", "Wide")}</option>
+            <option value="none">${t("Yok", "None")}</option>
+            <option value="custom">${t("Özel…", "Custom…")}</option>
           </select>
-        </div><label>Kenar Boşlukları</label></div>
+        </div><label>${t("Kenar Boşlukları", "Margins")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="print-hf" class="big">🔢<span>Üst/Alt Bilgi</span></button>
-        </div><label>Yazdırma</label></div>` },
+          <button data-cmd="print-hf" class="big">🔢<span>${t("Üst/Alt Bilgi", "Header/Footer")}</span></button>
+        </div><label>${t("Yazdırma", "Print")}</label></div>` },
     ];
   },
 
@@ -156,16 +158,16 @@ XL.modes.xlsx = {
   mount(doc) {
     document.getElementById("subbar").innerHTML = `
       <div id="formula-bar">
-        <div id="namebox" contenteditable="true" spellcheck="false" title="Ad kutusu">A1</div>
+        <div id="namebox" contenteditable="true" spellcheck="false" title="${XL.t("Ad kutusu", "Name box")}">A1</div>
         <div class="fx">ƒx</div>
-        <input id="formula-input" type="text" spellcheck="false" placeholder="Değer veya =FORMÜL" />
+        <input id="formula-input" type="text" spellcheck="false" placeholder="${XL.t("Değer veya =FORMÜL", "Value or =FORMULA")}" />
       </div>`;
     document.getElementById("workarea").innerHTML = `
       <div id="xl-wrap">
         <input id="xl-keysink" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Hücre girişi" />
         <div id="grid-scroll"><table id="grid"></table></div>
         <div id="sheetbar">
-          <button id="add-sheet" title="Sayfa ekle">＋</button>
+          <button id="add-sheet" title="${XL.t("Sayfa ekle", "Add sheet")}">＋</button>
           <div id="sheettabs"></div>
         </div>
       </div>`;
@@ -269,6 +271,7 @@ XL.modes.xlsx = {
       case "zoom": this.view.zoom = parseFloat(value) || 1; return this.applyView();
       case "print-margin": return this.setPrintMargin(value);
       case "print-hf": return this.printHFDialog();
+      case "merge-center": return XL.sheetLayout.toggleMerge();
     }
   },
 
@@ -278,7 +281,7 @@ XL.modes.xlsx = {
     if (value === "custom") return this.marginDialog();
     XL.state.page.margins = value;
     XL.ws.changed();
-    XL.status("Yazdırma kenar boşluğu: " + value);
+    XL.status(XL.t("Yazdırma kenar boşluğu: ", "Print margin: ") + value);
   },
 
   // Özel kenar boşluğu (cm, 4 kenar) — dışa aktarımda inç'e çevrilir
@@ -289,15 +292,15 @@ XL.modes.xlsx = {
       ? { t: cm(p.margins.top), b: cm(p.margins.bottom), l: cm(p.margins.left), r: cm(p.margins.right) }
       : { t: cm(this.MARGINS.normal.top), b: cm(this.MARGINS.normal.bottom), l: cm(this.MARGINS.normal.left), r: cm(this.MARGINS.normal.right) };
     const inp = (id, v) => `<input id="${id}" type="number" min="0" max="10" step="0.1" value="${v}" style="width:70px"> cm`;
-    XL.showPanel("Özel Kenar Boşlukları", `
+    XL.showPanel(XL.t("Özel Kenar Boşlukları", "Custom Margins"), `
       <div style="display:grid;grid-template-columns:auto auto;gap:8px 10px;align-items:center">
-        <label>Üst</label>${inp("xm-t", cur.t)}
-        <label>Alt</label>${inp("xm-b", cur.b)}
-        <label>Sol</label>${inp("xm-l", cur.l)}
-        <label>Sağ</label>${inp("xm-r", cur.r)}
+        <label>${XL.t("Üst", "Top")}</label>${inp("xm-t", cur.t)}
+        <label>${XL.t("Alt", "Bottom")}</label>${inp("xm-b", cur.b)}
+        <label>${XL.t("Sol", "Left")}</label>${inp("xm-l", cur.l)}
+        <label>${XL.t("Sağ", "Right")}</label>${inp("xm-r", cur.r)}
       </div>
-      <p style="margin-top:12px"><button id="xm-ok">Uygula</button>
-      <button id="xm-cancel" class="btn-secondary">Vazgeç</button></p>`);
+      <p style="margin-top:12px"><button id="xm-ok">${XL.t("Uygula", "Apply")}</button>
+      <button id="xm-cancel" class="btn-secondary">${XL.t("Vazgeç", "Cancel")}</button></p>`);
     const num = (id, d) => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? d : Math.max(0, Math.min(10, v)); };
     const toInch = (c) => +(c / 2.54).toFixed(3);
     document.getElementById("xm-ok").onclick = () => {
@@ -318,31 +321,32 @@ XL.modes.xlsx = {
       <fieldset style="border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0">
         <legend style="padding:0 4px">${label}</legend>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
-          <label style="font-size:12px">Sol<br><input id="${pre}-l" value="${XL.esc(obj.l || "")}" style="width:100%"></label>
-          <label style="font-size:12px">Orta<br><input id="${pre}-c" value="${XL.esc(obj.c || "")}" style="width:100%"></label>
-          <label style="font-size:12px">Sağ<br><input id="${pre}-r" value="${XL.esc(obj.r || "")}" style="width:100%"></label>
+          <label style="font-size:12px">${XL.t("Sol", "Left")}<br><input id="${pre}-l" value="${XL.esc(obj.l || "")}" style="width:100%"></label>
+          <label style="font-size:12px">${XL.t("Orta", "Center")}<br><input id="${pre}-c" value="${XL.esc(obj.c || "")}" style="width:100%"></label>
+          <label style="font-size:12px">${XL.t("Sağ", "Right")}<br><input id="${pre}-r" value="${XL.esc(obj.r || "")}" style="width:100%"></label>
         </div>
       </fieldset>`;
-    XL.showPanel("Yazdırma Üst/Alt Bilgisi", `
+    XL.showPanel(XL.t("Yazdırma Üst/Alt Bilgisi", "Print Header/Footer"), `
       <div style="display:grid;gap:12px;min-width:360px">
-        ${row("Üst Bilgi", p.header, "xh")}
-        ${row("Alt Bilgi", p.footer, "xf")}
-        <p style="margin:0;font-size:12px;opacity:.75">İpucu: sayfa numarası için <code>&amp;P</code>, toplam sayfa için <code>&amp;N</code>, tarih için <code>&amp;D</code> yazabilirsiniz.</p>
+        ${row(XL.t("Üst Bilgi", "Header"), p.header, "xh")}
+        ${row(XL.t("Alt Bilgi", "Footer"), p.footer, "xf")}
+        <p style="margin:0;font-size:12px;opacity:.75">${XL.t("İpucu: sayfa numarası için", "Tip: for page number use")} <code>&amp;P</code>, ${XL.t("toplam sayfa için", "total pages")} <code>&amp;N</code>, ${XL.t("tarih için", "date")} <code>&amp;D</code>.</p>
       </div>
-      <p style="margin-top:12px"><button id="xhf-ok">Uygula</button>
-      <button id="xhf-cancel" class="btn-secondary">Vazgeç</button></p>`);
+      <p style="margin-top:12px"><button id="xhf-ok">${XL.t("Uygula", "Apply")}</button>
+      <button id="xhf-cancel" class="btn-secondary">${XL.t("Vazgeç", "Cancel")}</button></p>`);
     const v = (id) => document.getElementById(id).value;
     document.getElementById("xhf-ok").onclick = () => {
       XL.state.page.header = { l: v("xh-l"), c: v("xh-c"), r: v("xh-r") };
       XL.state.page.footer = { l: v("xf-l"), c: v("xf-c"), r: v("xf-r") };
       XL.ws.changed(); XL.hidePanel();
-      XL.status("Yazdırma üst/alt bilgisi güncellendi");
+      XL.status(XL.t("Yazdırma üst/alt bilgisi güncellendi", "Print header/footer updated"));
     };
     document.getElementById("xhf-cancel").onclick = () => XL.hidePanel();
   },
 
   // Şeritteki açık/kapalı düğmelerin durumu
   isOn(state) {
+    if (state === "merge") return XL.sheetLayout.hasMerge();
     const a = XL.state.active;
     const f = XL.getFormat(a.r, a.c);
     if (state in f) return !!f[state];
@@ -360,8 +364,15 @@ XL.modes.xlsx = {
       XL.grid.build();
       this.applyView();
     } else {
-      XL.grid.render();
-      XL.grid.updateSelection();
+      // Birleştirme/özel boyut varsa DOM'u yeniden kur (colspan/gizleme temiz uygulansın).
+      const lay = XL.sheetLayout.of();
+      if (lay.merges.length || Object.keys(lay.colWidths).length || Object.keys(lay.rowHeights).length) {
+        XL.grid.build();
+        this.applyView();
+      } else {
+        XL.grid.render();
+        XL.grid.updateSelection();
+      }
     }
     XL.ws.changed();
   },
@@ -439,15 +450,17 @@ XL.modes.xlsx = {
   // Excel'deki gibi: seçimdeki sayıların toplam/ortalama/sayısı
   updateStats() {
     const s = XL.state.sel;
-    if (s.r1 === s.r2 && s.c1 === s.c2) return XL.status("Hazır");
+    if (s.r1 === s.r2 && s.c1 === s.c2) return XL.status(XL.t("Hazır", "Ready"));
     let sum = 0, n = 0, count = 0;
     XL.forEachInSelection((r, c) => {
       const v = XL.engine.getValue(r, c);
       if (v !== null && v !== "" && v !== undefined) count++;
       if (typeof v === "number") { sum += v; n++; }
     });
-    const f = (x) => x.toLocaleString("tr-TR", { maximumFractionDigits: 4 });
-    XL.status(n ? `Ortalama: ${f(sum / n)}   Sayı: ${count}   Toplam: ${f(sum)}` : `Sayı: ${count}`);
+    const loc = XL.i18n ? XL.i18n.locale : "tr";
+    const f = (x) => x.toLocaleString(loc === "en" ? "en-US" : "tr-TR", { maximumFractionDigits: 4 });
+    const L = { avg: XL.t("Ortalama", "Average"), cnt: XL.t("Sayı", "Count"), sum: XL.t("Toplam", "Sum") };
+    XL.status(n ? `${L.avg}: ${f(sum / n)}   ${L.cnt}: ${count}   ${L.sum}: ${f(sum)}` : `${L.cnt}: ${count}`);
   },
 
   /* ---------- Sayfa sekmeleri (belge içi) ---------- */
@@ -459,16 +472,16 @@ XL.modes.xlsx = {
       const tab = document.createElement("div");
       tab.className = "sheettab" + (s.id === XL.state.activeSheetId ? " active" : "");
       tab.textContent = s.name;
-      tab.title = "Çift tık: yeniden adlandır · Sağ tık: sil";
+      tab.title = XL.t("Çift tık: yeniden adlandır · Sağ tık: sil", "Double-click: rename · Right-click: delete");
       tab.onclick = () => this.switchSheet(s.id);
       tab.ondblclick = () => {
-        const n = prompt("Sayfa adı:", s.name);
+        const n = prompt(XL.t("Sayfa adı:", "Sheet name:"), s.name);
         if (n && n.trim() && XL.engine.renameSheet(s.id, n.trim())) { this.renderSheetTabs(); XL.ws.changed(); }
       };
       tab.oncontextmenu = (e) => {
         e.preventDefault();
-        if (XL.state.sheets.length <= 1) return alert("Son sayfa silinemez.");
-        if (!confirm(`"${s.name}" sayfası silinsin mi?`)) return;
+        if (XL.state.sheets.length <= 1) return alert(XL.t("Son sayfa silinemez.", "Cannot delete the last sheet."));
+        if (!confirm(XL.t(`"${s.name}" sayfası silinsin mi?`, `Delete sheet "${s.name}"?`))) return;
         XL.engine.removeSheet(s.id);
         if (s.id === XL.state.activeSheetId) this.switchSheet(XL.state.sheets[0].id);
         else { this.renderSheetTabs(); XL.grid.render(); }
@@ -518,24 +531,28 @@ XL.modes.xlsx = {
     const b = this.bounds(), n = b.r2 - b.r1 + 1;
     XL.state.hf.addRows(XL.state.activeSheetId, [b.r1, n]);
     this.shiftFormats("row", b.r1, n);
+    XL.sheetLayout.shift("row", b.r1, n);
     this.afterStructureChange();
   },
   deleteRows() {
     const b = this.bounds(), n = b.r2 - b.r1 + 1;
     XL.state.hf.removeRows(XL.state.activeSheetId, [b.r1, n]);
     this.shiftFormats("row", b.r1, -n);
+    XL.sheetLayout.shift("row", b.r1, -n);
     this.afterStructureChange();
   },
   insertCols() {
     const b = this.bounds(), n = b.c2 - b.c1 + 1;
     XL.state.hf.addColumns(XL.state.activeSheetId, [b.c1, n]);
     this.shiftFormats("col", b.c1, n);
+    XL.sheetLayout.shift("col", b.c1, n);
     this.afterStructureChange();
   },
   deleteCols() {
     const b = this.bounds(), n = b.c2 - b.c1 + 1;
     XL.state.hf.removeColumns(XL.state.activeSheetId, [b.c1, n]);
     this.shiftFormats("col", b.c1, -n);
+    XL.sheetLayout.shift("col", b.c1, -n);
     this.afterStructureChange();
   },
 
@@ -607,7 +624,9 @@ XL.modes.xlsx = {
     });
     XL.state.formats = next;
     this.afterStructureChange();
-    XL.status(`${rows.length} satır sıralandı (${XL.colLetter(col)} sütunu, ${asc ? "artan" : "azalan"})`);
+    XL.status(XL.t(
+      `${rows.length} satır sıralandı (${XL.colLetter(col)} sütunu, ${asc ? "artan" : "azalan"})`,
+      `${rows.length} rows sorted (column ${XL.colLetter(col)}, ${asc ? "ascending" : "descending"})`));
   },
 
   // Başlık sezgisi: 1. satırda hiç sayı yok ve 2. satırda en az bir sayı var
@@ -631,14 +650,14 @@ XL.modes.xlsx = {
       values.add(XL.isError(v) ? v.value : String(v ?? ""));
     }
     const list = [...values].sort((a, b) => a.localeCompare(b, "tr"));
-    XL.showPanel(`Filtre — ${XL.colLetter(col)} sütunu`, `
-      <p style="margin-top:0">1. satır başlık kabul edilir. Gösterilecek değerleri seçin:</p>
-      <label><input type="checkbox" id="flt-all" checked> <b>(Tümünü seç)</b></label>
+    XL.showPanel(XL.t(`Filtre — ${XL.colLetter(col)} sütunu`, `Filter — column ${XL.colLetter(col)}`), `
+      <p style="margin-top:0">${XL.t("1. satır başlık kabul edilir. Gösterilecek değerleri seçin:", "Row 1 is treated as a header. Choose values to show:")}</p>
+      <label><input type="checkbox" id="flt-all" checked> <b>${XL.t("(Tümünü seç)", "(Select all)")}</b></label>
       <div id="flt-list" style="max-height:240px;overflow:auto;border:1px solid #ddd;padding:6px;margin:6px 0">
-        ${list.map((v, i) => `<label style="display:block"><input type="checkbox" data-i="${i}" checked> ${XL.esc(v === "" ? "(Boş)" : v)}</label>`).join("")}
+        ${list.map((v, i) => `<label style="display:block"><input type="checkbox" data-i="${i}" checked> ${XL.esc(v === "" ? XL.t("(Boş)", "(Blank)") : v)}</label>`).join("")}
       </div>
-      <label>veya metin içerir: <input id="flt-text" type="text" placeholder="aranan…"></label>
-      <div style="margin-top:8px"><button id="flt-apply">Uygula</button></div>
+      <label>${XL.t("veya metin içerir:", "or contains text:")} <input id="flt-text" type="text" placeholder="${XL.t("aranan…", "search…")}"></label>
+      <div style="margin-top:8px"><button id="flt-apply">${XL.t("Uygula", "Apply")}</button></div>
     `);
     const boxes = () => [...document.querySelectorAll("#flt-list input")];
     document.getElementById("flt-all").onchange = (e) => boxes().forEach((b) => (b.checked = e.target.checked));
@@ -654,7 +673,7 @@ XL.modes.xlsx = {
       }
       this.applyHidden();
       XL.hidePanel();
-      XL.status(`${this.hiddenRows.size} satır gizlendi`);
+      XL.status(XL.t(`${this.hiddenRows.size} satır gizlendi`, `${this.hiddenRows.size} rows hidden`));
     };
   },
 
@@ -681,25 +700,26 @@ XL.modes.xlsx = {
       if (key.every((v) => v === "")) continue;
       if (seen.has(k)) dup.push(r); else seen.add(k);
     }
-    if (!dup.length) return alert("Yinelenen satır bulunamadı.");
+    if (!dup.length) return alert(XL.t("Yinelenen satır bulunamadı.", "No duplicate rows found."));
     // Aşağıdan yukarı sil ki indeksler kaymasın
     dup.reverse().forEach((r) => {
       XL.state.hf.removeRows(id, [r, 1]);
       this.shiftFormats("row", r, -1);
+      XL.sheetLayout.shift("row", r, -1, id);
     });
     this.afterStructureChange();
-    alert(`${dup.length} yinelenen satır kaldırıldı.`);
+    alert(XL.t(`${dup.length} yinelenen satır kaldırıldı.`, `${dup.length} duplicate rows removed.`));
   },
 
   /* ---------- Bul / Değiştir ---------- */
   findReplace() {
-    XL.showPanel("Bul ve Değiştir", `
-      <label>Aranan: <input id="fr-find" type="text"></label><br>
-      <label>Yeni: <input id="fr-repl" type="text"></label><br>
-      <label><input id="fr-case" type="checkbox"> Büyük/küçük harf duyarlı</label><br>
-      <button id="fr-next">Sonrakini Bul</button>
-      <button id="fr-one">Değiştir</button>
-      <button id="fr-all">Tümünü Değiştir</button>
+    XL.showPanel(XL.t("Bul ve Değiştir", "Find and Replace"), `
+      <label>${XL.t("Aranan:", "Find:")} <input id="fr-find" type="text"></label><br>
+      <label>${XL.t("Yeni:", "Replace:")} <input id="fr-repl" type="text"></label><br>
+      <label><input id="fr-case" type="checkbox"> ${XL.t("Büyük/küçük harf duyarlı", "Case sensitive")}</label><br>
+      <button id="fr-next">${XL.t("Sonrakini Bul", "Find Next")}</button>
+      <button id="fr-one">${XL.t("Değiştir", "Replace")}</button>
+      <button id="fr-all">${XL.t("Tümünü Değiştir", "Replace All")}</button>
       <div id="fr-msg" style="margin-top:8px;color:#555"></div>`);
     const $ = (id) => document.getElementById(id);
     $("fr-find").focus();
@@ -721,11 +741,11 @@ XL.modes.xlsx = {
           XL.state.active = { r, c };
           XL.state.sel = { r1: r, c1: c, r2: r, c2: c };
           XL.grid.updateSelection();
-          $("fr-msg").textContent = "Bulundu: " + XL.addrLabel(r, c);
+          $("fr-msg").textContent = XL.t("Bulundu: ", "Found: ") + XL.addrLabel(r, c);
           return true;
         }
       }
-      $("fr-msg").textContent = "Bulunamadı.";
+      $("fr-msg").textContent = XL.t("Bulunamadı.", "Not found.");
       return false;
     };
     const replaceIn = (raw, needle, repl) => {
@@ -756,18 +776,17 @@ XL.modes.xlsx = {
           }
       });
       XL.grid.render(); XL.grid.updateSelection(); XL.ws.changed();
-      $("fr-msg").textContent = n + " hücre değiştirildi.";
+      $("fr-msg").textContent = n + XL.t(" hücre değiştirildi.", " cells replaced.");
     };
   },
 
   /* ---------- Fonksiyon kitaplığı ---------- */
   functionLibrary() {
     const names = HyperFormula.getRegisteredFunctionNames("enGB").slice().sort();
-    XL.showPanel(`Fonksiyon Kitaplığı (${names.length} fonksiyon)`, `
-      <input id="fn-search" type="text" placeholder="Ara… (ör. LOOKUP, DATE)" style="width:100%;padding:6px">
+    XL.showPanel(XL.t(`Fonksiyon Kitaplığı (${names.length} fonksiyon)`, `Function Library (${names.length} functions)`), `
+      <input id="fn-search" type="text" placeholder="${XL.t("Ara… (ör. LOOKUP, DATE)", "Search… (e.g. LOOKUP, DATE)")}" style="width:100%;padding:6px">
       <div id="fn-list" class="fn-list"></div>
-      <p style="color:#666;font-size:12px">Tıklayınca etkin hücreye eklenir.
-      Ayrıntılı açıklamalar: support.microsoft.com → "Excel işlevleri (kategoriye göre)".</p>`);
+      <p style="color:#666;font-size:12px">${XL.t("Tıklayınca etkin hücreye eklenir.", "Click to insert into the active cell.")}</p>`);
     const list = document.getElementById("fn-list");
     const draw = (q) => {
       q = (q || "").toUpperCase();

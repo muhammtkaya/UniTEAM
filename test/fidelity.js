@@ -19,19 +19,27 @@ async function run({ baseURL }) {
       const data = { rows: 100, cols: 26, activeSheet: 0, sheets: [{ name: "S1",
         cells: { "0,0": "Ad", "1,0": "Ali", "2,0": "Ayşe", "0,1": "Puan", "1,1": "90", "2,1": "85", "3,1": "=SUM(B2:B3)" }, formats: {} }] };
       XL.engine.load(data);
+      // Sayfa düzeni: birleştirme (A1:B1) + sütun genişliği (B=140px) + satır yüksekliği (1=30px)
+      const sid = XL.state.sheets[0].id;
+      XL.state.layout[sid] = { colWidths: { 1: 140 }, rowHeights: { 0: 30 }, merges: [[0, 0, 0, 1]] };
       const ser = XL.engine.serialize();
       let cap = null; const orig = XLSX.writeFile; XLSX.writeFile = (wb) => { cap = wb; };
       XL.io.save(ser, "t.xlsx"); XLSX.writeFile = orig;
       const out = XLSX.write(cap, { type: "array", bookType: "xlsx" });
       const wb2 = XLSX.read(out, { type: "array", cellFormula: true, cellStyles: true });
       const d2 = XL.io.workbookToData(wb2); const s = d2.sheets[0];
-      return { name: s.name, a2: s.cells["1,0"], b2: s.cells["1,1"], formula: s.cells["3,1"] };
+      return { name: s.name, a2: s.cells["1,0"], b2: s.cells["1,1"], formula: s.cells["3,1"],
+        mergeCount: (s.merges || []).length, merge0: JSON.stringify((s.merges || [])[0] || null),
+        colW: (s.colWidths || {})["1"], rowH: (s.rowHeights || {})["0"] };
     });
     console.log("  XLSX:", JSON.stringify(xlsx));
     check("Sayfa adı korundu (S1)", xlsx.name === "S1", xlsx);
     check("Metin hücresi korundu (A2=Ali)", xlsx.a2 === "Ali", xlsx);
     check("Sayı hücresi korundu (B2=90)", xlsx.b2 === "90", xlsx);
     check("Formül korundu (=SUM(B2:B3))", xlsx.formula === "=SUM(B2:B3)", xlsx);
+    check("Birleştirme korundu (A1:B1)", xlsx.mergeCount === 1 && xlsx.merge0 === "[0,0,0,1]", xlsx);
+    check("Sütun genişliği korundu (~140px)", Math.abs((xlsx.colW || 0) - 140) <= 8, xlsx);
+    check("Satır yüksekliği korundu (~30px)", Math.abs((xlsx.rowH || 0) - 30) <= 8, xlsx);
 
     // ---------------- DOCX ----------------
     const docx = await page.evaluate(async () => {

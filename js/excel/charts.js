@@ -7,28 +7,28 @@ XL.charts = {
     const r1 = Math.min(s.r1, s.r2), c1 = Math.min(s.c1, s.c2);
     const r2 = Math.max(s.r1, s.r2), c2 = Math.max(s.c1, s.c2);
     if (r1 === r2 && c1 === c2) {
-      alert("Grafik için önce veri aralığı seçin (örn. A1:B6).");
+      alert(XL.t("Grafik için önce veri aralığı seçin (örn. A1:B6).", "Select a data range first (e.g. A1:B6)."));
       return;
     }
     const data = XL.engine.getRangeValues(r1, c1, r2, c2);
 
-    XL.showPanel("Grafik", `
-      <label>Tür:
+    XL.showPanel(XL.t("Grafik", "Chart"), `
+      <label>${XL.t("Tür:", "Type:")}
         <select id="chart-type">
-          <option value="bar">Çubuk</option>
-          <option value="line">Çizgi</option>
-          <option value="pie">Pasta</option>
-          <option value="doughnut">Halka</option>
-          <option value="radar">Radar</option>
-          <option value="polarArea">Kutupsal alan</option>
-          <option value="scatter">Dağılım (XY)</option>
-          <option value="area">Alan</option>
-          <option value="hbar">Yatay çubuk</option>
+          <option value="bar">${XL.t("Çubuk", "Bar")}</option>
+          <option value="line">${XL.t("Çizgi", "Line")}</option>
+          <option value="pie">${XL.t("Pasta", "Pie")}</option>
+          <option value="doughnut">${XL.t("Halka", "Doughnut")}</option>
+          <option value="radar">${XL.t("Radar", "Radar")}</option>
+          <option value="polarArea">${XL.t("Kutupsal alan", "Polar area")}</option>
+          <option value="scatter">${XL.t("Dağılım (XY)", "Scatter (XY)")}</option>
+          <option value="area">${XL.t("Alan", "Area")}</option>
+          <option value="hbar">${XL.t("Yatay çubuk", "Horizontal bar")}</option>
         </select>
       </label>
-      <label><input type="checkbox" id="chart-hasheader" checked> İlk satır başlık</label>
-      <button id="chart-draw">Çiz</button>
-      <button id="chart-png">PNG indir</button>
+      <label><input type="checkbox" id="chart-hasheader" checked> ${XL.t("İlk satır başlık", "First row is header")}</label>
+      <button id="chart-draw">${XL.t("Çiz", "Draw")}</button>
+      <button id="chart-png">${XL.t("PNG indir", "Download PNG")}</button>
       <div style="margin-top:10px;height:300px;position:relative;">
         <canvas id="chart-canvas"></canvas>
       </div>
@@ -68,7 +68,7 @@ XL.charts = {
     for (let si = 0; si < seriesCount; si++) {
       const color = palette[si % palette.length];
       datasets.push({
-        label: headers ? this.text(headers[si + 1]) : "Seri " + (si + 1),
+        label: headers ? this.text(headers[si + 1]) : XL.t("Seri ", "Series ") + (si + 1),
         // Dağılımda ilk sütun X, diğerleri Y
         data: type === "scatter"
           ? rows.map((r) => ({ x: this.num(r[0]), y: this.num(r[si + 1]) }))

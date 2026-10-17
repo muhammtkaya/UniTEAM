@@ -5,29 +5,29 @@ XL.pivot = {
     const r1 = Math.min(s.r1, s.r2), c1 = Math.min(s.c1, s.c2);
     const r2 = Math.max(s.r1, s.r2), c2 = Math.max(s.c1, s.c2);
     if (r2 - r1 < 2 || c2 - c1 < 1) {
-      alert("Pivot için başlık satırı + en az 2 veri satırı ve 2 sütun seçin.");
+      alert(XL.t("Pivot için başlık satırı + en az 2 veri satırı ve 2 sütun seçin.", "Select a header row + at least 2 data rows and 2 columns for the pivot."));
       return;
     }
     const data = XL.engine.getRangeValues(r1, c1, r2, c2);
-    const headers = data[0].map((h) => XL.charts.text(h) || "Sütun");
+    const headers = data[0].map((h) => XL.charts.text(h) || XL.t("Sütun", "Column"));
     const body = data.slice(1);
 
     const opts = headers.map((h, i) => `<option value="${i}">${h}</option>`).join("");
-    XL.showPanel("Özet Tablo (Pivot)", `
-      <label>Satır: <select id="pv-row">${opts}</select></label>
-      <label>Sütun: <select id="pv-col"><option value="-1">(yok)</option>${opts}</select></label>
-      <label>Değer: <select id="pv-val">${opts}</select></label>
-      <label>İşlev:
+    XL.showPanel(XL.t("Özet Tablo (Pivot)", "PivotTable"), `
+      <label>${XL.t("Satır:", "Row:")} <select id="pv-row">${opts}</select></label>
+      <label>${XL.t("Sütun:", "Column:")} <select id="pv-col"><option value="-1">${XL.t("(yok)", "(none)")}</option>${opts}</select></label>
+      <label>${XL.t("Değer:", "Value:")} <select id="pv-val">${opts}</select></label>
+      <label>${XL.t("İşlev:", "Function:")}
         <select id="pv-agg">
-          <option value="sum">Topla</option>
-          <option value="count">Say</option>
-          <option value="avg">Ortalama</option>
-          <option value="max">Maks</option>
-          <option value="min">Min</option>
+          <option value="sum">${XL.t("Topla", "Sum")}</option>
+          <option value="count">${XL.t("Say", "Count")}</option>
+          <option value="avg">${XL.t("Ortalama", "Average")}</option>
+          <option value="max">${XL.t("Maks", "Max")}</option>
+          <option value="min">${XL.t("Min", "Min")}</option>
         </select>
       </label>
-      <button id="pv-build">Oluştur</button>
-      <button id="pv-sheet">Yeni sayfaya yaz</button>
+      <button id="pv-build">${XL.t("Oluştur", "Build")}</button>
+      <button id="pv-sheet">${XL.t("Yeni sayfaya yaz", "Write to new sheet")}</button>
       <div id="pv-out"></div>
     `);
     document.getElementById("pv-sheet").onclick = () => this.writeToSheet();
@@ -50,7 +50,7 @@ XL.pivot = {
 
     body.forEach((row) => {
       const rk = XL.charts.text(row[rowF]);
-      const ck = colF >= 0 ? XL.charts.text(row[colF]) : "Toplam";
+      const ck = colF >= 0 ? XL.charts.text(row[colF]) : XL.t("Toplam", "Total");
       if (!rowKeys.includes(rk)) rowKeys.push(rk);
       if (!colKeys.includes(ck)) colKeys.push(ck);
       const key = rk + "||" + ck;
@@ -67,10 +67,12 @@ XL.pivot = {
         default: return arr.reduce((a, b) => a + b, 0);
       }
     };
-    const fmt = (v) => typeof v === "number" ? v.toLocaleString("tr-TR", { maximumFractionDigits: 2 }) : XL.esc(v);
+    const loc = XL.i18n && XL.i18n.locale === "en" ? "en-US" : "tr-TR";
+    const fmt = (v) => typeof v === "number" ? v.toLocaleString(loc, { maximumFractionDigits: 2 }) : XL.esc(v);
+    const GT = XL.t("Genel Toplam", "Grand Total");
 
     // Sayfaya yazmak için ham matris
-    const matrix = [[headers[rowF] + " \\ " + (colF >= 0 ? headers[colF] : ""), ...colKeys, "Genel Toplam"]];
+    const matrix = [[headers[rowF] + " \\ " + (colF >= 0 ? headers[colF] : ""), ...colKeys, GT]];
     rowKeys.forEach((rk) => {
       let all = [];
       const line = [rk];
@@ -86,7 +88,7 @@ XL.pivot = {
 
     let html = "<table><thead><tr><th></th>";
     colKeys.forEach((ck) => html += `<th>${XL.esc(ck)}</th>`);
-    html += "<th>Genel Toplam</th></tr></thead><tbody>";
+    html += `<th>${GT}</th></tr></thead><tbody>`;
 
     rowKeys.forEach((rk) => {
       html += `<tr><th>${XL.esc(rk)}</th>`;
@@ -100,7 +102,7 @@ XL.pivot = {
     });
 
     // Genel toplam satırı
-    html += `<tr><th>Genel Toplam</th>`;
+    html += `<tr><th>${GT}</th>`;
     let grand = [];
     colKeys.forEach((ck) => {
       let colAll = [];

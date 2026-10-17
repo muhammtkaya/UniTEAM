@@ -13,6 +13,7 @@ import "./vendor.js";
 
 // --- Ortak çekirdek ---
 import "../js/core.js";
+import "../js/i18n.js";
 import "../js/config.js";
 import "../js/auth.js";
 import "../js/cloud.js";
@@ -23,6 +24,7 @@ import "../js/storage.js";
 // --- Excel modu (formula, HyperFormula'yı yayımladığı için ÖNCE) ---
 import "../js/excel/formula.js";
 import "../js/excel/engine.js";
+import "../js/excel/layout.js";
 import "../js/excel/format.js";
 import "../js/excel/grid.js";
 import "../js/excel/io.js";

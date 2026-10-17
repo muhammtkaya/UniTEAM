@@ -195,8 +195,11 @@ XL.cloud = {
     const data = await this.getBytesPublic(info.document_id);
     // URL'yi temizle (başarılı çözümden sonra; giriş sonrası tekrar deneme bozulmasın diye önce değil).
     history.replaceState(null, "", location.origin + location.pathname);
-    XL.ws.create(info.type, data, info.name);
-    XL.status("👁 Salt görüntüleme — paylaşılan belgenin yerel kopyası (giriş yapılmadı).");
+    const d = XL.ws.create(info.type, data, info.name);
+    d.readonly = true;              // gerçek salt-görüntüleme: düzenleme kilitli
+    XL.ws.applyReadonly();
+    XL.status(XL.t("👁 Salt görüntüleme — paylaşılan belgenin yerel kopyası (giriş yapılmadı).",
+      "👁 View only — local copy of the shared document (not signed in)."));
     return info;
   },
 
@@ -225,20 +228,20 @@ XL.cloud = {
     // Giriş yapılmışsa: token'ı bozdur (kalıcı erişim ver) ve aç.
     if (this.enabled()) {
       history.replaceState(null, "", location.origin + location.pathname);
-      XL.status("Paylaşılan belge açılıyor…");
+      XL.status(XL.t("Paylaşılan belge açılıyor…", "Opening shared document…"));
       try {
         const docId = await this.redeemLink(token);
         await this.openDoc(docId);
       } catch (e) {
         console.error(e);
-        alert("Bağlantı açılamadı: " + (e.message || e));
+        alert(XL.t("Bağlantı açılamadı: ", "Could not open link: ") + (e.message || e));
         XL.status("");
       }
       return;
     }
 
     // Giriş yok: herkese açık link ise anonim (salt görüntüleme) aç; değilse giriş iste.
-    XL.status("Paylaşılan belge açılıyor…");
+    XL.status(XL.t("Paylaşılan belge açılıyor…", "Opening shared document…"));
     try {
       await this.openPublic(token);   // başarıda URL'yi kendi temizler
     } catch (e) {
@@ -252,44 +255,44 @@ XL.cloud = {
 
   // Etkin belgeyi buluta kaydet (yeni ise oluştur, varsa güncelle).
   async saveActive() {
-    if (!this.enabled()) return alert("Önce giriş yapın (👤 Giriş).");
+    if (!this.enabled()) return alert(XL.t("Önce giriş yapın (👤 Giriş).", "Sign in first (👤 Sign in)."));
     const doc = XL.ws.active();
     if (!doc) return;
     XL.ws.persistNow(); // doc.data güncel olsun
-    XL.status("Buluta kaydediliyor…");
+    XL.status(XL.t("Buluta kaydediliyor…", "Saving to cloud…"));
     try {
       const id = await this.saveFull({ cloudId: doc.cloudId, type: doc.type, name: doc.name, data: doc.data });
       doc.cloudId = id;
       XL.ws._save(doc); // cloudId'yi yerelde de kalıcılaştır
-      XL.status("☁ Buluta kaydedildi: " + doc.name);
+      XL.status(XL.t("☁ Buluta kaydedildi: ", "☁ Saved to cloud: ") + doc.name);
     } catch (e) {
       console.error(e);
-      alert("Buluta kaydedilemedi: " + (e.message || e));
+      alert(XL.t("Buluta kaydedilemedi: ", "Could not save to cloud: ") + (e.message || e));
       XL.status("");
     }
   },
 
   // Bulut belgeleri panelini aç.
   async openPicker() {
-    if (!this.enabled()) return alert("Önce giriş yapın (👤 Giriş).");
-    XL.showPanel("Bulut Belgelerim", '<p class="muted">Yükleniyor…</p>');
+    if (!this.enabled()) return alert(XL.t("Önce giriş yapın (👤 Giriş).", "Sign in first (👤 Sign in)."));
+    XL.showPanel(XL.t("Bulut Belgelerim", "My Cloud Documents"), `<p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p>`);
     const body = document.getElementById("panel-body");
     let rows;
     try { rows = await this.list(); }
-    catch (e) { body.innerHTML = '<p class="muted">Hata: ' + XL.esc(e.message || String(e)) + "</p>"; return; }
+    catch (e) { body.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}` + XL.esc(e.message || String(e)) + "</p>"; return; }
     if (!rows.length) {
-      body.innerHTML = '<p class="muted">Henüz bulut belgen yok. Bir belgeyi “☁ Buluta kaydet” ile yükle.</p>';
+      body.innerHTML = `<p class="muted">${XL.t("Henüz bulut belgen yok. Bir belgeyi “☁ Buluta kaydet” ile yükle.", "No cloud documents yet. Upload one via “☁ Save to cloud”.")}</p>`;
       return;
     }
     const icon = { xlsx: "📊", docx: "📄", pptx: "📙" };
     const me = XL.auth.user.id;
     body.innerHTML = '<div class="cloud-list">' + rows.map((r) => {
       const mine = r.owner_id === me;
-      return `<div class="cloud-item" data-id="${r.id}" data-name="${XL.esc(r.name)}" title="Aç">
+      return `<div class="cloud-item" data-id="${r.id}" data-name="${XL.esc(r.name)}" title="${XL.t("Aç", "Open")}">
          <span class="ci-ic">${icon[r.type] || "📄"}</span>
-         <span class="ci-name">${XL.esc(r.name)}${mine ? "" : ' <small class="ci-shared">paylaşılan</small>'}</span>
-         ${mine ? `<button class="ci-share" data-share="${r.id}" title="Paylaş">👥</button>
-                   <button class="ci-del" data-del="${r.id}" title="Buluttan sil">🗑</button>` : ""}
+         <span class="ci-name">${XL.esc(r.name)}${mine ? "" : ` <small class="ci-shared">${XL.t("paylaşılan", "shared")}</small>`}</span>
+         ${mine ? `<button class="ci-share" data-share="${r.id}" title="${XL.t("Paylaş", "Share")}">👥</button>
+                   <button class="ci-del" data-del="${r.id}" title="${XL.t("Buluttan sil", "Delete from cloud")}">🗑</button>` : ""}
        </div>`;
     }).join("") + "</div>";
 
@@ -309,35 +312,35 @@ XL.cloud = {
     body.querySelectorAll("[data-del]").forEach((b) => {
       b.addEventListener("click", async (e) => {
         e.stopPropagation();
-        if (!confirm("Bu belge BULUTTAN silinsin mi? (yereldeki kopya kalır)")) return;
+        if (!confirm(XL.t("Bu belge BULUTTAN silinsin mi? (yereldeki kopya kalır)", "Delete this document FROM THE CLOUD? (local copy remains)"))) return;
         try { await this.remove(b.dataset.del); this.openPicker(); }
-        catch (err) { alert("Silinemedi: " + (err.message || err)); }
+        catch (err) { alert(XL.t("Silinemedi: ", "Could not delete: ") + (err.message || err)); }
       });
     });
   },
 
   // Bir belgenin paylaşım panelini aç (e-posta ile paylaş + mevcut paylaşımlar).
   async openShare(docId, docName) {
-    if (!this.enabled()) return alert("Önce giriş yapın.");
-    const roles = [["viewer", "Görüntüleyen"], ["commenter", "Yorumcu"], ["editor", "Düzenleyen"]];
-    XL.showPanel("Paylaş — " + (docName || ""), `
+    if (!this.enabled()) return alert(XL.t("Önce giriş yapın.", "Sign in first."));
+    const roles = [["viewer", XL.t("Görüntüleyen", "Viewer")], ["commenter", XL.t("Yorumcu", "Commenter")], ["editor", XL.t("Düzenleyen", "Editor")]];
+    XL.showPanel(XL.t("Paylaş — ", "Share — ") + (docName || ""), `
       <div class="share-ui">
-        <button class="share-back" id="sh-back">← Belgelerim</button>
+        <button class="share-back" id="sh-back">← ${XL.t("Belgelerim", "My Documents")}</button>
         <div class="share-form">
-          <input type="email" id="sh-email" placeholder="kullanici@eposta.com">
+          <input type="email" id="sh-email" placeholder="${XL.t("kullanici@eposta.com", "user@email.com")}">
           <select id="sh-role">${roles.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
-          <button id="sh-add" class="share-add">Paylaş</button>
+          <button id="sh-add" class="share-add">${XL.t("Paylaş", "Share")}</button>
         </div>
         <div id="sh-msg" class="share-msg hidden"></div>
-        <div class="share-sub">Erişimi olanlar</div>
-        <div id="sh-list"><p class="muted">Yükleniyor…</p></div>
-        <div class="share-sub">Bağlantıyla paylaş</div>
+        <div class="share-sub">${XL.t("Erişimi olanlar", "People with access")}</div>
+        <div id="sh-list"><p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p></div>
+        <div class="share-sub">${XL.t("Bağlantıyla paylaş", "Share with link")}</div>
         <div class="share-form">
           <select id="lk-role">${roles.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
-          <button id="lk-add" class="share-add">🔗 Oluştur</button>
+          <button id="lk-add" class="share-add">🔗 ${XL.t("Oluştur", "Create")}</button>
         </div>
-        <label class="lk-public"><input type="checkbox" id="lk-public"> 🌐 Herkese açık (giriş gerekmez, salt görüntüleme)</label>
-        <div id="lk-list"><p class="muted">Yükleniyor…</p></div>
+        <label class="lk-public"><input type="checkbox" id="lk-public"> ${XL.t("🌐 Herkese açık (giriş gerekmez, salt görüntüleme)", "🌐 Public (no sign-in, view only)")}</label>
+        <div id="lk-list"><p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p></div>
       </div>`);
 
     const roleName = Object.fromEntries(roles);
@@ -351,14 +354,14 @@ XL.cloud = {
           ? shares.map((s) => `<div class="share-row">
                <span class="sr-email">${XL.esc(s.email)}</span>
                <span class="sr-role">${roleName[s.role] || s.role}</span>
-               <button class="sr-del" data-uid="${s.user_id}" title="Erişimi kaldır">✕</button>
+               <button class="sr-del" data-uid="${s.user_id}" title="${XL.t("Erişimi kaldır", "Remove access")}">✕</button>
              </div>`).join("")
-          : '<p class="muted">Henüz kimseyle paylaşılmadı.</p>';
+          : `<p class="muted">${XL.t("Henüz kimseyle paylaşılmadı.", "Not shared with anyone yet.")}</p>`;
         list.querySelectorAll("[data-uid]").forEach((b) => b.addEventListener("click", async () => {
           try { await this.revokeShare(docId, b.dataset.uid); refresh(); }
           catch (e) { msg(e.message || String(e)); }
         }));
-      } catch (e) { list.innerHTML = '<p class="muted">Hata: ' + XL.esc(e.message || String(e)) + "</p>"; }
+      } catch (e) { list.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}` + XL.esc(e.message || String(e)) + "</p>"; }
     };
 
     const refreshLinks = async () => {
@@ -367,33 +370,33 @@ XL.cloud = {
         const links = await this.listLinks(docId);
         list.innerHTML = links.length
           ? links.map((lk) => `<div class="share-row link-row" data-token="${lk.token}">
-               <span class="sr-role">${lk.is_public ? "🌐 herkese açık" : (roleName[lk.role] || lk.role)}</span>
-               <button class="lk-copy" data-token="${lk.token}" title="Bağlantıyı kopyala">📋 Kopyala</button>
-               <button class="sr-del" data-lid="${lk.id}" title="Bağlantıyı iptal et">✕</button>
+               <span class="sr-role">${lk.is_public ? XL.t("🌐 herkese açık", "🌐 public") : (roleName[lk.role] || lk.role)}</span>
+               <button class="lk-copy" data-token="${lk.token}" title="${XL.t("Bağlantıyı kopyala", "Copy link")}">📋 ${XL.t("Kopyala", "Copy")}</button>
+               <button class="sr-del" data-lid="${lk.id}" title="${XL.t("Bağlantıyı iptal et", "Revoke link")}">✕</button>
              </div>`).join("")
-          : '<p class="muted">Henüz bağlantı yok.</p>';
+          : `<p class="muted">${XL.t("Henüz bağlantı yok.", "No links yet.")}</p>`;
         list.querySelectorAll(".lk-copy").forEach((b) => b.addEventListener("click", async () => {
           const url = this.linkUrl(b.dataset.token);
-          try { await navigator.clipboard.writeText(url); msg("Bağlantı kopyalandı", "ok"); }
-          catch { prompt("Bağlantıyı kopyalayın:", url); }
+          try { await navigator.clipboard.writeText(url); msg(XL.t("Bağlantı kopyalandı", "Link copied"), "ok"); }
+          catch { prompt(XL.t("Bağlantıyı kopyalayın:", "Copy the link:"), url); }
         }));
         list.querySelectorAll("[data-lid]").forEach((b) => b.addEventListener("click", async () => {
           try { await this.revokeLink(b.dataset.lid); refreshLinks(); }
           catch (e) { msg(e.message || String(e)); }
         }));
-      } catch (e) { list.innerHTML = '<p class="muted">Hata: ' + XL.esc(e.message || String(e)) + "</p>"; }
+      } catch (e) { list.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}` + XL.esc(e.message || String(e)) + "</p>"; }
     };
 
     document.getElementById("sh-back").addEventListener("click", () => this.openPicker());
     document.getElementById("sh-add").addEventListener("click", async () => {
       const email = document.getElementById("sh-email").value.trim();
       const role = document.getElementById("sh-role").value;
-      if (!email) return msg("E-posta girin.");
+      if (!email) return msg(XL.t("E-posta girin.", "Enter an email."));
       msg("");
       try {
         await this.shareByEmail(docId, email, role);
         document.getElementById("sh-email").value = "";
-        msg("Paylaşıldı: " + email, "ok");
+        msg(XL.t("Paylaşıldı: ", "Shared: ") + email, "ok");
         refresh();
       } catch (e) {
         msg(this._shareError(e));
@@ -406,8 +409,8 @@ XL.cloud = {
       try {
         const lk = await this.createLink(docId, role, null, isPublic);
         const url = this.linkUrl(lk.token);
-        try { await navigator.clipboard.writeText(url); msg("Bağlantı oluşturuldu ve kopyalandı", "ok"); }
-        catch { msg("Bağlantı oluşturuldu", "ok"); }
+        try { await navigator.clipboard.writeText(url); msg(XL.t("Bağlantı oluşturuldu ve kopyalandı", "Link created and copied"), "ok"); }
+        catch { msg(XL.t("Bağlantı oluşturuldu", "Link created"), "ok"); }
         refreshLinks();
       } catch (e) { msg(e.message || String(e)); }
     });
@@ -417,25 +420,25 @@ XL.cloud = {
 
   _shareError(e) {
     const m = (e && e.message) || String(e);
-    if (/kayıtlı kullanıcı yok/i.test(m)) return "Bu e-posta ile kayıtlı kullanıcı yok. Önce o kişi hesap açmalı.";
-    if (/Kendinizle/i.test(m)) return "Kendinizle paylaşamazsınız.";
-    if (/sahibi paylaşabilir/i.test(m)) return "Yalnızca belge sahibi paylaşabilir.";
+    if (/kayıtlı kullanıcı yok/i.test(m)) return XL.t("Bu e-posta ile kayıtlı kullanıcı yok. Önce o kişi hesap açmalı.", "No registered user with this email. They must create an account first.");
+    if (/Kendinizle/i.test(m)) return XL.t("Kendinizle paylaşamazsınız.", "You cannot share with yourself.");
+    if (/sahibi paylaşabilir/i.test(m)) return XL.t("Yalnızca belge sahibi paylaşabilir.", "Only the document owner can share.");
     return m;
   },
 
   // Bir bulut belgesini yeni sekmede aç.
   async openDoc(id) {
-    XL.status("Bulut belgesi açılıyor…");
+    XL.status(XL.t("Bulut belgesi açılıyor…", "Opening cloud document…"));
     try {
       const full = await this.loadFull(id);
       const d = XL.ws.create(full.type, full.data, full.name);
       d.cloudId = full.cloudId;
       XL.ws._save(d);
       XL.hidePanel();
-      XL.status("Açıldı: " + full.name);
+      XL.status(XL.t("Açıldı: ", "Opened: ") + full.name);
     } catch (e) {
       console.error(e);
-      alert("Açılamadı: " + (e.message || e));
+      alert(XL.t("Açılamadı: ", "Could not open: ") + (e.message || e));
       XL.status("");
     }
   },

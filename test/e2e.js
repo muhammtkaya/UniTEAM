@@ -52,6 +52,24 @@ async function run({ baseURL }) {
     check("Yeniden yükleme sonrası A3 hâlâ 12 (kalıcılık)", after.a3 === 12, after);
     check("Yeniden yükleme sonrası A4 hâlâ 24", after.a4 === 24, after);
     check("Formül metni korunmuş (=A1+A2)", after.rawA3 === "=A1+A2", after);
+
+    // --- i18n: dil değişince kalıcı arayüz (şerit + statik düğme) güncelleniyor mu?
+    const i18n = await page.evaluate(() => {
+      XL.i18n.set("tr");
+      const tabTR = document.querySelector('#ribbon .rtab[data-tab="0"]').textContent.trim();
+      XL.i18n.set("en");
+      const tabEN = document.querySelector('#ribbon .rtab[data-tab="0"]').textContent.trim();
+      const saveEN = document.getElementById("btn-save").textContent.trim();
+      XL.i18n.set("tr");
+      const saveTR = document.getElementById("btn-save").textContent.trim();
+      return { tabTR, tabEN, saveEN, saveTR };
+    });
+    console.log("  i18n:", JSON.stringify(i18n));
+    check("Şerit TR'de 'Giriş'", i18n.tabTR === "Giriş", i18n);
+    check("Dil değişince şerit EN'e döndü ('Home')", i18n.tabEN === "Home", i18n);
+    check("Statik düğme EN oldu (Save)", /Save/.test(i18n.saveEN), i18n);
+    check("TR'ye dönünce düğme tekrar 'Kaydet'", /Kaydet/.test(i18n.saveTR), i18n);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

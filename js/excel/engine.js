@@ -7,6 +7,7 @@ XL.engine = {
     XL.state.hf = HyperFormula.buildEmpty({ useColumnIndex: true });
     XL.state.sheets = [];
     XL.state.formats = {};
+    XL.state.layout = {};
     XL.ROWS = data.rows || 100;
     XL.COLS = data.cols || 26;
 
@@ -30,6 +31,13 @@ XL.engine = {
       Object.entries(s.formats || {}).forEach(([key, fmt]) => {
         XL.state.formats[id + ":" + key] = fmt;
       });
+
+      // Sayfa düzeni (sütun genişliği / satır yüksekliği / birleştirme) — içe aktarımda korunur.
+      XL.state.layout[id] = {
+        colWidths: Object.assign({}, s.colWidths),
+        rowHeights: Object.assign({}, s.rowHeights),
+        merges: Array.isArray(s.merges) ? s.merges.map((m) => m.slice()) : [],
+      };
     });
 
     XL.state.page = data.page || null; // yazdırma düzeni (kenar boşluğu + üst/alt bilgi)
@@ -56,7 +64,12 @@ XL.engine = {
       Object.entries(XL.state.formats).forEach(([key, fmt]) => {
         if (key.startsWith(prefix)) formats[key.slice(prefix.length)] = fmt;
       });
-      return { name: s.name, cells, formats };
+      const out = { name: s.name, cells, formats };
+      const lay = (XL.state.layout && XL.state.layout[s.id]) || {};
+      if (lay.colWidths && Object.keys(lay.colWidths).length) out.colWidths = lay.colWidths;
+      if (lay.rowHeights && Object.keys(lay.rowHeights).length) out.rowHeights = lay.rowHeights;
+      if (lay.merges && lay.merges.length) out.merges = lay.merges.map((m) => m.slice());
+      return out;
     });
     const activeSheet = Math.max(0, XL.state.sheets.findIndex((s) => s.id === XL.state.activeSheetId));
     const out = { rows: XL.ROWS, cols: XL.COLS, activeSheet, sheets };
@@ -88,6 +101,7 @@ XL.engine = {
     Object.keys(XL.state.formats).forEach((k) => {
       if (k.startsWith(id + ":")) delete XL.state.formats[k];
     });
+    if (XL.state.layout) delete XL.state.layout[id];
     return true;
   },
 

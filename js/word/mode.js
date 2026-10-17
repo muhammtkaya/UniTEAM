@@ -32,142 +32,143 @@ XL.modes.docx = {
   ribbon() {
     const fonts = this.FONTS.map((f) => `<option value="${f}" style="font-family:'${f}'">${f}</option>`).join("");
     const sizes = this.SIZES.map((s) => `<option value="${s}">${s}</option>`).join("");
+    const t = XL.t;
     return [
-      { name: "Giriş", html: `
+      { name: t("Giriş", "Home"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="undo" title="Geri al (Ctrl+Z)">↶</button>
-          <button data-cmd="redo" title="İleri al (Ctrl+Y)">↷</button>
-        </div><label>Geri Al</label></div>
+          <button data-cmd="undo" title="${t("Geri al (Ctrl+Z)", "Undo (Ctrl+Z)")}">↶</button>
+          <button data-cmd="redo" title="${t("İleri al (Ctrl+Y)", "Redo (Ctrl+Y)")}">↷</button>
+        </div><label>${t("Geri Al", "Undo")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="cut" title="Kes (Ctrl+X)">✂</button>
-          <button data-cmd="copy" title="Kopyala (Ctrl+C)">⧉</button>
-          <button data-cmd="paste" title="Yapıştır (Ctrl+V)">📋</button>
-          <button data-cmd="paste-plain" title="Yalnızca metni yapıştır">📋ᵀ</button>
-        </div><label>Pano</label></div>
+          <button data-cmd="cut" title="${t("Kes (Ctrl+X)", "Cut (Ctrl+X)")}">✂</button>
+          <button data-cmd="copy" title="${t("Kopyala (Ctrl+C)", "Copy (Ctrl+C)")}">⧉</button>
+          <button data-cmd="paste" title="${t("Yapıştır (Ctrl+V)", "Paste (Ctrl+V)")}">📋</button>
+          <button data-cmd="paste-plain" title="${t("Yalnızca metni yapıştır", "Paste text only")}">📋ᵀ</button>
+        </div><label>${t("Pano", "Clipboard")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="fontName" id="wd-font" title="Yazı tipi" style="width:130px">${fonts}</select>
-          <select data-cmd="fontSize" id="wd-size" title="Yazı tipi boyutu">${sizes}</select>
-          <button data-cmd="grow" title="Büyüt">A⁺</button>
-          <button data-cmd="shrink" title="Küçült">A⁻</button>
+          <select data-cmd="fontName" id="wd-font" title="${t("Yazı tipi", "Font")}" style="width:130px">${fonts}</select>
+          <select data-cmd="fontSize" id="wd-size" title="${t("Yazı tipi boyutu", "Font size")}">${sizes}</select>
+          <button data-cmd="grow" title="${t("Büyüt", "Grow")}">A⁺</button>
+          <button data-cmd="shrink" title="${t("Küçült", "Shrink")}">A⁻</button>
         </div><div class="rrow">
-          <button data-cmd="bold" data-state="bold" title="Kalın (Ctrl+B)"><b>K</b></button>
-          <button data-cmd="italic" data-state="italic" title="İtalik (Ctrl+I)"><i>T</i></button>
-          <button data-cmd="underline" data-state="underline" title="Altı çizili (Ctrl+U)"><u>A</u></button>
-          <button data-cmd="strikeThrough" data-state="strikeThrough" title="Üstü çizili"><s>abc</s></button>
-          <button data-cmd="superscript" data-state="superscript" title="Üst simge">x²</button>
-          <button data-cmd="subscript" data-state="subscript" title="Alt simge">x₂</button>
-          <label class="swatch" title="Yazı rengi">A<input type="color" data-cmd="foreColor" value="#c00000"></label>
-          <label class="swatch" title="Vurgu rengi">🖍<input type="color" data-cmd="hiliteColor" value="#ffff00"></label>
-          <button data-cmd="removeFormat" title="Biçimlendirmeyi temizle">⌫</button>
-        </div><label>Yazı Tipi</label></div>
+          <button data-cmd="bold" data-state="bold" title="${t("Kalın (Ctrl+B)", "Bold (Ctrl+B)")}"><b>K</b></button>
+          <button data-cmd="italic" data-state="italic" title="${t("İtalik (Ctrl+I)", "Italic (Ctrl+I)")}"><i>T</i></button>
+          <button data-cmd="underline" data-state="underline" title="${t("Altı çizili (Ctrl+U)", "Underline (Ctrl+U)")}"><u>A</u></button>
+          <button data-cmd="strikeThrough" data-state="strikeThrough" title="${t("Üstü çizili", "Strikethrough")}"><s>abc</s></button>
+          <button data-cmd="superscript" data-state="superscript" title="${t("Üst simge", "Superscript")}">x²</button>
+          <button data-cmd="subscript" data-state="subscript" title="${t("Alt simge", "Subscript")}">x₂</button>
+          <label class="swatch" title="${t("Yazı rengi", "Font color")}">A<input type="color" data-cmd="foreColor" value="#c00000"></label>
+          <label class="swatch" title="${t("Vurgu rengi", "Highlight color")}">🖍<input type="color" data-cmd="hiliteColor" value="#ffff00"></label>
+          <button data-cmd="removeFormat" title="${t("Biçimlendirmeyi temizle", "Clear formatting")}">⌫</button>
+        </div><label>${t("Yazı Tipi", "Font")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="insertUnorderedList" data-state="insertUnorderedList" title="Madde işaretleri">• ≡</button>
-          <button data-cmd="insertOrderedList" data-state="insertOrderedList" title="Numaralandırma">1. ≡</button>
-          <button data-cmd="outdent" title="Girintiyi azalt">⇤</button>
-          <button data-cmd="indent" title="Girintiyi artır">⇥</button>
-          <select data-cmd="lineHeight" title="Satır aralığı">
-            <option value="">Aralık</option><option value="1">1,0</option><option value="1.15">1,15</option>
+          <button data-cmd="insertUnorderedList" data-state="insertUnorderedList" title="${t("Madde işaretleri", "Bullets")}">• ≡</button>
+          <button data-cmd="insertOrderedList" data-state="insertOrderedList" title="${t("Numaralandırma", "Numbering")}">1. ≡</button>
+          <button data-cmd="outdent" title="${t("Girintiyi azalt", "Decrease indent")}">⇤</button>
+          <button data-cmd="indent" title="${t("Girintiyi artır", "Increase indent")}">⇥</button>
+          <select data-cmd="lineHeight" title="${t("Satır aralığı", "Line spacing")}">
+            <option value="">${t("Aralık", "Spacing")}</option><option value="1">1,0</option><option value="1.15">1,15</option>
             <option value="1.5">1,5</option><option value="2">2,0</option><option value="2.5">2,5</option><option value="3">3,0</option>
           </select>
         </div><div class="rrow">
-          <button data-cmd="justifyLeft" data-state="justifyLeft" title="Sola hizala (Ctrl+L)">⯇≡</button>
-          <button data-cmd="justifyCenter" data-state="justifyCenter" title="Ortala (Ctrl+E)">≡</button>
-          <button data-cmd="justifyRight" data-state="justifyRight" title="Sağa hizala (Ctrl+R)">≡⯈</button>
-          <button data-cmd="justifyFull" data-state="justifyFull" title="İki yana yasla (Ctrl+J)">☰</button>
-        </div><label>Paragraf</label></div>
+          <button data-cmd="justifyLeft" data-state="justifyLeft" title="${t("Sola hizala (Ctrl+L)", "Align left (Ctrl+L)")}">⯇≡</button>
+          <button data-cmd="justifyCenter" data-state="justifyCenter" title="${t("Ortala (Ctrl+E)", "Center (Ctrl+E)")}">≡</button>
+          <button data-cmd="justifyRight" data-state="justifyRight" title="${t("Sağa hizala (Ctrl+R)", "Align right (Ctrl+R)")}">≡⯈</button>
+          <button data-cmd="justifyFull" data-state="justifyFull" title="${t("İki yana yasla (Ctrl+J)", "Justify (Ctrl+J)")}">☰</button>
+        </div><label>${t("Paragraf", "Paragraph")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="formatBlock" id="wd-style" title="Stiller">
-            <option value="P">Normal</option>
-            <option value="H1">Başlık 1</option>
-            <option value="H2">Başlık 2</option>
-            <option value="H3">Başlık 3</option>
-            <option value="H4">Başlık 4</option>
-            <option value="BLOCKQUOTE">Alıntı</option>
-            <option value="PRE">Kod</option>
+          <select data-cmd="formatBlock" id="wd-style" title="${t("Stiller", "Styles")}">
+            <option value="P">${t("Normal", "Normal")}</option>
+            <option value="H1">${t("Başlık 1", "Heading 1")}</option>
+            <option value="H2">${t("Başlık 2", "Heading 2")}</option>
+            <option value="H3">${t("Başlık 3", "Heading 3")}</option>
+            <option value="H4">${t("Başlık 4", "Heading 4")}</option>
+            <option value="BLOCKQUOTE">${t("Alıntı", "Quote")}</option>
+            <option value="PRE">${t("Kod", "Code")}</option>
           </select>
-        </div><label>Stiller</label></div>
+        </div><label>${t("Stiller", "Styles")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="find" title="Bul ve değiştir (Ctrl+H)">🔍 Bul</button>
-          <button data-cmd="selectAll" title="Tümünü seç (Ctrl+A)">⬚ Tümü</button>
-        </div><label>Düzenleme</label></div>` },
+          <button data-cmd="find" title="${t("Bul ve değiştir (Ctrl+H)", "Find & replace (Ctrl+H)")}">🔍 ${t("Bul", "Find")}</button>
+          <button data-cmd="selectAll" title="${t("Tümünü seç (Ctrl+A)", "Select all (Ctrl+A)")}">⬚ ${t("Tümü", "All")}</button>
+        </div><label>${t("Düzenleme", "Editing")}</label></div>` },
 
-      { name: "Ekle", html: `
+      { name: t("Ekle", "Insert"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="page-break" class="big">⤓<span>Sayfa Sonu</span></button>
-        </div><label>Sayfalar</label></div>
+          <button data-cmd="page-break" class="big">⤓<span>${t("Sayfa Sonu", "Page Break")}</span></button>
+        </div><label>${t("Sayfalar", "Pages")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="ins-header" data-state="header" class="big" title="Üst bilgi alanını aç/kapat">▔<span>Üst Bilgi</span></button>
-          <button data-cmd="ins-footer" data-state="footer" class="big" title="Alt bilgi alanını aç/kapat">▁<span>Alt Bilgi</span></button>
-          <button data-cmd="ins-pagenum" class="big" title="İmlecin bulunduğu üst/alt bilgiye sayfa numarası ekle">#<span>Sayfa No</span></button>
-        </div><label>Üst Bilgi ve Alt Bilgi</label></div>
+          <button data-cmd="ins-header" data-state="header" class="big" title="${t("Üst bilgi alanını aç/kapat", "Toggle header area")}">▔<span>${t("Üst Bilgi", "Header")}</span></button>
+          <button data-cmd="ins-footer" data-state="footer" class="big" title="${t("Alt bilgi alanını aç/kapat", "Toggle footer area")}">▁<span>${t("Alt Bilgi", "Footer")}</span></button>
+          <button data-cmd="ins-pagenum" class="big" title="${t("İmlecin bulunduğu üst/alt bilgiye sayfa numarası ekle", "Insert page number in header/footer at cursor")}">#<span>${t("Sayfa No", "Page No")}</span></button>
+        </div><label>${t("Üst Bilgi ve Alt Bilgi", "Header & Footer")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="table" class="big">▦<span>Tablo</span></button>
+          <button data-cmd="table" class="big">▦<span>${t("Tablo", "Table")}</span></button>
           <div class="rcol">
-            <button data-cmd="tbl-row" title="İmlecin altına satır ekle">+ Satır</button>
-            <button data-cmd="tbl-col" title="İmlecin sağına sütun ekle">+ Sütun</button>
+            <button data-cmd="tbl-row" title="${t("İmlecin altına satır ekle", "Insert row below cursor")}">+ ${t("Satır", "Row")}</button>
+            <button data-cmd="tbl-col" title="${t("İmlecin sağına sütun ekle", "Insert column right of cursor")}">+ ${t("Sütun", "Col")}</button>
           </div>
           <div class="rcol">
-            <button data-cmd="tbl-delrow" title="Satırı sil">− Satır</button>
-            <button data-cmd="tbl-delcol" title="Sütunu sil">− Sütun</button>
+            <button data-cmd="tbl-delrow" title="${t("Satırı sil", "Delete row")}">− ${t("Satır", "Row")}</button>
+            <button data-cmd="tbl-delcol" title="${t("Sütunu sil", "Delete column")}">− ${t("Sütun", "Col")}</button>
           </div>
-        </div><label>Tablolar</label></div>
+        </div><label>${t("Tablolar", "Tables")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="image" class="big">🖼<span>Resim</span></button>
-          <select data-cmd="img-size" title="Seçili resmin genişliği">
-            <option value="">Resim boyutu</option><option value="25%">%25</option><option value="50%">%50</option>
+          <button data-cmd="image" class="big">🖼<span>${t("Resim", "Picture")}</span></button>
+          <select data-cmd="img-size" title="${t("Seçili resmin genişliği", "Selected picture width")}">
+            <option value="">${t("Resim boyutu", "Picture size")}</option><option value="25%">%25</option><option value="50%">%50</option>
             <option value="75%">%75</option><option value="100%">%100</option>
           </select>
-        </div><label>Çizimler</label></div>
+        </div><label>${t("Çizimler", "Illustrations")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="link" class="big">🔗<span>Bağlantı</span></button>
-          <button data-cmd="unlink" class="big">⛓<span>Bağlantıyı Kaldır</span></button>
-        </div><label>Bağlantılar</label></div>
+          <button data-cmd="link" class="big">🔗<span>${t("Bağlantı", "Link")}</span></button>
+          <button data-cmd="unlink" class="big">⛓<span>${t("Bağlantıyı Kaldır", "Remove Link")}</span></button>
+        </div><label>${t("Bağlantılar", "Links")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="hr" class="big">―<span>Yatay Çizgi</span></button>
-          <button data-cmd="date" class="big">📅<span>Tarih</span></button>
-          <button data-cmd="symbol" class="big">Ω<span>Simge</span></button>
-        </div><label>Metin & Simgeler</label></div>` },
+          <button data-cmd="hr" class="big">―<span>${t("Yatay Çizgi", "Horizontal Line")}</span></button>
+          <button data-cmd="date" class="big">📅<span>${t("Tarih", "Date")}</span></button>
+          <button data-cmd="symbol" class="big">Ω<span>${t("Simge", "Symbol")}</span></button>
+        </div><label>${t("Metin & Simgeler", "Text & Symbols")}</label></div>` },
 
-      { name: "Düzen", html: `
+      { name: t("Düzen", "Layout"), html: `
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="page-margin" id="wd-margin" title="Kenar boşlukları">
-            <option value="normal">Normal (2,54 cm)</option>
-            <option value="narrow">Dar (1,27 cm)</option>
-            <option value="wide">Geniş (5,08 cm yanlar)</option>
-            <option value="none">Yok (0 — tam sayfa)</option>
-            <option value="custom">Özel…</option>
+          <select data-cmd="page-margin" id="wd-margin" title="${t("Kenar boşlukları", "Margins")}">
+            <option value="normal">${t("Normal (2,54 cm)", "Normal (2.54 cm)")}</option>
+            <option value="narrow">${t("Dar (1,27 cm)", "Narrow (1.27 cm)")}</option>
+            <option value="wide">${t("Geniş (5,08 cm yanlar)", "Wide (5.08 cm sides)")}</option>
+            <option value="none">${t("Yok (0 — tam sayfa)", "None (0 — full page)")}</option>
+            <option value="custom">${t("Özel…", "Custom…")}</option>
           </select>
-        </div><label>Kenar Boşlukları</label></div>
+        </div><label>${t("Kenar Boşlukları", "Margins")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="page-orient" id="wd-orient" title="Yönlendirme">
-            <option value="portrait">Dikey</option>
-            <option value="landscape">Yatay</option>
+          <select data-cmd="page-orient" id="wd-orient" title="${t("Yönlendirme", "Orientation")}">
+            <option value="portrait">${t("Dikey", "Portrait")}</option>
+            <option value="landscape">${t("Yatay", "Landscape")}</option>
           </select>
-        </div><label>Yönlendirme</label></div>
+        </div><label>${t("Yönlendirme", "Orientation")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="page-size" id="wd-psize" title="Kağıt boyutu">
+          <select data-cmd="page-size" id="wd-psize" title="${t("Kağıt boyutu", "Paper size")}">
             <option value="A4">A4 (21 × 29,7 cm)</option>
             <option value="Letter">Letter (21,6 × 27,9 cm)</option>
             <option value="A5">A5 (14,8 × 21 cm)</option>
           </select>
-        </div><label>Boyut</label></div>` },
+        </div><label>${t("Boyut", "Size")}</label></div>` },
 
-      { name: "Gözden Geçir", html: `
+      { name: t("Gözden Geçir", "Review"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="wordcount" class="big">🔢<span>Sözcük Sayısı</span></button>
-          <button data-cmd="spellcheck" data-state="spellcheck" class="big">✔<span>Yazım Denetimi</span></button>
-        </div><label>Yazım Denetleme</label></div>` },
+          <button data-cmd="wordcount" class="big">🔢<span>${t("Sözcük Sayısı", "Word Count")}</span></button>
+          <button data-cmd="spellcheck" data-state="spellcheck" class="big">✔<span>${t("Yazım Denetimi", "Spell Check")}</span></button>
+        </div><label>${t("Yazım Denetleme", "Proofing")}</label></div>` },
 
-      { name: "Görünüm", html: `
+      { name: t("Görünüm", "View"), html: `
         <div class="rgroup"><div class="rrow">
           <select data-cmd="zoom" id="wd-zoom">
             <option value="0.5">%50</option><option value="0.75">%75</option><option value="1" selected>%100</option>
             <option value="1.25">%125</option><option value="1.5">%150</option><option value="2">%200</option>
           </select>
-        </div><label>Yakınlaştır</label></div>
+        </div><label>${t("Yakınlaştır", "Zoom")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="print" class="big">🖨<span>Yazdır / PDF</span></button>
-        </div><label>Çıktı</label></div>` },
+          <button data-cmd="print" class="big">🖨<span>${t("Yazdır / PDF", "Print / PDF")}</span></button>
+        </div><label>${t("Çıktı", "Output")}</label></div>` },
     ];
   },
 
@@ -177,13 +178,13 @@ XL.modes.docx = {
     document.getElementById("workarea").innerHTML = `
       <div id="wd-scroll"><div id="wd-page">
         <div id="wd-header-wrap" class="wd-hf-wrap">
-          <button class="wd-hf-x" data-hf="header" contenteditable="false" title="Üst bilgiyi kaldır">✕ Kaldır</button>
-          <div id="wd-header" class="wd-hf wd-header" data-label="Üst Bilgi" contenteditable="true" spellcheck="true"></div>
+          <button class="wd-hf-x" data-hf="header" contenteditable="false" title="${XL.t("Üst bilgiyi kaldır", "Remove header")}">✕ ${XL.t("Kaldır", "Remove")}</button>
+          <div id="wd-header" class="wd-hf wd-header" data-label="${XL.t("Üst Bilgi", "Header")}" contenteditable="true" spellcheck="true"></div>
         </div>
         <div id="wd-body" contenteditable="true" spellcheck="true"></div>
         <div id="wd-footer-wrap" class="wd-hf-wrap">
-          <button class="wd-hf-x" data-hf="footer" contenteditable="false" title="Alt bilgiyi kaldır">✕ Kaldır</button>
-          <div id="wd-footer" class="wd-hf wd-footer" data-label="Alt Bilgi" contenteditable="true" spellcheck="true"></div>
+          <button class="wd-hf-x" data-hf="footer" contenteditable="false" title="${XL.t("Alt bilgiyi kaldır", "Remove footer")}">✕ ${XL.t("Kaldır", "Remove")}</button>
+          <div id="wd-footer" class="wd-hf wd-footer" data-label="${XL.t("Alt Bilgi", "Footer")}" contenteditable="true" spellcheck="true"></div>
         </div>
       </div></div>`;
     this.doc = doc;
@@ -447,12 +448,12 @@ XL.modes.docx = {
       case "image": return this.insertImage();
       case "img-size":
         if (this.selectedImg && value) { this.selectedImg.style.width = value; this.selectedImg.style.height = "auto"; XL.ws.changed(); }
-        else if (value) alert("Önce belgede bir resme tıklayın.");
+        else if (value) alert(XL.t("Önce belgede bir resme tıklayın.", "Click an image in the document first."));
         document.querySelector('#ribbon select[data-cmd="img-size"]').value = "";
         return;
       case "link": {
         this.restoreRange();
-        const url = prompt("Bağlantı adresi (URL):", "https://");
+        const url = prompt(XL.t("Bağlantı adresi (URL):", "Link address (URL):"), "https://");
         if (!url || url === "https://") return;
         const sel = window.getSelection();
         if (sel.isCollapsed) this.exec("insertHTML", `<a href="${XL.esc(url)}">${XL.esc(url)}</a>`);
@@ -460,7 +461,7 @@ XL.modes.docx = {
         return;
       }
       case "hr": return this.insertBlock("<hr><p><br></p>", "p");
-      case "date": return this.exec("insertText", new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }));
+      case "date": return this.exec("insertText", new Date().toLocaleDateString(XL.i18n && XL.i18n.locale === "en" ? "en-US" : "tr-TR", { day: "numeric", month: "long", year: "numeric" }));
       case "symbol": return this.symbolDialog();
       case "page-margin":
         if (value === "custom") return this.marginDialog();
@@ -469,7 +470,9 @@ XL.modes.docx = {
       case "page-size": this.page.size = value; this.applyPage(); return XL.ws.changed();
       case "wordcount": {
         const c = this.counts();
-        return alert(`Sayfalar (yaklaşık): ${c.pages}\nSözcükler: ${c.words}\nKarakterler (boşluklu): ${c.chars}\nKarakterler (boşluksuz): ${c.charsNoSpace}\nParagraflar: ${c.paras}`);
+        return alert(XL.t(
+          `Sayfalar (yaklaşık): ${c.pages}\nSözcükler: ${c.words}\nKarakterler (boşluklu): ${c.chars}\nKarakterler (boşluksuz): ${c.charsNoSpace}\nParagraflar: ${c.paras}`,
+          `Pages (approx.): ${c.pages}\nWords: ${c.words}\nCharacters (with spaces): ${c.chars}\nCharacters (no spaces): ${c.charsNoSpace}\nParagraphs: ${c.paras}`));
       }
       case "spellcheck": this.editor.spellcheck = !this.editor.spellcheck; return XL.ws.syncRibbonState();
       case "zoom": this.zoom = parseFloat(value) || 1; return this.applyPage();
@@ -650,7 +653,7 @@ XL.modes.docx = {
       const text = await navigator.clipboard.readText();
       this.exec("insertText", text);
     } catch (err) {
-      alert("Tarayıcı panoya erişime izin vermedi. Ctrl+V kullanın.");
+      alert(XL.t("Tarayıcı panoya erişime izin vermedi. Ctrl+V kullanın.", "The browser denied clipboard access. Use Ctrl+V."));
     }
   },
 
@@ -679,12 +682,12 @@ XL.modes.docx = {
     for (let r = 1; r <= 8; r++)
       for (let c = 1; c <= 10; c++) html += `<span data-r="${r}" data-c="${c}"></span>`;
     html += "</div>";
-    XL.showPanel("Tablo Ekle", `
-      <p style="margin-top:0">Boyutu seçin: <b id="tbl-lbl">1 × 1</b></p>${html}
-      <p>veya: <input id="tbl-r" type="number" min="1" max="100" value="3" style="width:60px"> satır ×
-      <input id="tbl-c" type="number" min="1" max="30" value="3" style="width:60px"> sütun
-      <button id="tbl-ok">Ekle</button></p>
-      <label><input id="tbl-head" type="checkbox" checked> İlk satır başlık</label>`);
+    XL.showPanel(XL.t("Tablo Ekle", "Insert Table"), `
+      <p style="margin-top:0">${XL.t("Boyutu seçin:", "Choose size:")} <b id="tbl-lbl">1 × 1</b></p>${html}
+      <p>${XL.t("veya:", "or:")} <input id="tbl-r" type="number" min="1" max="100" value="3" style="width:60px"> ${XL.t("satır", "rows")} ×
+      <input id="tbl-c" type="number" min="1" max="30" value="3" style="width:60px"> ${XL.t("sütun", "cols")}
+      <button id="tbl-ok">${XL.t("Ekle", "Insert")}</button></p>
+      <label><input id="tbl-head" type="checkbox" checked> ${XL.t("İlk satır başlık", "First row is header")}</label>`);
     const picker = document.getElementById("tbl-picker");
     picker.onmouseover = (e) => {
       const s = e.target.closest("span"); if (!s) return;
@@ -722,7 +725,7 @@ XL.modes.docx = {
 
   tableOp(op) {
     const cell = this.currentCell();
-    if (!cell || !this.editor.contains(cell)) return alert("Önce imleci bir tablo hücresine yerleştirin.");
+    if (!cell || !this.editor.contains(cell)) return alert(XL.t("Önce imleci bir tablo hücresine yerleştirin.", "Place the cursor in a table cell first."));
     const tr = cell.parentElement, table = cell.closest("table");
     const ci = [...tr.cells].indexOf(cell);
     if (op === "row") {
@@ -758,7 +761,7 @@ XL.modes.docx = {
   symbolDialog() {
     this.saveRange();
     const chars = "©®™€£$¥₺§¶•…–—«»“”‘’±×÷≤≥≠≈∞√∑∏∫∂πΩμ°‰αβγδελσφωΔ←→↑↓↔⇒⇔✓✗★☆♥♦♣♠☺☎✉♪";
-    XL.showPanel("Simge", `<div class="sym-grid">${[...chars].map((c) => `<button data-ch="${c}">${c}</button>`).join("")}</div>`);
+    XL.showPanel(XL.t("Simge", "Symbol"), `<div class="sym-grid">${[...chars].map((c) => `<button data-ch="${c}">${c}</button>`).join("")}</div>`);
     document.querySelector(".sym-grid").onclick = (e) => {
       const b = e.target.closest("button[data-ch]");
       if (b) this.exec("insertText", b.dataset.ch);
@@ -768,12 +771,12 @@ XL.modes.docx = {
   /* ---------- Bul / Değiştir ---------- */
   findReplace() {
     this.saveRange();
-    XL.showPanel("Bul ve Değiştir", `
-      <label>Aranan: <input id="wf-find" type="text"></label><br>
-      <label>Yeni: <input id="wf-repl" type="text"></label><br>
-      <label><input id="wf-case" type="checkbox"> Büyük/küçük harf duyarlı</label><br>
-      <button id="wf-next">Sonrakini Bul</button>
-      <button id="wf-all">Tümünü Değiştir</button>
+    XL.showPanel(XL.t("Bul ve Değiştir", "Find and Replace"), `
+      <label>${XL.t("Aranan:", "Find:")} <input id="wf-find" type="text"></label><br>
+      <label>${XL.t("Yeni:", "Replace:")} <input id="wf-repl" type="text"></label><br>
+      <label><input id="wf-case" type="checkbox"> ${XL.t("Büyük/küçük harf duyarlı", "Case sensitive")}</label><br>
+      <button id="wf-next">${XL.t("Sonrakini Bul", "Find Next")}</button>
+      <button id="wf-all">${XL.t("Tümünü Değiştir", "Replace All")}</button>
       <div id="wf-msg" style="margin-top:8px;color:#555"></div>`);
     const $ = (id) => document.getElementById(id);
     $("wf-find").focus();
@@ -783,7 +786,7 @@ XL.modes.docx = {
       this.editor.focus();
       // window.find standart değil ama Chrome/Edge/Firefox destekliyor
       const ok = window.find && window.find(q, $("wf-case").checked, false, true);
-      $("wf-msg").textContent = ok ? "" : "Bulunamadı.";
+      $("wf-msg").textContent = ok ? "" : XL.t("Bulunamadı.", "Not found.");
     };
     $("wf-all").onclick = () => {
       const q = $("wf-find").value, rep = $("wf-repl").value;
@@ -797,7 +800,7 @@ XL.modes.docx = {
         const m = t.nodeValue.match(re);
         if (m) { n += m.length; t.nodeValue = t.nodeValue.replace(re, rep); }
       });
-      $("wf-msg").textContent = n + " eşleşme değiştirildi.";
+      $("wf-msg").textContent = n + XL.t(" eşleşme değiştirildi.", " matches replaced.");
       this.afterChange();
     };
   },
@@ -840,15 +843,15 @@ XL.modes.docx = {
           wide: { t: 2.54, r: 5.08, b: 2.54, l: 5.08 }, none: { t: 0, r: 0, b: 0, l: 0 } }[this.page.margin]
         || { t: 2.54, r: 2.54, b: 2.54, l: 2.54 };
     const inp = (id, v) => `<input id="${id}" type="number" min="0" max="10" step="0.1" value="${v}" style="width:70px"> cm`;
-    XL.showPanel("Özel Kenar Boşlukları", `
+    XL.showPanel(XL.t("Özel Kenar Boşlukları", "Custom Margins"), `
       <div class="margin-dialog" style="display:grid;grid-template-columns:auto auto;gap:8px 10px;align-items:center">
-        <label>Üst</label>${inp("mg-t", cur.t)}
-        <label>Alt</label>${inp("mg-b", cur.b)}
-        <label>Sol</label>${inp("mg-l", cur.l)}
-        <label>Sağ</label>${inp("mg-r", cur.r)}
+        <label>${XL.t("Üst", "Top")}</label>${inp("mg-t", cur.t)}
+        <label>${XL.t("Alt", "Bottom")}</label>${inp("mg-b", cur.b)}
+        <label>${XL.t("Sol", "Left")}</label>${inp("mg-l", cur.l)}
+        <label>${XL.t("Sağ", "Right")}</label>${inp("mg-r", cur.r)}
       </div>
-      <p style="margin-top:12px"><button id="mg-ok">Uygula</button>
-      <button id="mg-cancel" class="btn-secondary">Vazgeç</button></p>`);
+      <p style="margin-top:12px"><button id="mg-ok">${XL.t("Uygula", "Apply")}</button>
+      <button id="mg-cancel" class="btn-secondary">${XL.t("Vazgeç", "Cancel")}</button></p>`);
     const num = (id, d) => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? d : Math.max(0, Math.min(10, v)); };
     document.getElementById("mg-ok").onclick = () => {
       this.page.margin = { t: num("mg-t", 2.54), r: num("mg-r", 2.54), b: num("mg-b", 2.54), l: num("mg-l", 2.54) };
@@ -894,7 +897,7 @@ XL.modes.docx = {
   // İmlecin bulunduğu üst/alt bilgiye sayfa numarası alanı ekle
   insertPageNumber() {
     if (this.editor !== this.header && this.editor !== this.footer) {
-      return alert("Sayfa numarası yalnızca üst bilgi veya alt bilgi alanına eklenebilir.\nÖnce üst/alt bilgiyi açıp imleci oraya yerleştirin.");
+      return alert(XL.t("Sayfa numarası yalnızca üst bilgi veya alt bilgi alanına eklenebilir.\nÖnce üst/alt bilgiyi açıp imleci oraya yerleştirin.", "Page numbers can only be inserted into the header or footer area.\nOpen the header/footer and place the cursor there first."));
     }
     this.restoreRange();
     // data-field ile işaretli, dışa aktarımda gerçek sayfa numarası alanına çevrilir
@@ -925,6 +928,7 @@ XL.modes.docx = {
   updateCount() {
     if (!this.editor) return;
     const c = this.counts();
-    XL.status(`Sayfa ${c.pages}   ·   ${c.words} sözcük   ·   ${c.chars} karakter`);
+    XL.status(XL.t(`Sayfa ${c.pages}   ·   ${c.words} sözcük   ·   ${c.chars} karakter`,
+      `Page ${c.pages}   ·   ${c.words} words   ·   ${c.chars} characters`));
   },
 };

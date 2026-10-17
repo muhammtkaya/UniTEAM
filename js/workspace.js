@@ -22,8 +22,18 @@ XL.ws = {
     }
     this.wireShell();
     this.wireRibbon();
+    if (XL.i18n) XL.i18n.onChange(() => this.onLocaleChange());
     this.activate(this.activeId, true);
     this._saveAll();   // açılıştaki durumu (ve göçü) kalıcılaştır
+  },
+
+  // Dil değişince kalıcı arayüzü (şerit + sekmeler) yeniden çiz. Belge içeriği/mod korunur.
+  onLocaleChange() {
+    const doc = this.active();
+    if (!doc) return;
+    this.renderRibbon(this.modeOf(doc).ribbon(), doc.type);
+    this.syncRibbonState();
+    this.renderDocTabs();
   },
 
   active() { return this.docs.find((d) => d.id === this.activeId); },
@@ -81,12 +91,15 @@ XL.ws = {
       m.mount(doc);
     } catch (e) {
       console.error(e);
-      alert("Belge açılırken hata oluştu: " + e.message);
+      alert(XL.t("Belge açılırken hata oluştu: ", "Error while opening document: ") + e.message);
     }
     this.mounted = true;
     this.renderDocTabs();
     this.syncRibbonState();
+    this.applyReadonly();   // salt-görüntüleme belgelerinde düzenlemeyi kilitle
     this.persistNow();
+    // Yorum işaretçileri + canlı yenileme aboneliğini bu belgeye göre eşitle.
+    if (XL.comments && XL.comments.syncForDoc) XL.comments.syncForDoc(doc);
   },
 
   /* ---------- Şerit (veri-güdümlü: kullanıcı sıralama/gizleme yapabilir) ---------- */
@@ -97,16 +110,16 @@ XL.ws = {
     const rib = document.getElementById("ribbon");
     const editing = !!this.ribEditing;
     const editControls = editing
-      ? `<button class="rtab rtab-edit active" data-ribdone title="Özelleştirmeyi bitir">✓ Bitti</button>
-         <button class="rtab rtab-reset" data-ribreset title="Bu moddaki şerit düzenini varsayılana döndür">↺ Sıfırla</button>`
-      : `<button class="rtab rtab-edit" data-ribedit title="Şeridi özelleştir: grupları sürükle-sırala, gizle">⚙ Özelleştir</button>`;
+      ? `<button class="rtab rtab-edit active" data-ribdone title="${XL.t("Özelleştirmeyi bitir", "Finish customizing")}">✓ ${XL.t("Bitti", "Done")}</button>
+         <button class="rtab rtab-reset" data-ribreset title="${XL.t("Bu moddaki şerit düzenini varsayılana döndür", "Reset this mode's ribbon layout to default")}">↺ ${XL.t("Sıfırla", "Reset")}</button>`
+      : `<button class="rtab rtab-edit" data-ribedit title="${XL.t("Şeridi özelleştir: grupları sürükle-sırala, gizle", "Customize ribbon: drag to reorder groups, hide")}">⚙ ${XL.t("Özelleştir", "Customize")}</button>`;
     rib.classList.toggle("rib-editing", editing);
     rib.innerHTML = `
       <div class="rtabs">
         ${tabs.map((t, i) => `<button class="rtab${i === sel ? " active" : ""}" data-tab="${i}">${XL.esc(t.name)}</button>`).join("")}
         <span class="rtabs-spacer"></span>${editControls}
       </div>
-      ${editing ? '<div class="rib-edit-hint">Grupları sürükleyip sıralayın · ✕ ile gizleyin · aşağıdaki şeritten geri getirin</div>' : ""}
+      ${editing ? `<div class="rib-edit-hint">${XL.t("Grupları sürükleyip sıralayın · ✕ ile gizleyin · aşağıdaki şeritten geri getirin", "Drag groups to reorder · hide with ✕ · restore from the tray below")}</div>` : ""}
       ${tabs.map((t, i) => `<div class="rpanel${i === sel ? " active" : ""}" data-panel="${i}"></div>`).join("")}`;
     tabs.forEach((t, i) => this._fillPanel(rib.querySelector(`.rpanel[data-panel="${i}"]`), t, i));
   },
@@ -153,7 +166,7 @@ XL.ws = {
       if (this.ribEditing) {
         gEl.setAttribute("draggable", "true");
         const x = document.createElement("button");
-        x.className = "rgroup-hide"; x.textContent = "✕"; x.title = "Bu grubu gizle";
+        x.className = "rgroup-hide"; x.textContent = "✕"; x.title = XL.t("Bu grubu gizle", "Hide this group");
         x.dataset.hide = id; x.dataset.tab = tabIndex;
         gEl.appendChild(x);
       }
@@ -165,8 +178,8 @@ XL.ws = {
       const tray = document.createElement("div");
       tray.className = "rgroup rgroup-tray";
       tray.innerHTML = `<div class="rrow tray-row">${hiddenGroups.length
-        ? hiddenGroups.map((g) => `<button class="tray-chip" data-show="${g.id}" data-tab="${tabIndex}" title="Geri getir">＋ ${XL.esc(g.label)}</button>`).join("")
-        : '<span class="tray-empty">gizli grup yok</span>'}</div><label>Gizli gruplar</label>`;
+        ? hiddenGroups.map((g) => `<button class="tray-chip" data-show="${g.id}" data-tab="${tabIndex}" title="${XL.t("Geri getir", "Restore")}">＋ ${XL.esc(g.label)}</button>`).join("")
+        : `<span class="tray-empty">${XL.t("gizli grup yok", "no hidden groups")}</span>`}</div><label>${XL.t("Gizli gruplar", "Hidden groups")}</label>`;
       panelEl.appendChild(tray);
     }
   },
@@ -218,7 +231,7 @@ XL.ws = {
       if (e.target.closest("[data-ribedit]")) return this.toggleRibbonEdit(true);
       if (e.target.closest("[data-ribdone]")) return this.toggleRibbonEdit(false);
       if (e.target.closest("[data-ribreset]")) {
-        if (confirm("Bu moddaki şerit düzeni (sıralama + gizlenenler) varsayılana döndürülsün mü?")) this.resetRibbonLayout();
+        if (confirm(XL.t("Bu moddaki şerit düzeni (sıralama + gizlenenler) varsayılana döndürülsün mü?", "Reset this mode's ribbon layout (order + hidden groups) to default?"))) this.resetRibbonLayout();
         return;
       }
       const hideBtn = e.target.closest("[data-hide]");
@@ -288,13 +301,33 @@ XL.ws = {
     });
   },
 
+  // Etkin belge salt-görüntüleme mi? (anonim/public açılan belgeler böyle işaretlenir)
+  isReadonly() { const d = this.active(); return !!(d && d.readonly); },
+
+  // Salt-görüntüleme kilidini uygula: body sınıfı + Word contentEditable + banner.
+  applyReadonly() {
+    const ro = this.isReadonly();
+    document.body.classList.toggle("doc-readonly", ro);
+    ["wd-body", "wd-header", "wd-footer"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute("contenteditable", ro ? "false" : "true");
+    });
+    let bn = document.getElementById("ro-banner");
+    if (ro) {
+      if (!bn) { bn = document.createElement("div"); bn.id = "ro-banner"; document.body.appendChild(bn); }
+      bn.textContent = XL.t("👁 Salt görüntüleme — bu belge yalnızca görüntülenebilir; düzenlemeler kaydedilmez.",
+        "👁 View only — this document can only be viewed; edits are not saved.");
+    } else if (bn) { bn.remove(); }
+  },
+
   run(cmd, value) {
+    if (this.isReadonly()) { XL.status(XL.t("👁 Salt görüntüleme — düzenleme kapalı.", "👁 View only — editing disabled.")); return; }
     try {
       const r = this.modeOf(this.active()).command(cmd, value);
-      if (r && r.catch) r.catch((err) => alert("İşlem başarısız: " + err.message));
+      if (r && r.catch) r.catch((err) => alert(XL.t("İşlem başarısız: ", "Operation failed: ") + err.message));
     } catch (err) {
       console.error(err);
-      alert("İşlem başarısız: " + err.message);
+      alert(XL.t("İşlem başarısız: ", "Operation failed: ") + err.message);
     }
     this.syncRibbonState();
   },
@@ -319,8 +352,8 @@ XL.ws = {
       const m = this.modeOf(d);
       const tab = document.createElement("div");
       tab.className = `doctab t-${d.type}` + (d.id === this.activeId ? " active" : "");
-      tab.title = `${d.name}${m.ext} — çift tık: yeniden adlandır`;
-      tab.innerHTML = `<span class="ic">${m.icon}</span><span class="nm"></span><button class="x" title="Kapat">×</button>`;
+      tab.title = `${d.name}${m.ext} — ${XL.t("çift tık: yeniden adlandır", "double-click: rename")}`;
+      tab.innerHTML = `<span class="ic">${m.icon}</span><span class="nm"></span><button class="x" title="${XL.t("Kapat", "Close")}">×</button>`;
       tab.querySelector(".nm").textContent = d.name;
       tab.addEventListener("click", (e) => {
         if (e.target.closest(".x")) return this.close(d.id);
@@ -328,7 +361,7 @@ XL.ws = {
       });
       tab.addEventListener("dblclick", (e) => {
         if (e.target.closest(".x")) return;
-        const n = prompt("Belge adı:", d.name);
+        const n = prompt(XL.t("Belge adı:", "Document name:"), d.name);
         if (n && n.trim()) {
           d.name = n.trim().replace(/\.(xlsx|docx|pptx)$/i, "");
           this.renderDocTabs();
@@ -342,7 +375,7 @@ XL.ws = {
 
   close(id) {
     const doc = this.docs.find((d) => d.id === id);
-    if (!confirm(`"${doc.name}" kapatılsın mı? Kaydetmediyseniz (💾) içeriği kaybolur.`)) return;
+    if (!confirm(XL.t(`"${doc.name}" kapatılsın mı? Kaydetmediyseniz (💾) içeriği kaybolur.`, `Close "${doc.name}"? Unsaved content (💾) will be lost.`))) return;
     const idx = this.docs.indexOf(doc);
     if (id === this.activeId) {
       try { this.modeOf(doc).unmount(doc); } catch (e) {}
@@ -444,34 +477,34 @@ XL.ws = {
     const ctrlAlpha = st.ctrl && st.ctrl.alpha != null ? st.ctrl.alpha : 1;
     const pct = (a) => Math.round(a * 100);
 
-    XL.showPanel("Görünümü Özelleştir", `
+    XL.showPanel(XL.t("Görünümü Özelleştir", "Customize Appearance"), `
       <div class="settings">
-        <p class="muted" style="margin-top:0">Bu ayarlar yalnızca <b>${XL.esc(appName)}</b> için geçerlidir ve size özel kaydedilir.</p>
+        <p class="muted" style="margin-top:0">${XL.t(`Bu ayarlar yalnızca <b>${XL.esc(appName)}</b> için geçerlidir ve size özel kaydedilir.`, `These settings apply only to <b>${XL.esc(appName)}</b> and are saved for you.`)}</p>
 
-        <h4 style="margin:.4em 0 .2em">Tema rengi</h4>
-        <p class="muted" style="margin:.1em 0 .4em">Üst çubuk ve şerit vurgusu.</p>
+        <h4 style="margin:.4em 0 .2em">${XL.t("Tema rengi", "Theme color")}</h4>
+        <p class="muted" style="margin:.1em 0 .4em">${XL.t("Üst çubuk ve şerit vurgusu.", "Top bar and ribbon accent.")}</p>
         <div class="theme-presets">${presets.map((c) => `<button class="theme-dot" data-c="${c}" style="background:${c}" title="${c}"></button>`).join("")}</div>
         <label style="display:inline-flex;align-items:center;gap:8px;margin-top:4px">
-          Özel renk <input type="color" id="pref-accent" value="${accentCur}"></label>
-        <div style="margin-top:8px"><button id="accent-reset" class="btn-secondary">↓ Tema rengini varsayılana döndür</button></div>
+          ${XL.t("Özel renk", "Custom color")} <input type="color" id="pref-accent" value="${accentCur}"></label>
+        <div style="margin-top:8px"><button id="accent-reset" class="btn-secondary">${XL.t("↓ Tema rengini varsayılana döndür", "↓ Reset theme color to default")}</button></div>
 
         <hr style="margin:14px 0;border:none;border-top:1px solid #e6e6e6">
-        <h4 style="margin:.2em 0">Araç kutuları</h4>
-        <p class="muted" style="margin:.1em 0 .4em">Tüm sekmelerdeki grup kutularının arka planı.</p>
-        <label style="display:inline-flex;align-items:center;gap:8px">Renk <input type="color" id="box-color" value="${boxColor}"></label>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:6px">Saydamlık
+        <h4 style="margin:.2em 0">${XL.t("Araç kutuları", "Tool boxes")}</h4>
+        <p class="muted" style="margin:.1em 0 .4em">${XL.t("Tüm sekmelerdeki grup kutularının arka planı.", "Background of group boxes on all tabs.")}</p>
+        <label style="display:inline-flex;align-items:center;gap:8px">${XL.t("Renk", "Color")} <input type="color" id="box-color" value="${boxColor}"></label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px">${XL.t("Saydamlık", "Opacity")}
           <input type="range" id="box-alpha" min="0" max="100" value="${pct(boxAlpha)}" style="flex:1">
           <span id="box-alpha-v" style="width:38px;text-align:right">%${pct(boxAlpha)}</span></label>
-        <div style="margin-top:8px"><button id="box-reset" class="btn-secondary">↓ Kutu stilini varsayılana döndür</button></div>
+        <div style="margin-top:8px"><button id="box-reset" class="btn-secondary">${XL.t("↓ Kutu stilini varsayılana döndür", "↓ Reset box style to default")}</button></div>
 
         <hr style="margin:14px 0;border:none;border-top:1px solid #e6e6e6">
-        <h4 style="margin:.2em 0">Kutu içindeki araçlar</h4>
-        <p class="muted" style="margin:.1em 0 .4em">Düğme ve kontrollerin arka planı.</p>
-        <label style="display:inline-flex;align-items:center;gap:8px">Renk <input type="color" id="ctrl-color" value="${ctrlColor}"></label>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:6px">Saydamlık
+        <h4 style="margin:.2em 0">${XL.t("Kutu içindeki araçlar", "Tools inside boxes")}</h4>
+        <p class="muted" style="margin:.1em 0 .4em">${XL.t("Düğme ve kontrollerin arka planı.", "Background of buttons and controls.")}</p>
+        <label style="display:inline-flex;align-items:center;gap:8px">${XL.t("Renk", "Color")} <input type="color" id="ctrl-color" value="${ctrlColor}"></label>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:6px">${XL.t("Saydamlık", "Opacity")}
           <input type="range" id="ctrl-alpha" min="0" max="100" value="${pct(ctrlAlpha)}" style="flex:1">
           <span id="ctrl-alpha-v" style="width:38px;text-align:right">%${pct(ctrlAlpha)}</span></label>
-        <div style="margin-top:8px"><button id="ctrl-reset" class="btn-secondary">↓ Araç stilini varsayılana döndür</button></div>
+        <div style="margin-top:8px"><button id="ctrl-reset" class="btn-secondary">${XL.t("↓ Araç stilini varsayılana döndür", "↓ Reset tool style to default")}</button></div>
       </div>`);
 
     // Geçerli taslak durumu (panel kapanana kadar canlı önizleme + kayıt)
@@ -507,15 +540,15 @@ XL.ws = {
 
   async openFile(file) {
     const m = this.typeForFile(file.name);
-    if (!m) return alert("Desteklenmeyen dosya türü: " + file.name + "\nDesteklenenler: .xlsx .xls .csv .docx .pptx");
-    XL.status("Açılıyor: " + file.name + " …");
+    if (!m) return alert(XL.t("Desteklenmeyen dosya türü: ", "Unsupported file type: ") + file.name + "\n" + XL.t("Desteklenenler: ", "Supported: ") + ".xlsx .xls .csv .docx .pptx");
+    XL.status(XL.t("Açılıyor: ", "Opening: ") + file.name + " …");
     try {
       const data = await m.importFile(file);
       this.create(m.type, data, file.name.replace(/\.[^.]+$/, ""));
-      XL.status("Açıldı: " + file.name);
+      XL.status(XL.t("Açıldı: ", "Opened: ") + file.name);
     } catch (err) {
       console.error(err);
-      alert("Dosya açılamadı: " + err.message);
+      alert(XL.t("Dosya açılamadı: ", "Could not open file: ") + err.message);
       XL.status("");
     }
   },
@@ -526,10 +559,10 @@ XL.ws = {
     if (XL.grid && XL.grid.editing && doc.type === "xlsx") XL.grid.commitEdit();
     try {
       await this.modeOf(doc).save(doc);
-      XL.status("İndirildi: " + doc.name + this.modeOf(doc).ext);
+      XL.status(XL.t("İndirildi: ", "Downloaded: ") + doc.name + this.modeOf(doc).ext);
     } catch (err) {
       console.error(err);
-      alert("Kaydedilemedi: " + err.message);
+      alert(XL.t("Kaydedilemedi: ", "Could not save: ") + err.message);
     }
   },
 
@@ -556,7 +589,7 @@ XL.ws = {
       await XL.store.saveMeta({ order: this.docs.map((d) => d.id), activeId: this.activeId });
     } catch (e) {
       console.error("Kayıt hatası:", e);
-      XL.status("⚠ Otomatik kayıt yapılamadı (" + (e && e.name === "QuotaExceededError" ? "disk alanı dolu" : "depolama hatası") + ") — 💾 Kaydet ile indirin.");
+      XL.status(XL.t("⚠ Otomatik kayıt yapılamadı (", "⚠ Auto-save failed (") + (e && e.name === "QuotaExceededError" ? XL.t("disk alanı dolu", "disk full") : XL.t("depolama hatası", "storage error")) + XL.t(") — 💾 Kaydet ile indirin.", ") — download with 💾 Save."));
     }
   },
 
@@ -568,7 +601,7 @@ XL.ws = {
       await XL.store.saveMeta({ order: this.docs.map((d) => d.id), activeId: this.activeId });
     } catch (e) {
       console.error("Toplu kayıt hatası:", e);
-      XL.status("⚠ Otomatik kayıt yapılamadı (depolama) — 💾 Kaydet ile indirin.");
+      XL.status(XL.t("⚠ Otomatik kayıt yapılamadı (depolama) — 💾 Kaydet ile indirin.", "⚠ Auto-save failed (storage) — download with 💾 Save."));
     }
   },
 
@@ -577,7 +610,7 @@ XL.ws = {
     try {
       localStorage.setItem(this.KEY, JSON.stringify({ docs: this.docs, activeId: this.activeId }));
     } catch (e) {
-      XL.status("⚠ Otomatik kayıt yapılamadı (tarayıcı belleği dolu) — 💾 Kaydet ile indirin.");
+      XL.status(XL.t("⚠ Otomatik kayıt yapılamadı (tarayıcı belleği dolu) — 💾 Kaydet ile indirin.", "⚠ Auto-save failed (browser storage full) — download with 💾 Save."));
     }
   },
 

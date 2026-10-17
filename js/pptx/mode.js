@@ -103,97 +103,98 @@ XL.modes.pptx = {
       `<button data-cmd="theme" data-value="${k}" class="theme-btn" title="${t.name}" style="background:${t.bg};color:${t.title};font-family:'${t.font}'">
          <b>Aa</b><span style="background:${t.accent}"></span><small>${t.name}</small></button>`).join("");
 
+    const tt = XL.t;
     return [
-      { name: "Giriş", html: `
+      { name: tt("Giriş", "Home"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="undo" title="Geri al (Ctrl+Z)">↶</button>
-          <button data-cmd="redo" title="İleri al (Ctrl+Y)">↷</button>
-        </div><label>Geri Al</label></div>
+          <button data-cmd="undo" title="${tt("Geri al (Ctrl+Z)", "Undo (Ctrl+Z)")}">↶</button>
+          <button data-cmd="redo" title="${tt("İleri al (Ctrl+Y)", "Redo (Ctrl+Y)")}">↷</button>
+        </div><label>${tt("Geri Al", "Undo")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="new-slide" class="big">🗍<span>Yeni Slayt</span></button>
+          <button data-cmd="new-slide" class="big">🗍<span>${tt("Yeni Slayt", "New Slide")}</span></button>
           <div class="rcol">
-            <select data-cmd="new-slide-layout" title="Düzenle yeni slayt"><option value="">Düzen seç…</option>${layouts}</select>
-            <select data-cmd="set-layout" title="Geçerli slaydın düzenini değiştir"><option value="">Düzeni değiştir…</option>${layouts}</select>
+            <select data-cmd="new-slide-layout" title="${tt("Düzenle yeni slayt", "New slide layout")}"><option value="">${tt("Düzen seç…", "Choose layout…")}</option>${layouts}</select>
+            <select data-cmd="set-layout" title="${tt("Geçerli slaydın düzenini değiştir", "Change current slide layout")}"><option value="">${tt("Düzeni değiştir…", "Change layout…")}</option>${layouts}</select>
           </div>
           <div class="rcol">
-            <button data-cmd="dup-slide" title="Slaydı çoğalt">⧉ Çoğalt</button>
-            <button data-cmd="del-slide" title="Slaydı sil">🗑 Sil</button>
+            <button data-cmd="dup-slide" title="${tt("Slaydı çoğalt", "Duplicate slide")}">⧉ ${tt("Çoğalt", "Duplicate")}</button>
+            <button data-cmd="del-slide" title="${tt("Slaydı sil", "Delete slide")}">🗑 ${tt("Sil", "Delete")}</button>
           </div>
-        </div><label>Slaytlar</label></div>
+        </div><label>${tt("Slaytlar", "Slides")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="fontName" style="width:120px" title="Yazı tipi"><option value="">Yazı tipi</option>${fonts}</select>
-          <select data-cmd="fontSize" id="pp-size" title="Boyut"><option value="">Boyut</option>${sizes}</select>
-          <button data-cmd="grow" title="Büyüt">A⁺</button>
-          <button data-cmd="shrink" title="Küçült">A⁻</button>
+          <select data-cmd="fontName" style="width:120px" title="${tt("Yazı tipi", "Font")}"><option value="">${tt("Yazı tipi", "Font")}</option>${fonts}</select>
+          <select data-cmd="fontSize" id="pp-size" title="${tt("Boyut", "Size")}"><option value="">${tt("Boyut", "Size")}</option>${sizes}</select>
+          <button data-cmd="grow" title="${tt("Büyüt", "Grow")}">A⁺</button>
+          <button data-cmd="shrink" title="${tt("Küçült", "Shrink")}">A⁻</button>
         </div><div class="rrow">
-          <button data-cmd="bold" data-state="bold" title="Kalın"><b>K</b></button>
-          <button data-cmd="italic" data-state="italic" title="İtalik"><i>T</i></button>
-          <button data-cmd="underline" data-state="underline" title="Altı çizili"><u>A</u></button>
-          <button data-cmd="strikeThrough" data-state="strikeThrough" title="Üstü çizili"><s>ab</s></button>
-          <label class="swatch" title="Yazı rengi">A<input type="color" data-cmd="foreColor" value="#c00000"></label>
-        </div><label>Yazı Tipi</label></div>
+          <button data-cmd="bold" data-state="bold" title="${tt("Kalın", "Bold")}"><b>K</b></button>
+          <button data-cmd="italic" data-state="italic" title="${tt("İtalik", "Italic")}"><i>T</i></button>
+          <button data-cmd="underline" data-state="underline" title="${tt("Altı çizili", "Underline")}"><u>A</u></button>
+          <button data-cmd="strikeThrough" data-state="strikeThrough" title="${tt("Üstü çizili", "Strikethrough")}"><s>ab</s></button>
+          <label class="swatch" title="${tt("Yazı rengi", "Font color")}">A<input type="color" data-cmd="foreColor" value="#c00000"></label>
+        </div><label>${tt("Yazı Tipi", "Font")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="insertUnorderedList" title="Madde işaretleri">• ≡</button>
-          <button data-cmd="insertOrderedList" title="Numaralandırma">1. ≡</button>
+          <button data-cmd="insertUnorderedList" title="${tt("Madde işaretleri", "Bullets")}">• ≡</button>
+          <button data-cmd="insertOrderedList" title="${tt("Numaralandırma", "Numbering")}">1. ≡</button>
         </div><div class="rrow">
-          <button data-cmd="align" data-value="left" title="Sola">⯇≡</button>
-          <button data-cmd="align" data-value="center" title="Ortala">≡</button>
-          <button data-cmd="align" data-value="right" title="Sağa">≡⯈</button>
-          <select data-cmd="valign" title="Dikey hizalama">
-            <option value="">Dikey</option><option value="top">Üst</option><option value="middle">Orta</option><option value="bottom">Alt</option>
+          <button data-cmd="align" data-value="left" title="${tt("Sola", "Left")}">⯇≡</button>
+          <button data-cmd="align" data-value="center" title="${tt("Ortala", "Center")}">≡</button>
+          <button data-cmd="align" data-value="right" title="${tt("Sağa", "Right")}">≡⯈</button>
+          <select data-cmd="valign" title="${tt("Dikey hizalama", "Vertical align")}">
+            <option value="">${tt("Dikey", "Vertical")}</option><option value="top">${tt("Üst", "Top")}</option><option value="middle">${tt("Orta", "Middle")}</option><option value="bottom">${tt("Alt", "Bottom")}</option>
           </select>
-        </div><label>Paragraf</label></div>
+        </div><label>${tt("Paragraf", "Paragraph")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <label class="swatch" title="Şekil dolgusu">🪣<input type="color" data-cmd="fill" value="#c55a11"></label>
-          <label class="swatch" title="Şekil ana hattı">▭<input type="color" data-cmd="stroke" value="#843c0c"></label>
-          <button data-cmd="no-fill" title="Dolgu yok">⊘</button>
+          <label class="swatch" title="${tt("Şekil dolgusu", "Shape fill")}">🪣<input type="color" data-cmd="fill" value="#c55a11"></label>
+          <label class="swatch" title="${tt("Şekil ana hattı", "Shape outline")}">▭<input type="color" data-cmd="stroke" value="#843c0c"></label>
+          <button data-cmd="no-fill" title="${tt("Dolgu yok", "No fill")}">⊘</button>
         </div><div class="rrow">
-          <button data-cmd="front" title="Öne getir">⬆ Öne</button>
-          <button data-cmd="back" title="Arkaya gönder">⬇ Arkaya</button>
-        </div><label>Çizim</label></div>` },
+          <button data-cmd="front" title="${tt("Öne getir", "Bring forward")}">⬆ ${tt("Öne", "Front")}</button>
+          <button data-cmd="back" title="${tt("Arkaya gönder", "Send backward")}">⬇ ${tt("Arkaya", "Back")}</button>
+        </div><label>${tt("Çizim", "Drawing")}</label></div>` },
 
-      { name: "Ekle", html: `
+      { name: tt("Ekle", "Insert"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="new-slide" class="big">🗍<span>Yeni Slayt</span></button>
-        </div><label>Slaytlar</label></div>
+          <button data-cmd="new-slide" class="big">🗍<span>${tt("Yeni Slayt", "New Slide")}</span></button>
+        </div><label>${tt("Slaytlar", "Slides")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="textbox" class="big">🅰<span>Metin Kutusu</span></button>
-          <button data-cmd="image" class="big">🖼<span>Resim</span></button>
-          <button data-cmd="table" class="big">▦<span>Tablo</span></button>
-        </div><label>Ekle</label></div>
+          <button data-cmd="textbox" class="big">🅰<span>${tt("Metin Kutusu", "Text Box")}</span></button>
+          <button data-cmd="image" class="big">🖼<span>${tt("Resim", "Picture")}</span></button>
+          <button data-cmd="table" class="big">▦<span>${tt("Tablo", "Table")}</span></button>
+        </div><label>${tt("Ekle", "Insert")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="hf-dialog" class="big">🔢<span>Üst/Alt Bilgi</span></button>
-        </div><label>Metin</label></div>
-        <div class="rgroup"><div class="rrow shapes-row">${shapes}</div><label>Şekiller</label></div>` },
+          <button data-cmd="hf-dialog" class="big">🔢<span>${tt("Üst/Alt Bilgi", "Header/Footer")}</span></button>
+        </div><label>${tt("Metin", "Text")}</label></div>
+        <div class="rgroup"><div class="rrow shapes-row">${shapes}</div><label>${tt("Şekiller", "Shapes")}</label></div>` },
 
-      { name: "Tasarım", html: `
+      { name: tt("Tasarım", "Design"), html: `
         <div class="rgroup"><div class="rrow">
-          <select data-cmd="aspect" id="pp-aspect" title="Slayt boyutu (en-boy oranı)">
+          <select data-cmd="aspect" id="pp-aspect" title="${tt("Slayt boyutu (en-boy oranı)", "Slide size (aspect ratio)")}">
             ${Object.entries(this.ASPECTS).map(([k, a]) => `<option value="${k}">${a.name}</option>`).join("")}
           </select>
-        </div><label>Slayt Boyutu</label></div>
-        <div class="rgroup"><div class="rrow themes-row">${themes}</div><label>Temalar</label></div>
+        </div><label>${tt("Slayt Boyutu", "Slide Size")}</label></div>
+        <div class="rgroup"><div class="rrow themes-row">${themes}</div><label>${tt("Temalar", "Themes")}</label></div>
         <div class="rgroup"><div class="rrow">
-          <label class="swatch" title="Bu slaydın arka planı">Arka plan<input type="color" data-cmd="bg" value="#ffffff"></label>
-          <button data-cmd="bg-reset" title="Temanın arka planına dön">↺</button>
-          <button data-cmd="bg-all" title="Bu arka planı tüm slaytlara uygula">Tümüne uygula</button>
-        </div><label>Arka Plan</label></div>` },
+          <label class="swatch" title="${tt("Bu slaydın arka planı", "This slide's background")}">${tt("Arka plan", "Background")}<input type="color" data-cmd="bg" value="#ffffff"></label>
+          <button data-cmd="bg-reset" title="${tt("Temanın arka planına dön", "Revert to theme background")}">↺</button>
+          <button data-cmd="bg-all" title="${tt("Bu arka planı tüm slaytlara uygula", "Apply this background to all slides")}">${tt("Tümüne uygula", "Apply to all")}</button>
+        </div><label>${tt("Arka Plan", "Background")}</label></div>` },
 
-      { name: "Geçişler", html: `
+      { name: tt("Geçişler", "Transitions"), html: `
         <div class="rgroup"><div class="rrow">
           <select data-cmd="transition" id="pp-trans">
-            <option value="none">Yok</option><option value="fade">Solma</option>
-            <option value="push">İtme</option><option value="zoom">Yakınlaştırma</option><option value="flip">Çevirme</option>
+            <option value="none">${tt("Yok", "None")}</option><option value="fade">${tt("Solma", "Fade")}</option>
+            <option value="push">${tt("İtme", "Push")}</option><option value="zoom">${tt("Yakınlaştırma", "Zoom")}</option><option value="flip">${tt("Çevirme", "Flip")}</option>
           </select>
-          <button data-cmd="transition-all">Tümüne uygula</button>
-          <button data-cmd="preview-transition">▶ Önizle</button>
-        </div><label>Bu Slayda Geçiş</label></div>` },
+          <button data-cmd="transition-all">${tt("Tümüne uygula", "Apply to all")}</button>
+          <button data-cmd="preview-transition">▶ ${tt("Önizle", "Preview")}</button>
+        </div><label>${tt("Bu Slayda Geçiş", "Transition to This Slide")}</label></div>` },
 
-      { name: "Slayt Gösterisi", html: `
+      { name: tt("Slayt Gösterisi", "Slide Show"), html: `
         <div class="rgroup"><div class="rrow">
-          <button data-cmd="show-start" class="big">▶<span>Baştan (F5)</span></button>
-          <button data-cmd="show-current" class="big">▷<span>Geçerli Slayttan (Shift+F5)</span></button>
-        </div><label>Gösteriyi Başlat</label></div>` },
+          <button data-cmd="show-start" class="big">▶<span>${tt("Baştan (F5)", "From Start (F5)")}</span></button>
+          <button data-cmd="show-current" class="big">▷<span>${tt("Geçerli Slayttan (Shift+F5)", "From Current Slide (Shift+F5)")}</span></button>
+        </div><label>${tt("Gösteriyi Başlat", "Start Show")}</label></div>` },
     ];
   },
 
@@ -218,7 +219,7 @@ XL.modes.pptx = {
         <aside id="pp-thumbs"></aside>
         <section id="pp-main">
           <div id="pp-stage-wrap"><div id="pp-stage"></div></div>
-          <textarea id="pp-notes" placeholder="Konuşmacı notlarını eklemek için tıklayın"></textarea>
+          <textarea id="pp-notes" placeholder="${XL.t("Konuşmacı notlarını eklemek için tıklayın", "Click to add speaker notes")}"></textarea>
         </section>
       </div>`;
     document.getElementById("pp-notes").addEventListener("input", (e) => {
@@ -305,7 +306,8 @@ XL.modes.pptx = {
     if (tr) tr.value = this.slide().transition || "none";
     const asp = document.getElementById("pp-aspect");
     if (asp) asp.value = this.data.aspect || "16:9";
-    XL.status(`Slayt ${this.cur + 1} / ${this.data.slides.length}   ·   Tema: ${this.theme().name}`);
+    XL.status(XL.t(`Slayt ${this.cur + 1} / ${this.data.slides.length}   ·   Tema: ${this.theme().name}`,
+      `Slide ${this.cur + 1} / ${this.data.slides.length}   ·   Theme: ${this.theme().name}`));
   },
 
   // Slayt boyutunu değiştir (tüm sunum). this.W/H güncellenir, sahne + küçük resimler yeniden çizilir.
@@ -315,23 +317,23 @@ XL.modes.pptx = {
     this.applyAspect();
     XL.ws.changed(); // boyut snap() dışında; kalıcılığı doğrudan tetikle
     this.renderAll();
-    XL.status("Slayt boyutu: " + this.ASPECTS[value].name);
+    XL.status(XL.t("Slayt boyutu: ", "Slide size: ") + this.ASPECTS[value].name);
   },
 
   // Üst/alt bilgi iletişim kutusu (sunum geneli: tarih / slayt no / alt bilgi metni)
   footerDialog() {
     const f = this.data.footer;
     const chk = (id, on) => `<input type="checkbox" id="${id}"${on ? " checked" : ""}>`;
-    XL.showPanel("Üst Bilgi ve Alt Bilgi", `
+    XL.showPanel(XL.t("Üst Bilgi ve Alt Bilgi", "Header and Footer"), `
       <div style="display:grid;gap:10px;max-width:340px">
-        <label>${chk("pf-on", f.on)} Alt bilgiyi göster (tüm slaytlarda)</label>
-        <label>${chk("pf-date", f.date)} Tarih (otomatik) — sol</label>
-        <label>${chk("pf-num", f.number)} Slayt numarası — sağ</label>
-        <label>Alt bilgi metni — orta<br>
-          <input type="text" id="pf-text" value="${XL.esc(f.text || "")}" style="width:100%;margin-top:4px" placeholder="Örn. Şirket adı"></label>
+        <label>${chk("pf-on", f.on)} ${XL.t("Alt bilgiyi göster (tüm slaytlarda)", "Show footer (on all slides)")}</label>
+        <label>${chk("pf-date", f.date)} ${XL.t("Tarih (otomatik) — sol", "Date (automatic) — left")}</label>
+        <label>${chk("pf-num", f.number)} ${XL.t("Slayt numarası — sağ", "Slide number — right")}</label>
+        <label>${XL.t("Alt bilgi metni — orta", "Footer text — center")}<br>
+          <input type="text" id="pf-text" value="${XL.esc(f.text || "")}" style="width:100%;margin-top:4px" placeholder="${XL.t("Örn. Şirket adı", "e.g. Company name")}"></label>
       </div>
-      <p style="margin-top:12px"><button id="pf-ok">Tümüne Uygula</button>
-      <button id="pf-cancel" class="btn-secondary">Vazgeç</button></p>`);
+      <p style="margin-top:12px"><button id="pf-ok">${XL.t("Tümüne Uygula", "Apply to All")}</button>
+      <button id="pf-cancel" class="btn-secondary">${XL.t("Vazgeç", "Cancel")}</button></p>`);
     document.getElementById("pf-ok").onclick = () => {
       this.data.footer = {
         on: document.getElementById("pf-on").checked,
@@ -557,6 +559,7 @@ XL.modes.pptx = {
       const id = box.dataset.id;
       if (this.editingId && this.editingId !== id) this.stopEditing();
       if (this.selId !== id) this.select(id);
+      if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;  // salt görüntüleme: seç ama taşıma/boyut yok
       const el = this.el(id);
       this.drag = {
         id, dir: handle ? handle.dataset.dir : null,
@@ -654,6 +657,7 @@ XL.modes.pptx = {
   },
 
   startEditing(id, evt) {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;  // salt görüntüleme
     const box = this.stageSlide.querySelector(`.pp-el[data-id="${id}"]`);
     if (!box) return;
     const txt = box.querySelector(".pp-text");
@@ -714,6 +718,15 @@ XL.modes.pptx = {
     const typing = ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT" || (ae.isContentEditable && !this.editingId));
     if (typing) return;
     const ctrl = e.ctrlKey || e.metaKey;
+
+    // Salt görüntüleme: yalnız gezinme + slayt gösterisi; düzenleme/silme/taşıma yok.
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) {
+      if (e.key === "F5") { e.preventDefault(); this.startShow(e.shiftKey ? this.cur : 0); }
+      else if (e.key === "PageDown" || (e.key === "ArrowDown" && !this.selId)) { e.preventDefault(); this.goTo(this.cur + 1); }
+      else if (e.key === "PageUp" || (e.key === "ArrowUp" && !this.selId)) { e.preventDefault(); this.goTo(this.cur - 1); }
+      else if (e.key === "Escape") { this.select(null); }
+      return;
+    }
 
     if (e.key === "F5") { e.preventDefault(); return this.startShow(e.shiftKey ? this.cur : 0); }
     if (this.editingId) {
@@ -791,7 +804,7 @@ XL.modes.pptx = {
       this.refreshThumb();
       return;
     }
-    if (!this.selId) return alert("Önce bir metin kutusu veya şekil seçin.");
+    if (!this.selId) return alert(XL.t("Önce bir metin kutusu veya şekil seçin.", "Select a text box or shape first."));
     const el = this.el(this.selId);
     if (el.type === "image") return;
     const txt = this.stageSlide.querySelector(`.pp-el[data-id="${el.id}"] .pp-text`);
@@ -811,7 +824,7 @@ XL.modes.pptx = {
 
   setProp(patch, needSel = true) {
     const id = this.editingId || this.selId;
-    if (!id) { if (needSel) alert("Önce bir öğe seçin."); return; }
+    if (!id) { if (needSel) alert(XL.t("Önce bir öğe seçin.", "Select an element first.")); return; }
     const el = this.el(id);
     if (this.editingId) {
       const txt = this.stageSlide.querySelector(`.pp-el[data-id="${id}"] .pp-text`);
@@ -858,7 +871,7 @@ XL.modes.pptx = {
       }
       case "del-slide":
         this.stopEditing();
-        if (this.data.slides.length <= 1) return alert("Sunuda en az bir slayt olmalı.");
+        if (this.data.slides.length <= 1) return alert(XL.t("Sunuda en az bir slayt olmalı.", "The presentation must have at least one slide."));
         this.data.slides.splice(this.cur, 1);
         this.cur = Math.min(this.cur, this.data.slides.length - 1);
         this.selId = null; this.commit(); return this.renderAll();
@@ -917,12 +930,12 @@ XL.modes.pptx = {
       case "image":
         return XL.pickFile("image/png,image/jpeg,image/gif", (file) => this.insertImageFile(file));
       case "table": {
-        const r = parseInt(prompt("Satır sayısı:", "3"), 10), c = parseInt(prompt("Sütun sayısı:", "3"), 10);
+        const r = parseInt(prompt(XL.t("Satır sayısı:", "Number of rows:"), "3"), 10), c = parseInt(prompt(XL.t("Sütun sayısı:", "Number of columns:"), "3"), 10);
         if (!r || !c) return;
         let html = '<table class="pp-table">';
         for (let i = 0; i < r; i++) {
           html += "<tr>";
-          for (let j = 0; j < c; j++) html += i === 0 ? "<th>Başlık</th>" : "<td>&nbsp;</td>";
+          for (let j = 0; j < c; j++) html += i === 0 ? `<th>${XL.t("Başlık", "Header")}</th>` : "<td>&nbsp;</td>";
           html += "</tr>";
         }
         html += "</table>";
@@ -942,7 +955,7 @@ XL.modes.pptx = {
       case "transition-all": {
         const t = this.slide().transition || "none";
         this.data.slides.forEach((s) => (s.transition = t));
-        this.commit(); return XL.status("Geçiş tüm slaytlara uygulandı: " + t);
+        this.commit(); return XL.status(XL.t("Geçiş tüm slaytlara uygulandı: ", "Transition applied to all slides: ") + t);
       }
       case "preview-transition": return this.startShow(this.cur, true);
       case "show-start": return this.startShow(0);

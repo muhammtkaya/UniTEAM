@@ -12,6 +12,10 @@ XL.comments = {
   _collab: [],      // [{user_id,email,name,role}]
   _replyTo: null,   // yanıtlanan yorum id'si
   _badgeTimer: null,
+  _docSub: null, _subDocId: null,   // Realtime: yorum aboneliği (etkin belge)
+  _notifSub: null,                  // Realtime: bildirim aboneliği
+  _markerAnchors: [],               // etkin belgedeki anchor'lı kök yorumlar (işaretçiler)
+  _viewingComments: false, _viewingNotif: false,
 
   client() { return XL.auth && XL.auth.client; },
   enabled() { return !!(XL.cloud && XL.cloud.enabled()); },
@@ -60,10 +64,10 @@ XL.comments = {
   /* ---------- Yardımcılar ---------- */
   _timeAgo(iso) {
     const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-    if (s < 60) return "az önce";
-    if (s < 3600) return Math.floor(s / 60) + " dk önce";
-    if (s < 86400) return Math.floor(s / 3600) + " sa önce";
-    return new Date(iso).toLocaleDateString("tr-TR");
+    if (s < 60) return XL.t("az önce", "just now");
+    if (s < 3600) return Math.floor(s / 60) + XL.t(" dk önce", " min ago");
+    if (s < 86400) return Math.floor(s / 3600) + XL.t(" sa önce", " h ago");
+    return new Date(iso).toLocaleDateString(XL.i18n && XL.i18n.locale === "en" ? "en-US" : "tr-TR");
   },
   // Gövdedeki @token'ları katılımcılarla eşleştir → user_id listesi
   _parseMentions(body) {
@@ -112,12 +116,12 @@ XL.comments = {
       if (!top || top.parentElement !== body) return null;
       const bi = [...body.children].indexOf(top);
       if (bi < 0) return null;
-      return { kind: "docx", bi, label: "Paragraf " + (bi + 1) };
+      return { kind: "docx", bi, label: XL.t("Paragraf ", "Paragraph ") + (bi + 1) };
     }
     if (doc.type === "pptx") {
       const m = XL.modes.pptx;
       if (!m || !m.data) return null;
-      return { kind: "pptx", slide: m.cur || 0, el: m.selId || null, label: "Slayt " + ((m.cur || 0) + 1) + (m.selId ? " · öğe" : "") };
+      return { kind: "pptx", slide: m.cur || 0, el: m.selId || null, label: XL.t("Slayt ", "Slide ") + ((m.cur || 0) + 1) + (m.selId ? XL.t(" · öğe", " · element") : "") };
     }
     return null;
   },
@@ -126,7 +130,7 @@ XL.comments = {
   _gotoAnchor(anchor) {
     if (!anchor || !anchor.kind) return;
     const doc = XL.ws.active();
-    if (!doc || doc.type !== anchor.kind) { XL.status("Yorum konumu bu belgede değil."); return; }
+    if (!doc || doc.type !== anchor.kind) { XL.status(XL.t("Yorum konumu bu belgede değil.", "The comment's location is not in this document.")); return; }
     if (anchor.kind === "xlsx") {
       const m = XL.modes.xlsx;
       const sid = XL.state.sheets[anchor.sheet] && XL.state.sheets[anchor.sheet].id;
@@ -152,15 +156,17 @@ XL.comments = {
     this._docId = docId;
     this._replyTo = null;
     this._pendingAnchor = anchor || null;
-    XL.showPanel("💬 Yorumlar — " + (docName || ""), `
+    this._viewingComments = true; this._viewingNotif = false;
+    this.subscribeDoc(docId);   // canlı yenileme (zaten aboneyse yoksayılır)
+    XL.showPanel(XL.t("💬 Yorumlar — ", "💬 Comments — ") + (docName || ""), `
       <div id="cmt-wrap">
-        <div id="cmt-list"><p class="muted">Yükleniyor…</p></div>
+        <div id="cmt-list"><p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p></div>
         <div id="cmt-compose">
           <div id="cmt-replybar" class="hidden"></div>
           <div id="cmt-anchorbar" class="hidden"></div>
-          <textarea id="cmt-body" rows="2" placeholder="Yorum yaz…  @ ile birini bahset"></textarea>
+          <textarea id="cmt-body" rows="2" placeholder="${XL.t("Yorum yaz…  @ ile birini bahset", "Write a comment…  @ to mention someone")}"></textarea>
           <div id="cmt-collab" class="cmt-chips"></div>
-          <div class="cmt-send-row"><button id="cmt-send">Gönder</button>
+          <div class="cmt-send-row"><button id="cmt-send">${XL.t("Gönder", "Send")}</button>
             <span id="cmt-msg" class="muted"></span></div>
         </div>
       </div>`);
@@ -172,7 +178,7 @@ XL.comments = {
     const me = XL.auth.user && XL.auth.user.id;
     chips.innerHTML = this._collab.filter((c) => c.user_id !== me)
       .map((c) => `<button class="cmt-chip" data-at="${XL.esc(c.email.split("@")[0])}" title="${XL.esc(c.email)}">@${XL.esc(c.name || c.email.split("@")[0])}</button>`).join("")
-      || '<span class="muted">Bahsetmek için belgeyi paylaşın.</span>';
+      || `<span class="muted">${XL.t("Bahsetmek için belgeyi paylaşın.", "Share the document to mention people.")}</span>`;
     chips.querySelectorAll(".cmt-chip").forEach((b) => b.onclick = () => {
       const ta = document.getElementById("cmt-body");
       ta.value += (ta.value && !ta.value.endsWith(" ") ? " " : "") + "@" + b.dataset.at + " ";
@@ -191,7 +197,7 @@ XL.comments = {
     if (!bar) return;
     if (!this._pendingAnchor) { bar.classList.add("hidden"); bar.innerHTML = ""; return; }
     bar.classList.remove("hidden");
-    bar.innerHTML = `📍 Konuma iliştiriliyor: <b>${XL.esc(this._pendingAnchor.label || "")}</b> <button id="cmt-anchorclear" title="İliştirmeyi kaldır">✕</button>`;
+    bar.innerHTML = `📍 ${XL.t("Konuma iliştiriliyor:", "Attaching to:")} <b>${XL.esc(this._pendingAnchor.label || "")}</b> <button id="cmt-anchorclear" title="${XL.t("İliştirmeyi kaldır", "Remove attachment")}">✕</button>`;
     document.getElementById("cmt-anchorclear").onclick = () => { this._pendingAnchor = null; this._renderAnchorBar(); };
   },
 
@@ -200,8 +206,8 @@ XL.comments = {
     if (!box) return;
     let rows;
     try { rows = await this.list(this._docId); }
-    catch (e) { box.innerHTML = `<p class="muted">Yüklenemedi: ${XL.esc(e.message || "")}</p>`; return; }
-    if (!rows.length) { box.innerHTML = '<p class="muted">Henüz yorum yok. İlk yorumu siz yazın.</p>'; return; }
+    catch (e) { box.innerHTML = `<p class="muted">${XL.t("Yüklenemedi:", "Could not load:")} ${XL.esc(e.message || "")}</p>`; return; }
+    if (!rows.length) { box.innerHTML = `<p class="muted">${XL.t("Henüz yorum yok. İlk yorumu siz yazın.", "No comments yet. Be the first to comment.")}</p>`; return; }
 
     const me = XL.auth.user && XL.auth.user.id;
     const owner = this._myRole() === "owner";
@@ -220,15 +226,15 @@ XL.comments = {
           <div class="cmt-head">
             <b>${XL.esc(r.author_name || r.author_email)}</b>
             <span class="muted">${this._timeAgo(r.created_at)}</span>
-            ${r.resolved ? '<span class="cmt-badge">çözüldü</span>' : ""}
+            ${r.resolved ? `<span class="cmt-badge">${XL.t("çözüldü", "resolved")}</span>` : ""}
             ${anchor}
           </div>
           <div class="cmt-text">${this._highlight(r.body)}</div>
           ${mentions}
           <div class="cmt-row">
-            ${isReply ? "" : `<button data-act="reply">↩ Yanıtla</button>`}
-            ${canMod ? `<button data-act="resolve">${r.resolved ? "↺ Aç" : "✓ Çöz"}</button>` : ""}
-            ${canMod ? `<button data-act="del">🗑 Sil</button>` : ""}
+            ${isReply ? "" : `<button data-act="reply">↩ ${XL.t("Yanıtla", "Reply")}</button>`}
+            ${canMod ? `<button data-act="resolve">${r.resolved ? XL.t("↺ Aç", "↺ Reopen") : XL.t("✓ Çöz", "✓ Resolve")}</button>` : ""}
+            ${canMod ? `<button data-act="del">🗑 ${XL.t("Sil", "Delete")}</button>` : ""}
           </div>
           ${replies ? `<div class="cmt-replies">${replies}</div>` : ""}
         </div>`;
@@ -249,8 +255,8 @@ XL.comments = {
       try {
         if (act === "reply") this._setReply(id, box);
         else if (act === "resolve") { const row = box.querySelector(`.cmt[data-id="${id}"]`); await this.setResolved(id, !row.classList.contains("cmt-resolved")); await this._refreshList(); }
-        else if (act === "del") { if (confirm("Yorum silinsin mi?")) { await this.remove(id); await this._refreshList(); } }
-      } catch (e) { alert("İşlem başarısız: " + (e.message || e)); }
+        else if (act === "del") { if (confirm(XL.t("Yorum silinsin mi?", "Delete this comment?"))) { await this.remove(id); await this._refreshList(); } }
+      } catch (e) { alert(XL.t("İşlem başarısız: ", "Operation failed: ") + (e.message || e)); }
     });
   },
 
@@ -259,7 +265,7 @@ XL.comments = {
     const bar = document.getElementById("cmt-replybar");
     const row = box.querySelector(`.cmt[data-id="${id}"] .cmt-head b`);
     bar.classList.remove("hidden");
-    bar.innerHTML = `↩ <b>${row ? row.textContent : ""}</b> kişisine yanıt <button id="cmt-replycancel">✕</button>`;
+    bar.innerHTML = `↩ ${XL.t("yanıt:", "replying to:")} <b>${row ? row.textContent : ""}</b> <button id="cmt-replycancel">✕</button>`;
     document.getElementById("cmt-replycancel").onclick = () => { this._replyTo = null; bar.classList.add("hidden"); };
     document.getElementById("cmt-body").focus();
   },
@@ -269,7 +275,7 @@ XL.comments = {
     const msg = document.getElementById("cmt-msg");
     const body = ta.value.trim();
     if (!body) return;
-    msg.textContent = "Gönderiliyor…";
+    msg.textContent = XL.t("Gönderiliyor…", "Sending…");
     try {
       // Yanıtlarda anchor taşınmaz (kök yoruma ait); yalnız kök yorumda iliştir.
       const anchor = this._replyTo ? null : this._pendingAnchor;
@@ -281,7 +287,7 @@ XL.comments = {
       await this._refreshList();
       this.refreshBadge();
     } catch (e) {
-      msg.textContent = "Hata: " + (e.message || e);
+      msg.textContent = XL.t("Hata: ", "Error: ") + (e.message || e);
     }
   },
 
@@ -295,23 +301,24 @@ XL.comments = {
     try { n = await this.unreadCount(); } catch (e) {}
     btn.dataset.count = n;
     btn.classList.toggle("has-unread", n > 0);
-    btn.title = n > 0 ? n + " okunmamış bildirim" : "Bildirimler";
+    btn.title = n > 0 ? n + XL.t(" okunmamış bildirim", " unread notifications") : XL.t("Bildirimler", "Notifications");
     btn.innerHTML = n > 0 ? `🔔<span class="notif-badge">${n > 9 ? "9+" : n}</span>` : "🔔";
   },
 
   async openNotifications() {
-    XL.showPanel("🔔 Bildirimler", '<div id="ntf-list"><p class="muted">Yükleniyor…</p></div>');
+    this._viewingNotif = true; this._viewingComments = false;
+    XL.showPanel(XL.t("🔔 Bildirimler", "🔔 Notifications"), `<div id="ntf-list"><p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p></div>`);
     const box = document.getElementById("ntf-list");
     let rows;
     try { rows = await this.listNotifications(); }
-    catch (e) { box.innerHTML = `<p class="muted">Yüklenemedi: ${XL.esc(e.message || "")}</p>`; return; }
-    if (!rows.length) { box.innerHTML = '<p class="muted">Bildirim yok.</p>'; return; }
+    catch (e) { box.innerHTML = `<p class="muted">${XL.t("Yüklenemedi:", "Could not load:")} ${XL.esc(e.message || "")}</p>`; return; }
+    if (!rows.length) { box.innerHTML = `<p class="muted">${XL.t("Bildirim yok.", "No notifications.")}</p>`; return; }
 
-    box.innerHTML = `<div class="ntf-top"><button id="ntf-allread">Tümünü okundu işaretle</button></div>` +
+    box.innerHTML = `<div class="ntf-top"><button id="ntf-allread">${XL.t("Tümünü okundu işaretle", "Mark all as read")}</button></div>` +
       rows.map((r) => `
         <div class="ntf${r.read ? "" : " ntf-unread"}" data-id="${r.id}" data-doc="${r.document_id || ""}">
-          <div class="ntf-text"><b>${XL.esc((r.actor_email || "Biri").split("@")[0])}</b>
-            sizi bir yorumda bahsetti${r.document_name ? ` · <i>${XL.esc(r.document_name)}</i>` : ""}</div>
+          <div class="ntf-text"><b>${XL.esc((r.actor_email || XL.t("Biri", "Someone")).split("@")[0])}</b>
+            ${XL.t("sizi bir yorumda bahsetti", "mentioned you in a comment")}${r.document_name ? ` · <i>${XL.esc(r.document_name)}</i>` : ""}</div>
           ${r.excerpt ? `<div class="ntf-ex muted">"${XL.esc(r.excerpt)}"</div>` : ""}
           <div class="muted ntf-time">${this._timeAgo(r.created_at)}</div>
         </div>`).join("");
@@ -327,21 +334,186 @@ XL.comments = {
           if (existing) XL.ws.activate(existing.id); else await XL.cloud.openDoc(docId);
           const doc = XL.ws.active();
           this.openComments(docId, doc ? doc.name : "");
-        } catch (e) { alert("Belge açılamadı: " + (e.message || e)); }
+        } catch (e) { alert(XL.t("Belge açılamadı: ", "Could not open document: ") + (e.message || e)); }
       }
     });
+  },
+
+  /* ---------- Canlı yenileme (Supabase Realtime) ---------- */
+  // Realtime kanalına geçerli oturum token'ını ver (RLS bu token ile uygulanır).
+  async _ensureRealtimeAuth() {
+    try {
+      const c = this.client(); if (!c || !c.realtime) return;
+      const { data } = await c.auth.getSession();
+      const tok = data.session && data.session.access_token;
+      if (tok) c.realtime.setAuth(tok);
+    } catch (e) {}
+  },
+
+  // Etkin bulut belgesinin yorum değişikliklerine abone ol.
+  async subscribeDoc(docId) {
+    if (!this.enabled() || !docId) return;
+    if (this._subDocId === docId && this._docSub) return;   // zaten abone
+    this.unsubscribeDoc();
+    this._subDocId = docId;
+    await this._ensureRealtimeAuth();
+    const c = this.client();
+    this._docSub = c.channel("comments:" + docId)
+      .on("postgres_changes",
+          { event: "*", schema: "public", table: "document_comments", filter: "document_id=eq." + docId },
+          () => this._onCommentChange(docId))
+      .subscribe();
+  },
+  unsubscribeDoc() {
+    if (this._docSub) { try { this.client().removeChannel(this._docSub); } catch (e) {} }
+    this._docSub = null; this._subDocId = null;
+  },
+  _onCommentChange(docId) {
+    clearTimeout(this._refreshT);
+    this._refreshT = setTimeout(() => {
+      if (this._viewingComments && this._docId === docId) this._refreshList();
+      this.refreshMarkers(docId);
+    }, 180);
+  },
+
+  // Bildirimler (kendi satırlarım) — zil anlık yenilensin.
+  async subscribeNotifications() {
+    if (!this.enabled() || this._notifSub) return;
+    const me = XL.auth.user && XL.auth.user.id;
+    if (!me) return;
+    await this._ensureRealtimeAuth();
+    this._notifSub = this.client().channel("notif:" + me)
+      .on("postgres_changes",
+          { event: "*", schema: "public", table: "notifications", filter: "user_id=eq." + me },
+          () => { this.refreshBadge(); if (this._viewingNotif) this.openNotifications(); })
+      .subscribe();
+  },
+  unsubscribeNotifications() {
+    if (this._notifSub) { try { this.client().removeChannel(this._notifSub); } catch (e) {} }
+    this._notifSub = null;
+  },
+
+  // Oturum durumuna göre abonelikleri + işaretçileri eşitle (auth değişince çağrılır).
+  syncRealtime() {
+    if (this.enabled()) {
+      this.subscribeNotifications();
+      this.syncForDoc(XL.ws && XL.ws.active && XL.ws.active());
+    } else {
+      this.unsubscribeNotifications();
+      this.unsubscribeDoc();
+      this._clearMarkers();
+    }
+  },
+
+  // workspace etkin belgeyi değiştirince çağrılır (realtime aboneliği + işaretçiler).
+  syncForDoc(doc) {
+    if (!this.enabled() || !doc || !doc.cloudId) { this.unsubscribeDoc(); this._clearMarkers(); return; }
+    this.subscribeDoc(doc.cloudId);
+    this.refreshMarkers(doc.cloudId);
+  },
+
+  /* ---------- Editördeki kalıcı yorum işaretçileri ---------- */
+  // Anchor'lı (konuma iliştirilmiş) çözülmemiş kök yorumları editör üzerinde 💬 ile göster.
+  async refreshMarkers(docId) {
+    const doc = XL.ws.active();
+    if (!this.enabled() || !doc || !doc.cloudId || doc.cloudId !== docId) { this._clearMarkers(); return; }
+    let rows;
+    try { rows = await this.list(docId); } catch (e) { return; }
+    this._markerAnchors = rows.filter((r) => !r.parent_id && !r.resolved && r.anchor && r.anchor.kind === doc.type);
+    this.reflowMarkers();
+  },
+
+  _markerLayer() {
+    let el = document.getElementById("cmt-markers");
+    if (!el) { el = document.createElement("div"); el.id = "cmt-markers"; document.body.appendChild(el); }
+    return el;
+  },
+  _clearMarkers() {
+    this._markerAnchors = [];
+    const el = document.getElementById("cmt-markers"); if (el) el.innerHTML = "";
+    this._bindReflow(false);
+  },
+
+  // Anchor'ın editördeki ekran dikdörtgeni (yoksa null → o işaretçi gösterilmez).
+  _anchorRect(anchor, doc) {
+    try {
+      if (anchor.kind === "xlsx") {
+        const idx = XL.state.sheets.findIndex((s) => s.id === XL.state.activeSheetId);
+        if (anchor.sheet !== idx) return null;               // başka sayfadaki yorum
+        const td = XL.grid.cells[anchor.r] && XL.grid.cells[anchor.r][anchor.c];
+        return td ? td.getBoundingClientRect() : null;
+      }
+      if (anchor.kind === "docx") {
+        const body = XL.modes.docx && XL.modes.docx.body;
+        const el = body && body.children[anchor.bi];
+        return el ? el.getBoundingClientRect() : null;
+      }
+      if (anchor.kind === "pptx") {
+        const m = XL.modes.pptx;
+        if (!m || (m.cur || 0) !== anchor.slide) return null; // başka slayt
+        if (anchor.el && m.stageSlide) {
+          const el = m.stageSlide.querySelector(`.pp-el[data-id="${anchor.el}"]`);
+          if (el) return el.getBoundingClientRect();
+        }
+        const stage = document.getElementById("pp-stage");
+        return stage ? stage.getBoundingClientRect() : null;
+      }
+    } catch (e) {}
+    return null;
+  },
+
+  reflowMarkers() {
+    const doc = XL.ws.active();
+    const layer = this._markerLayer();
+    layer.innerHTML = "";
+    if (!doc || !this._markerAnchors.length) { this._bindReflow(false); return; }
+    this._bindReflow(true);
+    for (const r of this._markerAnchors) {
+      const rect = this._anchorRect(r.anchor, doc);
+      if (!rect || (rect.width === 0 && rect.height === 0)) continue;
+      const b = document.createElement("button");
+      b.className = "cmt-marker";
+      b.textContent = "💬";
+      b.title = (r.author_name || r.author_email || "") + ": " + (r.body || "").slice(0, 80);
+      b.style.left = Math.max(2, rect.left + rect.width - 9) + "px";
+      b.style.top = Math.max(2, rect.top - 7) + "px";
+      b.addEventListener("click", () => {
+        this.openComments(doc.cloudId, doc.name);
+        setTimeout(() => this._gotoAnchor(r.anchor), 60);
+      });
+      layer.appendChild(b);
+    }
+  },
+
+  // İşaretçiler kayarken/yeniden çizilirken konumlarını güncelle (overlay yaklaşımı).
+  _bindReflow(on) {
+    if (on) {
+      if (this._reflowBound) return;
+      this._reflowFn = () => { clearTimeout(this._reflowT2); this._reflowT2 = setTimeout(() => this.reflowMarkers(), 80); };
+      window.addEventListener("scroll", this._reflowFn, true);
+      window.addEventListener("resize", this._reflowFn);
+      const wa = document.getElementById("workarea");
+      if (wa) { this._mo = new MutationObserver(this._reflowFn); this._mo.observe(wa, { childList: true, subtree: true }); }
+      this._reflowBound = true;
+    } else {
+      if (!this._reflowBound) return;
+      window.removeEventListener("scroll", this._reflowFn, true);
+      window.removeEventListener("resize", this._reflowFn);
+      if (this._mo) { try { this._mo.disconnect(); } catch (e) {} this._mo = null; }
+      this._reflowBound = false;
+    }
   },
 
   /* ---------- Bağlama ---------- */
   bind() {
     const cbtn = document.getElementById("btn-comments");
     if (cbtn) cbtn.onclick = async () => {
-      if (!this.enabled()) return alert("Yorumlar için giriş yapın.");
+      if (!this.enabled()) return alert(XL.t("Yorumlar için giriş yapın.", "Sign in to use comments."));
       const doc = XL.ws.active();
       if (!doc) return;
       const anchor = this._captureAnchor();   // panel açılmadan ÖNCE (seçim hâlâ editörde)
       if (!doc.cloudId) {
-        if (!confirm("Yorum yapmak için belge buluta kaydedilsin mi?")) return;
+        if (!confirm(XL.t("Yorum yapmak için belge buluta kaydedilsin mi?", "Save the document to the cloud to comment?"))) return;
         try { await XL.cloud.saveActive(); } catch (e) { return alert("Kaydedilemedi: " + (e.message || e)); }
       }
       this.openComments(XL.ws.active().cloudId, doc.name, anchor);
@@ -349,14 +521,18 @@ XL.comments = {
     const nbtn = document.getElementById("btn-notif");
     if (nbtn) nbtn.onclick = () => this.openNotifications();
 
-    // Rozet: açılışta + oturum değişince + periyodik (45 sn).
-    const tick = () => this.refreshBadge();
+    // Rozet + realtime: açılışta + oturum değişince + periyodik (45 sn fallback).
+    const tick = () => { this.refreshBadge(); this.syncRealtime(); };
     if (XL.auth && XL.auth.client) {
       try { XL.auth.client.auth.onAuthStateChange(() => tick()); } catch (e) {}
     }
     setTimeout(tick, 1500);
     clearInterval(this._badgeTimer);
-    this._badgeTimer = setInterval(() => { if (this.enabled()) tick(); }, 45000);
+    this._badgeTimer = setInterval(() => { if (this.enabled()) this.refreshBadge(); }, 45000);
+
+    // Panel kapanınca canlı görüntüleme bayraklarını düşür (gereksiz tazeleme olmasın).
+    const pc = document.getElementById("panel-close");
+    if (pc) pc.addEventListener("click", () => { this._viewingComments = false; this._viewingNotif = false; });
   },
 };
 

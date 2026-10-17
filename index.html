@@ -15,14 +15,15 @@
     <div class="brand"><span id="mode-icon">📊</span> <span id="mode-name">Excel</span></div>
     <div id="doc-title"></div>
     <div class="top-actions">
-      <button id="btn-theme" title="Görünümü özelleştir (renk)">🎨</button>
-      <button id="btn-open" title="Dosya aç (.xlsx .csv .docx .pptx)">📂 Aç</button>
-      <button id="btn-save" title="Etkin belgeyi indir">💾 Kaydet</button>
+      <button id="btn-lang" title="Dil">🌐 TR</button>
+      <button id="btn-theme" data-i18n-title="Görünümü özelleştir (renk)|Customize appearance (color)" title="Görünümü özelleştir (renk)">🎨</button>
+      <button id="btn-open" data-i18n="📂 Aç|📂 Open" data-i18n-title="Dosya aç (.xlsx .csv .docx .pptx)|Open file (.xlsx .csv .docx .pptx)" title="Dosya aç (.xlsx .csv .docx .pptx)">📂 Aç</button>
+      <button id="btn-save" data-i18n="💾 Kaydet|💾 Save" data-i18n-title="Etkin belgeyi indir|Download active document" title="Etkin belgeyi indir">💾 Kaydet</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.docx,.pptx" hidden />
-      <button id="btn-live" title="Canlı ortak düzenleme (Word, PowerPoint, Excel)">🟢 Canlı</button>
-      <button id="btn-comments" title="Yorumlar">💬</button>
-      <button id="btn-notif" class="hidden" title="Bildirimler">🔔</button>
-      <button id="btn-account" title="Giriş yap / Kayıt ol">👤 Giriş</button>
+      <button id="btn-live" data-i18n="🟢 Canlı|🟢 Live" data-i18n-title="Canlı ortak düzenleme (Word, PowerPoint, Excel)|Live co-editing (Word, PowerPoint, Excel)" title="Canlı ortak düzenleme (Word, PowerPoint, Excel)">🟢 Canlı</button>
+      <button id="btn-comments" data-i18n-title="Yorumlar|Comments" title="Yorumlar">💬</button>
+      <button id="btn-notif" class="hidden" data-i18n-title="Bildirimler|Notifications" title="Bildirimler">🔔</button>
+      <button id="btn-account" data-i18n="👤 Giriş|👤 Sign in" data-i18n-title="Giriş yap / Kayıt ol|Sign in / Sign up" title="Giriş yap / Kayıt ol">👤 Giriş</button>
     </div>
   </header>
 
@@ -40,9 +41,9 @@
     <div id="new-wrap">
       <button id="btn-new" title="Yeni belge ekle">＋</button>
       <div id="new-menu" class="hidden">
-        <button data-new="xlsx"><span class="ic x">📊</span> Excel Çalışma Kitabı <small>.xlsx</small></button>
-        <button data-new="docx"><span class="ic w">📄</span> Word Belgesi <small>.docx</small></button>
-        <button data-new="pptx"><span class="ic p">📙</span> PowerPoint Sunusu <small>.pptx</small></button>
+        <button data-new="xlsx"><span class="ic x">📊</span> <span data-i18n="Excel Çalışma Kitabı|Excel Workbook">Excel Çalışma Kitabı</span> <small>.xlsx</small></button>
+        <button data-new="docx"><span class="ic w">📄</span> <span data-i18n="Word Belgesi|Word Document">Word Belgesi</span> <small>.docx</small></button>
+        <button data-new="pptx"><span class="ic p">📙</span> <span data-i18n="PowerPoint Sunusu|PowerPoint Presentation">PowerPoint Sunusu</span> <small>.pptx</small></button>
       </div>
     </div>
     <div id="doctabs"></div>

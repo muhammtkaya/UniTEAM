@@ -73,13 +73,13 @@ XL.auth = {
     const btn = document.getElementById("btn-account");
     if (!btn) return;
     if (this.user) {
-      const name = this.user.email || "Hesabım";
+      const name = this.user.email || XL.t("Hesabım", "My account");
       btn.innerHTML = `<span class="acct-dot"></span><span class="acct-label">${XL.esc(name)}</span>`;
-      btn.title = "Hesap: " + name;
+      btn.title = XL.t("Hesap: ", "Account: ") + name;
       btn.classList.add("signed-in");
     } else {
-      btn.innerHTML = `👤 Giriş`;
-      btn.title = "Giriş yap / Kayıt ol";
+      btn.innerHTML = `👤 ${XL.t("Giriş", "Sign in")}`;
+      btn.title = XL.t("Giriş yap / Kayıt ol", "Sign in / Sign up");
       btn.classList.remove("signed-in");
     }
   },
@@ -92,13 +92,13 @@ XL.auth = {
     const pop = document.createElement("div");
     pop.id = "account-popover";
     pop.innerHTML = `
-      <div class="ap-email" title="${XL.esc(this.user.email || "")}">${XL.esc(this.user.email || "Hesabım")}</div>
-      <div class="ap-sub">Giriş yapıldı</div>
+      <div class="ap-email" title="${XL.esc(this.user.email || "")}">${XL.esc(this.user.email || XL.t("Hesabım", "My account"))}</div>
+      <div class="ap-sub">${XL.t("Giriş yapıldı", "Signed in")}</div>
       <hr>
-      <button id="ap-cloud-save" class="ap-item ap-action">☁ Buluta kaydet</button>
-      <button id="ap-cloud-list" class="ap-item ap-action">📥 Bulut belgelerim</button>
+      <button id="ap-cloud-save" class="ap-item ap-action">${XL.t("☁ Buluta kaydet", "☁ Save to cloud")}</button>
+      <button id="ap-cloud-list" class="ap-item ap-action">${XL.t("📥 Bulut belgelerim", "📥 My cloud documents")}</button>
       <hr>
-      <button id="ap-signout" class="ap-item">Çıkış yap</button>`;
+      <button id="ap-signout" class="ap-item">${XL.t("Çıkış yap", "Sign out")}</button>`;
     document.body.appendChild(pop);
     // Düğmenin altına hizala
     const r = btn.getBoundingClientRect();
@@ -124,17 +124,17 @@ XL.auth = {
         <button class="auth-x" title="Kapat" data-auth-close>✕</button>
         <div class="auth-brand">${XL.esc(XL.APP_NAME)}</div>
         <div class="auth-tabs">
-          <button class="auth-tab${tab === "signin" ? " active" : ""}" data-auth-tab="signin">Giriş Yap</button>
-          <button class="auth-tab${tab === "signup" ? " active" : ""}" data-auth-tab="signup">Kayıt Ol</button>
+          <button class="auth-tab${tab === "signin" ? " active" : ""}" data-auth-tab="signin">${XL.t("Giriş Yap", "Sign In")}</button>
+          <button class="auth-tab${tab === "signup" ? " active" : ""}" data-auth-tab="signup">${XL.t("Kayıt Ol", "Sign Up")}</button>
         </div>
         <form id="auth-form">
           <label class="auth-field">
-            <span>E-posta</span>
-            <input type="email" id="auth-email" autocomplete="email" required placeholder="ornek@eposta.com">
+            <span>${XL.t("E-posta", "Email")}</span>
+            <input type="email" id="auth-email" autocomplete="email" required placeholder="${XL.t("ornek@eposta.com", "name@email.com")}">
           </label>
           <label class="auth-field">
-            <span>Parola</span>
-            <input type="password" id="auth-pass" autocomplete="${tab === "signup" ? "new-password" : "current-password"}" required minlength="6" placeholder="En az 6 karakter">
+            <span>${XL.t("Parola", "Password")}</span>
+            <input type="password" id="auth-pass" autocomplete="${tab === "signup" ? "new-password" : "current-password"}" required minlength="6" placeholder="${XL.t("En az 6 karakter", "At least 6 characters")}">
           </label>
           <div id="auth-msg" class="auth-msg hidden"></div>
           <button type="submit" id="auth-submit" class="auth-submit"></button>
@@ -160,10 +160,10 @@ XL.auth = {
     const isSignup = this._modalMode === "signup";
     document.querySelectorAll("#auth-modal [data-auth-tab]").forEach((b) =>
       b.classList.toggle("active", b.dataset.authTab === this._modalMode));
-    document.getElementById("auth-submit").textContent = isSignup ? "Kayıt Ol" : "Giriş Yap";
+    document.getElementById("auth-submit").textContent = isSignup ? XL.t("Kayıt Ol", "Sign Up") : XL.t("Giriş Yap", "Sign In");
     document.getElementById("auth-hint").textContent = isSignup
-      ? "Zaten hesabın var mı? Yukarıdan “Giriş Yap”a geç."
-      : "Hesabın yok mu? Yukarıdan “Kayıt Ol”a geç.";
+      ? XL.t("Zaten hesabın var mı? Yukarıdan “Giriş Yap”a geç.", "Already have an account? Switch to “Sign In” above.")
+      : XL.t("Hesabın yok mu? Yukarıdan “Kayıt Ol”a geç.", "No account? Switch to “Sign Up” above.");
     document.getElementById("auth-pass").setAttribute("autocomplete", isSignup ? "new-password" : "current-password");
     this._msg("");
   },
@@ -189,8 +189,8 @@ XL.auth = {
   async _submit() {
     const email = document.getElementById("auth-email").value.trim();
     const pass = document.getElementById("auth-pass").value;
-    if (!email || pass.length < 6) return this._msg("Geçerli bir e-posta ve en az 6 karakterli parola girin.");
-    if (!this.client) return this._msg("Bağlantı kurulamadı (Supabase yüklü değil).");
+    if (!email || pass.length < 6) return this._msg(XL.t("Geçerli bir e-posta ve en az 6 karakterli parola girin.", "Enter a valid email and a password of at least 6 characters."));
+    if (!this.client) return this._msg(XL.t("Bağlantı kurulamadı (Supabase yüklü değil).", "Could not connect (Supabase not loaded)."));
 
     this._busy(true);
     this._msg("");
@@ -200,16 +200,16 @@ XL.auth = {
         if (error) throw error;
         // Yerel kurulumda e-posta onayı kapalı → oturum hemen gelir.
         if (data.session) {
-          this._msg("Hesap oluşturuldu, giriş yapıldı.", "ok");
+          this._msg(XL.t("Hesap oluşturuldu, giriş yapıldı.", "Account created, signed in."), "ok");
           setTimeout(() => this.closeModal(), 700);
         } else {
           // Onay açıksa (ör. bulut) — e-posta doğrulaması beklenir.
-          this._msg("Hesap oluşturuldu. E-postanı doğrula, sonra giriş yap.", "ok");
+          this._msg(XL.t("Hesap oluşturuldu. E-postanı doğrula, sonra giriş yap.", "Account created. Verify your email, then sign in."), "ok");
         }
       } else {
         const { error } = await this.client.auth.signInWithPassword({ email, password: pass });
         if (error) throw error;
-        this._msg("Giriş yapıldı.", "ok");
+        this._msg(XL.t("Giriş yapıldı.", "Signed in."), "ok");
         setTimeout(() => this.closeModal(), 500);
       }
     } catch (err) {
@@ -221,12 +221,12 @@ XL.auth = {
 
   // Supabase hata mesajlarını Türkçeleştir / sadeleştir.
   _friendlyError(err) {
-    const m = (err && err.message) || "Bilinmeyen hata";
-    if (/invalid login credentials/i.test(m)) return "E-posta veya parola hatalı.";
-    if (/user already registered/i.test(m)) return "Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.";
-    if (/password should be at least/i.test(m)) return "Parola en az 6 karakter olmalı.";
-    if (/unable to validate email|invalid email/i.test(m)) return "Geçersiz e-posta adresi.";
-    if (/fetch|network|failed to fetch/i.test(m)) return "Sunucuya ulaşılamadı. Supabase çalışıyor mu? (supabase start)";
+    const m = (err && err.message) || XL.t("Bilinmeyen hata", "Unknown error");
+    if (/invalid login credentials/i.test(m)) return XL.t("E-posta veya parola hatalı.", "Incorrect email or password.");
+    if (/user already registered/i.test(m)) return XL.t("Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.", "This email is already registered. Try signing in.");
+    if (/password should be at least/i.test(m)) return XL.t("Parola en az 6 karakter olmalı.", "Password must be at least 6 characters.");
+    if (/unable to validate email|invalid email/i.test(m)) return XL.t("Geçersiz e-posta adresi.", "Invalid email address.");
+    if (/fetch|network|failed to fetch/i.test(m)) return XL.t("Sunucuya ulaşılamadı. Supabase çalışıyor mu? (supabase start)", "Could not reach the server. Is Supabase running? (supabase start)");
     return m;
   },
 

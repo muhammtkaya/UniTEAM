@@ -195,23 +195,23 @@ XL.realtime = {
 
   // Etkin (Word/PowerPoint + bulut) belge için canlı düzenlemeyi aç/kapat.
   async toggleLiveActive() {
-    if (this._word || this._pptx || this._xl) { this.disconnect(); XL.status("Canlı düzenleme kapatıldı."); return false; }
+    if (this._word || this._pptx || this._xl) { this.disconnect(); XL.status(XL.t("Canlı düzenleme kapatıldı.", "Live editing turned off.")); return false; }
     const doc = XL.ws.active();
     if (!doc || !["docx", "pptx", "xlsx"].includes(doc.type)) {
-      alert("Canlı düzenleme şimdilik Word, PowerPoint ve Excel belgelerinde."); return false;
+      alert(XL.t("Canlı düzenleme şimdilik Word, PowerPoint ve Excel belgelerinde.", "Live editing is available for Word, PowerPoint and Excel documents.")); return false;
     }
-    if (!XL.cloud || !XL.cloud.enabled()) { alert("Canlı düzenleme için giriş yapın."); return false; }
-    XL.status("Canlı düzenlemeye bağlanılıyor…");
+    if (!XL.cloud || !XL.cloud.enabled()) { alert(XL.t("Canlı düzenleme için giriş yapın.", "Sign in to use live editing.")); return false; }
+    XL.status(XL.t("Canlı düzenlemeye bağlanılıyor…", "Connecting to live editing…"));
     try {
       if (!doc.cloudId) { await XL.cloud.saveActive(); }   // oda id'si = cloudId
       if (doc.type === "docx") await this.bindWord(doc.cloudId);
       else if (doc.type === "pptx") await this.bindPptx(doc.cloudId);
       else await this.bindXlsx(doc.cloudId);
-      XL.status("🟢 Canlı düzenleme açık");
+      XL.status(XL.t("🟢 Canlı düzenleme açık", "🟢 Live editing on"));
       return true;
     } catch (e) {
       console.error(e);
-      alert("Canlı düzenlemeye bağlanılamadı: " + (e.message || e));
+      alert(XL.t("Canlı düzenlemeye bağlanılamadı: ", "Could not connect to live editing: ") + (e.message || e));
       XL.status("");
       return false;
     }
@@ -576,6 +576,15 @@ XL.realtime = {
       const pageJson = JSON.stringify(st.page || null);
       if (p.xlMeta.get("page") !== pageJson) p.xlMeta.set("page", pageJson);
 
+      // Sayfa düzeni (sütun genişliği / satır yüksekliği / birleştirme) — sayfa İNDEKSİne göre.
+      const layout = {};
+      st.sheets.forEach((s, idx) => {
+        const l = XL.state.layout && XL.state.layout[s.id];
+        if (l && (l.merges.length || Object.keys(l.colWidths).length || Object.keys(l.rowHeights).length)) layout[idx] = l;
+      });
+      const layoutJson = JSON.stringify(layout);
+      if (p.xlMeta.get("layout") !== layoutJson) p.xlMeta.set("layout", layoutJson);
+
       const names = st.sheets.map((s) => s.name), cur = p.xlSheets.toArray();
       if (cur.length !== names.length || cur.some((n, i) => n !== names[i])) {
         p.xlSheets.delete(0, p.xlSheets.length);
@@ -618,6 +627,8 @@ XL.realtime = {
     });
     const data = { rows: p.xlMeta.get("rows") || 100, cols: p.xlMeta.get("cols") || 26, activeSheet: 0, sheets };
     const pr = p.xlMeta.get("page"); if (pr) { try { const pg = JSON.parse(pr); if (pg) data.page = pg; } catch (e) {} }
+    const lr = p.xlMeta.get("layout");
+    if (lr) { try { const lo = JSON.parse(lr); Object.entries(lo).forEach(([idx, l]) => { if (sheets[idx]) Object.assign(sheets[idx], l); }); } catch (e) {} }
     return data;
   },
 

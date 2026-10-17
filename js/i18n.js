@@ -17,12 +17,12 @@
 XL.i18n = {
   locale: "tr",
   LOCALES: { tr: "Türkçe", en: "English" },
-  KEY: "weboffice-locale",
+  KEY: "uniteam-locale",
   _listeners: [],
 
   init() {
     let saved = null;
-    try { saved = localStorage.getItem(this.KEY); } catch (e) {}
+    try { saved = localStorage.getItem(this.KEY) || localStorage.getItem("weboffice-locale"); } catch (e) {}
     if (saved && this.LOCALES[saved]) this.locale = saved;
     else this.locale = (navigator.language || "").toLowerCase().startsWith("en") ? "en" : "tr";
     document.documentElement.lang = this.locale;

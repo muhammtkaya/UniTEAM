@@ -4,12 +4,17 @@
  * kayıt sessizce başarısız olup veri kaybına yol açıyordu. IndexedDB yüzlerce MB
  * sunar, eşzamansızdır ve belge başına kayıt tutar (yalnızca değişeni yazarız).
  *
- * Şema:  veritabanı "weboffice"
+ * Şema:  veritabanı "uniteam"
  *   - object store "docs"  (keyPath: "id")  -> { id, type, name, data }
  *   - object store "meta"  (anahtar "state") -> { order: [id...], activeId }
+ *
+ * Marka göçü: DB adı eski "weboffice"den "uniteam"e taşındı. İlk açılışta yeni DB
+ * boşsa eski DB'den (varsa) belgeler/meta/tercihler otomatik kopyalanır → hiçbir
+ * kullanıcı verisi kaybolmaz (eski DB silinmez, güvenlik için yerinde bırakılır).
  */
 XL.store = {
-  NAME: "weboffice",
+  NAME: "uniteam",
+  OLD_NAMES: ["weboffice"],
   VER: 1,
   _db: null,
 
@@ -27,10 +32,61 @@ XL.store = {
         if (!db.objectStoreNames.contains("docs")) db.createObjectStore("docs", { keyPath: "id" });
         if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta");
       };
-      req.onsuccess = () => { this._db = req.result; res(this._db); };
+      req.onsuccess = async () => {
+        this._db = req.result;
+        try { await this._migrateLegacy(); } catch (e) { console.warn("Eski veri göçü atlandı:", e); }
+        res(this._db);
+      };
       req.onerror = () => rej(req.error);
       req.onblocked = () => rej(new Error("IndexedDB engellendi"));
     });
+  },
+
+  // Marka göçü: yeni DB boşsa eski adlı DB('ler)den verileri bir kez kopyala.
+  async _migrateLegacy() {
+    const hasDocs = await new Promise((res) => {
+      try {
+        const rq = this._db.transaction("docs", "readonly").objectStore("docs").count();
+        rq.onsuccess = () => res(rq.result > 0);
+        rq.onerror = () => res(true);   // emin değilsek göç etme (üzerine yazma)
+      } catch (e) { res(true); }
+    });
+    if (hasDocs) return;
+    if (!indexedDB.databases) return;  // varlık kontrolü yoksa göçü atla (veri güvende)
+    let existing = [];
+    try { existing = (await indexedDB.databases()).map((d) => d.name); } catch (e) { return; }
+    for (const oldName of this.OLD_NAMES) {
+      if (!existing.includes(oldName)) continue;
+      const oldDb = await new Promise((res) => {
+        const rq = indexedDB.open(oldName);   // sürüm verilmez → mevcut sürümle açılır
+        rq.onsuccess = () => res(rq.result);
+        rq.onerror = () => res(null);
+      });
+      if (!oldDb) continue;
+      try {
+        const names = oldDb.objectStoreNames;
+        if (!names.contains("docs")) { oldDb.close(); continue; }
+        const stores = names.contains("meta") ? ["docs", "meta"] : ["docs"];
+        const data = await new Promise((res, rej) => {
+          const tx = oldDb.transaction(stores, "readonly");
+          const docsReq = tx.objectStore("docs").getAll();
+          let state = null, prefs = null;
+          if (names.contains("meta")) {
+            const sReq = tx.objectStore("meta").get("state");
+            const pReq = tx.objectStore("meta").get("prefs");
+            sReq.onsuccess = () => { state = sReq.result || null; };
+            pReq.onsuccess = () => { prefs = pReq.result || null; };
+          }
+          tx.oncomplete = () => res({ docs: docsReq.result || [], state, prefs });
+          tx.onerror = () => rej(tx.error);
+        });
+        if (data.docs.length) await this._write("docs", (os) => data.docs.forEach((d) => os.put(d)));
+        if (data.state) await this.saveMeta(data.state);
+        if (data.prefs) await this.savePrefs(data.prefs);
+        oldDb.close();
+        if (data.docs.length) break;   // ilk dolu eski DB yeter
+      } catch (e) { try { oldDb.close(); } catch (_) {} }
+    }
   },
 
   // Yazma işlemi: tamamlanınca çözülür (quota hatası burada yakalanır)
@@ -89,14 +145,17 @@ XL.store = {
 
 /* --- Kullanıcı tercihleri (uygulama geneli, belgeden bağımsız) --- */
 XL.prefs = {
-  LKEY: "weboffice-prefs",
+  LKEY: "uniteam-prefs",
+  OLD_LKEY: "weboffice-prefs",   // marka göçü: yeni anahtar boşsa eskiden oku
   data: {},
 
   async load() {
     if (XL.store.available()) {
       try { this.data = (await XL.store.loadPrefs()) || {}; return this.data; } catch (e) {}
     }
-    try { this.data = JSON.parse(localStorage.getItem(this.LKEY)) || {}; } catch (e) { this.data = {}; }
+    try {
+      this.data = JSON.parse(localStorage.getItem(this.LKEY) || localStorage.getItem(this.OLD_LKEY)) || {};
+    } catch (e) { this.data = {}; }
     return this.data;
   },
   get(k, def) { return this.data[k] !== undefined ? this.data[k] : def; },

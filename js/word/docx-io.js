@@ -346,7 +346,10 @@ XL.docxIO = {
     const parse = (s) => new DOMParser().parseFromString(s, "application/xml");
 
     const doc = parse(docXml);
-    const rels = {};
+    // Güvenlik: dosyadan gelen (güvensiz) Id/anahtarlarla kurulan sözlükler prototip
+    // zincirinden yalıtılır (Object.create(null)) → "__proto__" vb. anahtarlarla
+    // prototype pollution engellenir.
+    const rels = Object.create(null);
     const relsXml = await read("word/_rels/document.xml.rels");
     if (relsXml) {
       for (const r of parse(relsXml).getElementsByTagName("Relationship")) {
@@ -355,7 +358,7 @@ XL.docxIO = {
     }
 
     // Resimleri önceden data URL olarak yükle
-    const media = {};
+    const media = Object.create(null);
     const mime = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", bmp: "image/bmp", svg: "image/svg+xml" };
     await Promise.all(Object.entries(rels).map(async ([id, r]) => {
       if (!r.type.endsWith("/image")) return;
@@ -367,7 +370,7 @@ XL.docxIO = {
     }));
 
     // Stil adları (başlık tespiti için: "heading 1", "Title" — dilden bağımsız)
-    const styleNames = {};
+    const styleNames = Object.create(null);
     const stylesXml = await read("word/styles.xml");
     if (stylesXml) {
       for (const s of this.all(parse(stylesXml), "style")) {
@@ -377,13 +380,13 @@ XL.docxIO = {
     }
 
     // Numaralandırma: numId -> (ilvl -> numFmt)
-    const numFmt = {};
+    const numFmt = Object.create(null);
     const numXml = await read("word/numbering.xml");
     if (numXml) {
       const nd = parse(numXml);
-      const abs = {};
+      const abs = Object.create(null);
       for (const an of this.all(nd, "abstractNum")) {
-        const lv = {};
+        const lv = Object.create(null);
         for (const l of this.kids(an, "lvl")) {
           const f = this.kid(l, "numFmt");
           lv[this.a(l, "ilvl")] = f ? this.a(f, "val") : "decimal";

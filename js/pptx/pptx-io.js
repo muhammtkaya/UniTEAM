@@ -260,7 +260,7 @@ XL.pptxIO = {
     const file = parts.pop();
     const relPath = parts.join("/") + "/_rels/" + file + ".rels";
     const xml = await this.read(relPath);
-    const map = {};
+    const map = Object.create(null);   // güvensiz Id anahtarları → prototipsiz sözlük
     if (!xml) return map;
     for (const r of this.parse(xml).getElementsByTagName("Relationship")) {
       map[r.getAttribute("Id")] = { target: r.getAttribute("Target"), type: r.getAttribute("Type") || "" };
@@ -269,7 +269,7 @@ XL.pptxIO = {
   },
 
   async loadTheme(presRels) {
-    const colors = {};
+    const colors = Object.create(null);
     const rel = Object.values(presRels).find((r) => r.type.endsWith("/theme"));
     // Tema genellikle asıl slayta bağlıdır; sunuda yoksa bilinen yolu dene
     const path = rel ? this.resolve("ppt/presentation.xml", rel.target) : "ppt/theme/theme1.xml";

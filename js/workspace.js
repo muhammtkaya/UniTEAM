@@ -6,7 +6,8 @@
  *              isOn(state), importFile(file) → data, save(doc), createData()
  */
 XL.ws = {
-  KEY: "weboffice-v2",
+  KEY: "uniteam-v1",
+  OLD_KEYS: ["weboffice-v2", "webexcel-v1"],   // marka göçü: eski localStorage anahtarları
   docs: [],
   activeId: null,
   mounted: false,
@@ -638,10 +639,10 @@ XL.ws = {
     return this.restoreLocal();
   },
 
-  // localStorage'tan oku (weboffice-v2 ya da ilk sürüm webexcel-v1)
+  // localStorage'tan oku (yeni uniteam-v1; yoksa eski weboffice-v2 / ilk sürüm webexcel-v1)
   restoreLocal() {
     let data = null;
-    try { data = JSON.parse(localStorage.getItem(this.KEY)); } catch (e) {}
+    try { data = JSON.parse(localStorage.getItem(this.KEY) || localStorage.getItem("weboffice-v2")); } catch (e) {}
     if (data && Array.isArray(data.docs) && data.docs.length) {
       this.docs = data.docs.filter((d) => XL.modes[d.type]);
       if (!this.docs.length) return false;
@@ -652,7 +653,7 @@ XL.ws = {
   },
 
   _clearLocal() {
-    try { localStorage.removeItem(this.KEY); localStorage.removeItem("webexcel-v1"); } catch (e) {}
+    try { localStorage.removeItem(this.KEY); this.OLD_KEYS.forEach((k) => localStorage.removeItem(k)); } catch (e) {}
   },
 
   // İlk sürümün (yalnızca Excel) kaydını yeni biçime taşı

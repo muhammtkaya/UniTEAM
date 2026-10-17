@@ -31,7 +31,7 @@ async function run({ baseURL }) {
       await XL.store.saveDoc(doc);
       await XL.store.saveMeta({ order: XL.ws.docs.map((d) => d.id), activeId: XL.ws.activeId });
       return {
-        usesIDB: XL.store.available(), lsEmpty: !localStorage.getItem("weboffice-v2"),
+        usesIDB: XL.store.available(), lsEmpty: !localStorage.getItem("uniteam-v1"),
         a3: XL.engine.getValue(2, 0), a4: XL.engine.getValue(3, 0), docName: doc.name,
       };
     });

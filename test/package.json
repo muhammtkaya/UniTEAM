@@ -1,8 +1,8 @@
 {
-  "name": "weboffice-tests",
+  "name": "uniteam-tests",
   "version": "1.0.0",
   "private": true,
-  "description": "WebOffice uçtan uca / dosya sadakati test paketi (puppeteer-core + yerel Chrome)",
+  "description": "UniTEAM uçtan uca / dosya sadakati test paketi (puppeteer-core + yerel Chrome)",
   "scripts": {
     "test": "node run.js",
     "test:e2e": "node run.js e2e",

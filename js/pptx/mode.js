@@ -21,7 +21,7 @@ XL.modes.pptx = {
   },
 
   THEMES: {
-    office:    { name: "Office",    bg: "#ffffff", title: "#1f1f1f", text: "#404040", accent: "#c55a11", font: "Calibri" },
+    office:    { name: "Klasik",    bg: "#ffffff", title: "#1f1f1f", text: "#404040", accent: "#c55a11", font: "Calibri" },
     gece:      { name: "Gece",      bg: "#1e2235", title: "#ffffff", text: "#cfd3e6", accent: "#7aa2f7", font: "Segoe UI" },
     okyanus:   { name: "Okyanus",   bg: "#0f4c81", title: "#ffffff", text: "#dbeafe", accent: "#fbbf24", font: "Segoe UI" },
     doga:      { name: "Doğa",      bg: "#f1f7ee", title: "#2e7d32", text: "#33502f", accent: "#66bb6a", font: "Georgia" },

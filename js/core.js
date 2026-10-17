@@ -102,8 +102,19 @@ XL.pickFile = function (accept, cb) {
   inp.click();
 };
 
+// Güvenlik: kullanıcının yüklediği dosyalar güvensiz girdidir. Çözümlemeden önce
+// boyut tavanı uygula → aşırı büyük/zip-bomb dosyalarla kaynak tüketimini (DoS) sınırla.
+XL.MAX_FILE_BYTES = 75 * 1024 * 1024;   // 75 MB
+XL.checkFileSize = function (file) {
+  if (file && typeof file.size === "number" && file.size > XL.MAX_FILE_BYTES) {
+    const mb = Math.round(XL.MAX_FILE_BYTES / (1024 * 1024));
+    throw new Error(XL.t(`Dosya çok büyük (en çok ${mb} MB).`, `File too large (max ${mb} MB).`));
+  }
+};
+
 XL.readAsDataURL = function (file) {
   return new Promise((res, rej) => {
+    try { XL.checkFileSize(file); } catch (e) { return rej(e); }
     const r = new FileReader();
     r.onload = () => res(r.result);
     r.onerror = rej;
@@ -113,6 +124,7 @@ XL.readAsDataURL = function (file) {
 
 XL.readAsArrayBuffer = function (file) {
   return new Promise((res, rej) => {
+    try { XL.checkFileSize(file); } catch (e) { return rej(e); }
     const r = new FileReader();
     r.onload = () => res(r.result);
     r.onerror = rej;

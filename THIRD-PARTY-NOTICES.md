@@ -1,6 +1,6 @@
 # Üçüncü Taraf Bildirimleri
 
-UniTEAM, aşağıdaki açık kaynak kütüphaneleri CDN üzerinden kullanır. Her biri
+UniTEAM, aşağıdaki açık kaynak kütüphaneleri npm ile paketleyerek kullanır. Her biri
 kendi lisansına tabidir ve bu lisanslar, UniTEAM'in tescilli lisansından
 bağımsızdır. Bu dosya, söz konusu lisansların atıf (attribution) gerekliliğini
 karşılamak için tutulur.
@@ -13,7 +13,7 @@ karşılamak için tutulur.
 | SheetJS (xlsx) | 0.20.3 | `.xlsx` / `.csv` okuma-yazma | Apache-2.0 |
 | Chart.js | 4.4.1 | Grafikler | MIT |
 | docx | 8.5.0 | `.docx` yazma | MIT |
-| mammoth | 1.8.0 | Yedek `.docx` okuma | BSD-2-Clause |
+| mammoth | 1.13.0 | Yedek `.docx` okuma | BSD-2-Clause |
 | JSZip | 3.10.1 | `.docx` / `.pptx` paketlerini açma | MIT (çift lisanstan MIT seçilmiştir) |
 | PptxGenJS | 3.12.0 | `.pptx` yazma | MIT |
 

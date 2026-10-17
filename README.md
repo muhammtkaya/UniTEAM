@@ -4,7 +4,7 @@ Excel, Word ve PowerPoint'e muadil üç uygulamayı **tek bir tarayıcı arayüz
 
 Uygulama Excel arayüzüyle açılır. Alt soldaki **＋** düğmesiyle yeni bir belge eklenir ve türü seçilir: Excel çalışma kitabı (`.xlsx`), Word belgesi (`.docx`) ya da PowerPoint sunusu (`.pptx`). Alt çubuktaki her sekme bir belgedir; bir sekmeye geçildiğinde üstteki şerit ve çalışma alanı o uygulamanın arayüzüne dönüşür.
 
-Proje şu an yalnızca web tabanlıdır. İleride masaüstü (Electron/Tauri) ve mobil uygulamaya çevrilmesi planlanıyor; bu yüzden derleme adımı olmayan, statik dosyalardan oluşan bir yapı seçildi.
+Uygulama **testler kolaylaşsın diye önce tarayıda** geliştirilmiştir (hızlı yineleme, derleme/sertifika derdi yok). Bu geçici bir tercihtir: **uygulama bittiğinde masaüstü (Electron/Tauri) ve mobil sürümleri de üretilecektir.** İstemci (frontend) ile sunucu (backend) net ayrıldığı ve üçü de aynı API'ye bağlandığı için web, masaüstü ve mobil istemciler aynı çekirdeği paylaşır — platform paketlemesi en sona bırakılır.
 
 ---
 
@@ -116,7 +116,8 @@ js/
   workspace.js        Belgeler, ＋ menüsü, mod değiştirme, şerit, açma/kaydetme, otomatik kayıt
   excel/
     mode.js           Excel modu: şerit, formül çubuğu, sayfa sekmeleri, komutlar
-    engine.js         HyperFormula sarmalayıcısı (hesap motoru)
+    formula.js        Kendi formül/hesap motorumuz (HyperFormula yerine, bağımlılıksız)
+    engine.js         Hesap motoru sarmalayıcısı (formula.js'i kullanır)
     grid.js           Izgara: çizim, seçim, düzenleme, klavye, pano
     format.js         Hücre biçimi ve sayı gösterimi
     io.js             .xlsx / .csv okuma-yazma (SheetJS)
@@ -168,7 +169,6 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 
 | Kütüphane | Sürüm | Görevi | Lisans |
 |---|---|---|---|
-| [HyperFormula](https://hyperformula.handsontable.com/) | 2.7.0 | Excel formül ve hesap motoru | GPL-3.0 (veya ticari) |
 | [SheetJS](https://sheetjs.com/) | 0.20.3 | `.xlsx` / `.csv` okuma-yazma | Apache-2.0 |
 | [Chart.js](https://www.chartjs.org/) | 4.4.1 | Grafikler | MIT |
 | [docx](https://docx.js.org/) | 8.5.0 | `.docx` yazma | MIT |
@@ -176,7 +176,7 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 | [JSZip](https://stuk.github.io/jszip/) | 3.10.1 | `.docx` / `.pptx` paketlerini açma | MIT / GPL-3.0 |
 | [PptxGenJS](https://gitbrent.github.io/PptxGenJS/) | 3.12.0 | `.pptx` yazma | MIT |
 
-> **Lisans notu:** HyperFormula `gpl-v3` lisans anahtarıyla kullanılıyor. Uygulama dağıtılacaksa bu, projenin GPL-3.0 uyumlu bir lisansla yayımlanmasını ya da HyperFormula için ticari lisans alınmasını gerektirir. Projenin kendisi için henüz bir lisans dosyası yok.
+> **Lisans notu:** Excel formül motoru GPL-3.0 lisanslı HyperFormula'dan **kendi bağımsız, bağımlılıksız motorumuza** (`js/excel/formula.js`) taşındı; bu yüzden ürünü GPL'e zorlayan engel kalktı. Kalan kütüphaneler (SheetJS Apache-2.0, Chart.js/docx/JSZip/PptxGenJS MIT, mammoth BSD-2) ticari dağıtıma uygundur. JSZip'in MIT sürümü kullanılır. Projenin kendi lisansı `LICENSE` dosyasında tescilli (proprietary) olarak tanımlıdır; üçüncü taraf atıfları `THIRD-PARTY-NOTICES.md`'dedir.
 
 ---
 
@@ -184,18 +184,99 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 
 - **Otomatik kayıt kotası:** tarayıcı belleği yaklaşık 5 MB'tır. Çok resimli belgelerde otomatik kayıt başarısız olabilir; durum çubuğunda uyarı çıkar. Bu durumda **Kaydet** ile dosyayı indirin.
 - **Belgeler tarayıcıya özeldir:** otomatik kaydedilen veriler yalnızca o tarayıcıda durur; başka bir cihaza veya tarayıcıya taşınmaz.
-- **Excel:** koşullu biçimlendirme, veri doğrulama, hücre birleştirme, sütun genişliği ayarı ve Türkçe fonksiyon adları (`=TOPLA`) henüz yok. Fonksiyonlar İngilizce adlarıyla yazılır (gerçek `.xlsx` dosyaları da böyle saklar).
+- **Excel:** koşullu biçimlendirme, veri doğrulama ve Türkçe fonksiyon adları (`=TOPLA`) henüz yok (hücre birleştirme, sütun genişliği ve satır yüksekliği eklendi). Fonksiyonlar İngilizce adlarıyla yazılır (gerçek `.xlsx` dosyaları da böyle saklar).
 - **Word:** üst/alt bilgi, dipnot, yorum ve değişiklik izleme yok. Sayfa sınırları çizgiyle gösterilir; metin henüz gerçek sayfalara bölünmez.
 - **PowerPoint:** öğe animasyonları, döndürme ve slayta grafik ekleme yok. Slayt geçişleri `.pptx` dosyasına aktarılmaz.
 - **Dokunmatik ekranlar** için ayrıca bir uyarlama yapılmadı.
 
 ---
 
-## Yol haritası
+## Ürün vizyonu
 
-1. Excel'deki eksikler (koşullu biçim, veri doğrulama, birleştirme, sütun genişliği, Türkçe fonksiyon adları)
-2. Word'de üst/alt bilgi, dipnot, yorumlar ve gerçek sayfalama
-3. PowerPoint'te animasyonlar, döndürme ve slayta grafik
-4. Dokunmatik / mobil arayüz
-5. Masaüstü (Electron veya Tauri) ve mobil paketleme
-6. Diğer Office uygulamalarının muadilleri
+Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabilen, şirketlere lisanslanabilen/satılabilen, çok kullanıcılı ve ölçeklenebilir bir SaaS**'a dönüştürmek.
+
+- **Paylaşım + gerçek zamanlı eş düzenleme** (Google Docs / Office 365 seviyesi) — çekirdek felsefe, ekstra değil.
+- **Ölçeklenebilir:** hedef ~100.000 eş zamanlı kullanıcı (belge = bağımsız oda, yatay ölçek).
+- **Güvenilir:** çevrimdışı düzenleme + yeniden bağlanınca senkron, veri kaybı yok.
+- **Dosya byte'larını kalıcı biz saklamayız (BYOS):** içerik kullanıcının Drive/OneDrive'ında; biz yalnızca gerçek zamanlı durum (CRDT) + küçük meta veri/izin tutarız.
+- **Çok platform:** şu an web (test kolaylığı için); uygulama bitince masaüstü + mobil paketlenir — hepsi aynı backend/API'ye bağlanır.
+
+## Yol haritası — satılabilir ürüne giden checklist
+
+**Öncelik ilkesi:** önce **kod içinde** yapılabilen işler; **deploy, URL/domain edinimi ve canlıya alma en sona** bırakılır. İşaretli (✅) maddeler yerelde tamamlanmıştır.
+
+### ✅ Tamamlanan çekirdek (yerelde)
+- [x] Vite build/bundle, npm, CDN'siz, çevrimdışı, `.env` → `dist/`
+- [x] PWA (yüklenebilir + çevrimdışı service worker)
+- [x] Hesap/kimlik: e-posta+parola kayıt/giriş (Supabase Auth, yerelde)
+- [x] Bulut belge veri katmanı + paylaşım (e-posta/rol, token'lı link, anonim herkese açık link, süreli link)
+- [x] Gerçek zamanlı eş düzenleme: **Word + PowerPoint + Excel** (Yjs CRDT, Cloudflare Durable Object relay)
+- [x] Presence rozetleri + canlı uzak imleçler + WS belge-yetki (403)
+- [x] Yorumlar + @bahsetmeler + bildirimler + canlı yenileme + konuma iliştirilmiş (anchored) yorumlar
+- [x] Gerçek salt-okunur mod
+- [x] i18n altyapısı (TR/EN dil seçici, kalıcı)
+- [x] Excel dosya sadakati: hücre birleştirme + sütun genişliği + satır yüksekliği
+- [x] **Lisans engeli kalktı:** HyperFormula (GPL) → kendi bağımsız formül motoru
+
+### Faz 0 — Marka & lisans & güvenlik temizliği (kod, hızlı, hukuki ön koşul)
+- [x] **Marka temizliği (kod) ✅:** Kodda "Microsoft/Office" çağrışımları kaldırıldı — Supabase proje kimliği `Microsoft_Team` → `uniteam`, PPTX'te kullanıcıya görünen "Office" tema adı → "Klasik" (veri anahtarı `office` korunur). İç depolama anahtarları **geriye dönük göç ile** yenilendi: IndexedDB `weboffice` → `uniteam` (ilk açılışta eski DB'den otomatik kopya, veri kaybı yok), localStorage `weboffice-v2/-prefs/-locale` → `uniteam-*` (eski anahtarlar yedek olarak okunur). Test paketi adı da güncellendi. 34/34 test geçiyor. (Not: nominative kullanımlar korundu — OOXML MIME tipi, OAuth sağlayıcı adı "Microsoft", "Office gibi" kıyas ifadeleri.)
+  - ⏳ **Kalan manuel adım:** çalışma klasörü adı hâlâ `Microsoft Team` (dosya sistemi; git remote zaten `UniTEAM`). Klasörü işletim sisteminde elle `UniTEAM` olarak yeniden adlandırın; `supabase/config.toml` kimliği değiştiği için bir sonraki `supabase start`'ta yerel yığın yeni kimlikle kurulur (eski yerel veri eski birimde kalır).
+- [x] **Kendi lisans dosyası ✅:** `LICENSE` tescilli (proprietary, tüm hakları saklı) — ticari dağıtıma uygun; telif sahibi dolduruldu. `THIRD-PARTY-NOTICES.md` güncel (HyperFormula kaldırıldı, sürümler/atıflar doğru). *(Telif sahibini bir şirket/tüzel kişi altında lisanslayacaksanız `LICENSE`'taki adı güncelleyin.)*
+- [x] **xlsx açığı + parse sertleştirme ✅:** xlsx açığı zaten kapalı (0.20.3 — eski prototype-pollution/ReDoS giderilmiş). Gerçek bağımlılık açıkları kapatıldı: `image-size` (high, görsel-parse DoS) override ile 2.x, `vite` (high, dev-server) 6.4.4, `mammoth` (directory-traversal) 1.13.0. Kod sertleştirmesi: güvensiz dosyadan gelen anahtarlarla kurulan sözlükler `Object.create(null)` (docx/pptx okuyucuları → prototype pollution engeli) + merkezi dosya boyutu tavanı (75 MB, DoS/zip-bomb) + açmada zarif hata. 34/34 test. *(Kalan 3 moderate `sprintf-js/argparse` uyarısı mammoth'un CLI zincirinde — tarayıcı paketine girmez.)*
+
+### Faz 1 — Çok-kiracılık & yetki modeli (en büyük kod işi, enterprise çekirdeği)
+- [ ] Organizasyon / takım / workspace şeması + RLS (belgeler org'a bağlanabilsin)
+- [ ] Org rolleri + RBAC (admin / üye; org-sahipli belgeler, ayrılan çalışandan erişim devri)
+- [ ] Admin paneli (üye davet/askıya alma, kota görünürlüğü, denetim)
+- [ ] Audit log (denetim kaydı)
+
+### Faz 2 — Hesap güvenliği & kimlik (kod)
+- [ ] 2FA/MFA, şüpheli giriş uyarıları
+- [ ] SSO/SAML + SCIM provizyon altyapısı (kod hazırlığı; canlıya alma Faz 9)
+- [ ] Oturum/refresh token & cihaz oturumu sertleştirme
+- [ ] API/WS için rate limiting + abuse önleme (kod tarafı)
+
+### Faz 3 — Faturalandırma & plan/kota (kod)
+- [ ] Stripe entegrasyonu (abonelik/seat)
+- [ ] Plan / seat / depolama kotası modeli + enforcement
+- [ ] İş modeli: freemium / abonelik / kurumsal fiyatlandırma
+
+### Faz 4 — Güvenilirlik & veri sahipliği (kod)
+- [ ] BYOS: Google Drive / OneDrive'a belge byte'ı yazma/okuma (relay'den çıkış)
+- [ ] Yedekleme / sürüm geçmişi / çöp kutusu (uygulama katmanı)
+- [ ] Çevrimdışı kuyruk + yeniden bağlanınca çakışma çözümü olgunlaştırma
+
+### Faz 5 — Erişim genişliği (kod)
+- [ ] Mobil / responsive / dokunmatik arayüz
+- [ ] i18n derinleştirme: RTL (Arapça/İbranice), yerel tarih/sayı/para biçimleri, daha fazla dil, Türkçe fonksiyon adları (`=TOPLA`), CJK/Unicode font kapsamı
+- [ ] Erişilebilirlik (a11y): klavye navigasyonu, ARIA, kontrast
+- [ ] Onboarding, uygulama içi yardım, şablon galerisi
+
+### Faz 6 — Dosya sadakati & eş düzenleme olgunluğu (kod)
+- [ ] Excel: koşullu biçim, veri doğrulama, font/dolgu stili `.xlsx` yazımı
+- [ ] Word: üst/alt bilgi, dipnot, değişiklik izleme, gerçek sayfalama
+- [ ] PowerPoint: animasyon, döndürme, slayta grafik, geçişlerin `.pptx`'e aktarımı
+- [ ] Biçim sadakati testleri (yalnız metin değil) + geniş gerçek-dünya regresyon korpusu + bozuk dosyada zarif hata
+- [ ] Canlı hücre/öğe seçim göstergeleri (Excel+PPT), büyük sayfada artımlı render
+
+### Faz 7 — Gözlemlenebilirlik (kod entegrasyonu)
+- [ ] Hata takibi (Sentry), yapılandırılmış log, metrik SDK'leri (servise bağlama Faz 9)
+
+### Faz 8 — Hukuk & uyumluluk
+- [ ] Gizlilik politikası, kullanım şartları (ToS), veri işleme sözleşmesi (DPA), çerez onayı
+- [ ] GDPR/KVKK/CCPA: veri silme/indirme (export) uçları (kod)
+- [ ] SOC 2 / ISO 27001 sürecini erken başlat (kurumsal satış ön koşulu)
+
+### Faz 9 — Deploy & altyapı (EN SON — bilinçli olarak sona bırakıldı)
+- [ ] Supabase bulut projesi + Cloudflare Worker deploy + statik hosting/CDN
+- [ ] **URL / domain edinimi**
+- [ ] OAuth/SSO canlıya alma (Google/Microsoft/Apple)
+- [ ] CI/CD (otomatik deploy) + staging/production ortam ayrımı
+- [ ] Ölçek altyapısı: Redis cache, connection pool/read replica, çok bölge (multi-region)/edge, DDoS koruması
+- [ ] Monitoring/uptime/alerting canlıya alma + durum sayfası
+- [ ] Yedekleme/PITR (altyapı tarafı)
+
+### Faz 10 — Çoklu platform paketleme (uygulama bittiğinde)
+- [ ] Mobil: PWA (✅ mevcut) → daha yerel his için Capacitor / React Native
+- [ ] Masaüstü: Electron veya Tauri (mevcut web kodunu sarar)
+- [ ] Diğer Office uygulamalarının muadilleri

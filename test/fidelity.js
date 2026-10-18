@@ -126,6 +126,21 @@ async function run({ baseURL }) {
     check("Dipnot metni footnotes.xml'de", fn.textInFootnote, fn);
     check("Dipnot başvurusu gövdede", fn.refInBody, fn);
 
+    // ---------------- DOCX değişiklik izleme (Faz 6) ----------------
+    const tc = await page.evaluate(async () => {
+      const root = document.createElement("div");
+      root.innerHTML = '<p>Kalan metin <ins class="tc tc-ins" data-author="Ali" data-ts="1760000000000">eklenen</ins> ve <del class="tc tc-del" data-author="Ali" data-ts="1760000000000">silinen</del> son.</p>';
+      const blob = await XL.docxIO.exportBlob(root, { size: "A4", orientation: "portrait", margin: "normal" });
+      const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+      const xml = zip.file("word/document.xml") ? await zip.file("word/document.xml").async("string") : "";
+      return { wIns: /<w:ins\b/.test(xml), wDel: /<w:del\b/.test(xml), delText: /w:delText/.test(xml),
+        author: /w:author="Ali"/.test(xml), insText: /eklenen/.test(xml) };
+    });
+    console.log("  DOCX track changes:", JSON.stringify(tc));
+    check("Ekleme (w:ins) yazıldı", tc.wIns && tc.insText, tc);
+    check("Silme (w:del/w:delText) yazıldı", tc.wDel && tc.delText, tc);
+    check("Revizyon yazarı yazıldı", tc.author, tc);
+
     // ---------------- PPTX ----------------
     const pptx = await page.evaluate(async () => {
       const mode = XL.modes.pptx;

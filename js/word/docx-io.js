@@ -31,6 +31,7 @@ XL.docxIO = {
     this.listInstance = 0;
     this.footnotes = {};      // dipnotlar (Faz 6): id → { children:[Paragraph] }
     this.footnoteId = 0;
+    this.tcId = 0;            // değişiklik izleme (track changes) revizyon id'si
     const [pw, ph] = this.PAGE[page.size] || this.PAGE.A4;
     const m = this.resolveMargin(page.margin);
     const contentTw = (page.orientation === "landscape" ? ph : pw) - m.left - m.right;
@@ -225,6 +226,19 @@ XL.docxIO = {
       const text = node.getAttribute("data-text") || "";
       this.footnotes[id] = { children: [new D.Paragraph({ children: [new D.TextRun(text)] })] };
       out.push(new D.FootnoteReferenceRun(id));
+      return;
+    }
+    // Değişiklik izleme (Faz 6): <ins class=tc-ins> / <del class=tc-del> → w:ins / w:del
+    if (node.classList && (node.classList.contains("tc-ins") || node.classList.contains("tc-del"))) {
+      const isIns = node.classList.contains("tc-ins");
+      const text = node.textContent.replace(/[\r\n\t]+/g, " ").replace(/ /g, " ");
+      if (text) {
+        const f = this.inlineFmt(node, fmt);
+        const ts = +node.getAttribute("data-ts");
+        const opts = Object.assign({ text, id: ++this.tcId, author: node.getAttribute("data-author") || "?",
+          date: new Date(isFinite(ts) ? ts : Date.now()).toISOString() }, this.runOpts(f));
+        out.push(new (isIns ? D.InsertedTextRun : D.DeletedTextRun)(opts));
+      }
       return;
     }
     if (tag === "BR") { out.push(new D.TextRun({ text: "", break: 1 })); return; }

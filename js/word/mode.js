@@ -160,7 +160,13 @@ XL.modes.docx = {
         </div><label>${t("Yazım Denetleme", "Proofing")}</label></div>
         <div class="rgroup"><div class="rrow">
           <button data-cmd="footnote" class="big" title="${t("İmlecin olduğu yere dipnot ekle", "Insert a footnote at the cursor")}">🔖<span>${t("Dipnot Ekle", "Insert Footnote")}</span></button>
-        </div><label>${t("Dipnotlar", "Footnotes")}</label></div>` },
+        </div><label>${t("Dipnotlar", "Footnotes")}</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="track-changes" data-state="track" class="big" title="${t("Eklemeleri/silmeleri işaretleyerek izle", "Track insertions/deletions")}">📝<span>${t("Değişiklikleri İzle", "Track Changes")}</span></button>
+        </div><div class="rrow">
+          <button data-cmd="tc-accept-all" title="${t("Tüm değişiklikleri kabul et", "Accept all changes")}">✓ ${t("Tümünü Kabul", "Accept All")}</button>
+          <button data-cmd="tc-reject-all" title="${t("Tüm değişiklikleri reddet", "Reject all changes")}">✗ ${t("Tümünü Reddet", "Reject All")}</button>
+        </div><label>${t("Değişiklik İzleme", "Tracking")}</label></div>` },
 
       { name: t("Görünüm", "View"), html: `
         <div class="rgroup"><div class="rrow">
@@ -169,6 +175,9 @@ XL.modes.docx = {
             <option value="1.25">%125</option><option value="1.5">%150</option><option value="2">%200</option>
           </select>
         </div><label>${t("Yakınlaştır", "Zoom")}</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="page-view" data-state="pageview" class="big" title="${t("Sayfaları ayrı sayfalar halinde göster", "Show content split into pages")}">📄<span>${t("Sayfa Görünümü", "Page View")}</span></button>
+        </div><label>${t("Sayfa Düzeni", "Layout")}</label></div>
         <div class="rgroup"><div class="rrow">
           <button data-cmd="print" class="big">🖨<span>${t("Yazdır / PDF", "Print / PDF")}</span></button>
         </div><label>${t("Çıktı", "Output")}</label></div>` },
@@ -203,6 +212,9 @@ XL.modes.docx = {
     this.editor = this.body; // o an düzenlenen etkin alan (body/header/footer)
     this.page = this.normalizePage(doc.data.page);
     this.footnotesEl = document.getElementById("wd-footnotes");
+    this.trackChanges = false;          // değişiklik izleme (track changes)
+    this.tcAuthor = this.tcAuthorName();
+    if (this.pageView === undefined) this.pageView = true;   // gerçek sayfalama (sayfa görünümü)
     this.body.innerHTML = doc.data.html || "<p><br></p>";
     this.header.innerHTML = this.page.header.html || "<p><br></p>";
     this.footer.innerHTML = this.page.footer.html || "<p><br></p>";
@@ -217,7 +229,7 @@ XL.modes.docx = {
     } catch (e) {}
 
     [this.body, this.header, this.footer].forEach((ed) => {
-      ed.addEventListener("input", () => { this.ensureParagraph(); this.normalize(); this.saveRange(); this.updateCount(); this.renderFootnotes(); XL.ws.changed(); });
+      ed.addEventListener("input", () => { this.ensureParagraph(); this.normalize(); this.saveRange(); this.updateCount(); this.renderFootnotes(); this._scheduleReflow(); XL.ws.changed(); });
       ed.addEventListener("keydown", (e) => this.onKey(e));
       // selectionchange'e ek olarak: imleç her hareket ettiğinde seçimi sakla
       ed.addEventListener("keyup", () => this.saveRange());
@@ -230,6 +242,10 @@ XL.modes.docx = {
         // Dipnot işaretçisine tıklama → metni düzenle
         const fn = e.target.closest(".wd-fn");
         if (fn) { e.preventDefault(); this.editFootnote(fn); return; }
+        // İzlenen değişikliğe tıklama → kabul/reddet açılır kutusu
+        const tc = e.target.closest(".tc");
+        if (tc && ed === this.body) { this._tcClick(tc); return; }
+        this._tcPopHide();
         // Resim seçimi
         ed.querySelectorAll("img.sel").forEach((i) => i.classList.remove("sel"));
         if (e.target.tagName === "IMG") { e.target.classList.add("sel"); this.selectedImg = e.target; }
@@ -237,6 +253,8 @@ XL.modes.docx = {
       });
       ed.addEventListener("paste", (e) => this.onPaste(e));
     });
+    // Değişiklik izleme: yalnız gövdede giriş/silmeyi yakala (track changes).
+    this.body.addEventListener("beforeinput", (e) => this.onBeforeInput(e));
     this.bindGlobals();
     this.updateCount();
     setTimeout(() => {
@@ -246,6 +264,7 @@ XL.modes.docx = {
       r.setStart(this.body, 0); r.collapse(true);
       const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
       this.saveRange();
+      this.reflowPages();   // gerçek sayfalama
     }, 0);
   },
 
@@ -258,6 +277,12 @@ XL.modes.docx = {
   cleanField(el) {
     const clone = el.cloneNode(true);
     clone.querySelectorAll("img.sel").forEach((i) => i.classList.remove("sel"));
+    // Sayfalama itmeleri yalnız görünümdür → serialize'da kaldır
+    clone.querySelectorAll("[data-tc-push]").forEach((b) => {
+      b.style.marginTop = b.getAttribute("data-tc-mt0") || "";
+      if (!b.getAttribute("style")) b.removeAttribute("style");
+      b.removeAttribute("data-tc-push"); b.removeAttribute("data-tc-mt0");
+    });
     clone.querySelectorAll('[class=""]').forEach((e) => e.removeAttribute("class"));
     return clone.innerHTML;
   },
@@ -287,6 +312,7 @@ XL.modes.docx = {
   bindGlobals() {
     if (this.globalsBound) return;
     this.globalsBound = true;
+    window.addEventListener("resize", () => { if (document.body.dataset.mode === "docx") this._scheduleReflow(); });
     document.addEventListener("selectionchange", () => {
       if (!this.body || document.body.dataset.mode !== "docx") return;
       const sel = window.getSelection();
@@ -478,6 +504,13 @@ XL.modes.docx = {
       case "page-orient": this.page.orientation = value; this.applyPage(); return XL.ws.changed();
       case "page-size": this.page.size = value; this.applyPage(); return XL.ws.changed();
       case "footnote": return this.insertFootnote();
+      case "track-changes":
+        this.trackChanges = !this.trackChanges;
+        XL.ws.syncRibbonState();
+        XL.status(this.trackChanges ? XL.t("Değişiklik izleme açık", "Track changes on") : XL.t("Değişiklik izleme kapalı", "Track changes off"));
+        return;
+      case "tc-accept-all": return this.acceptRejectAll(true);
+      case "tc-reject-all": return this.acceptRejectAll(false);
       case "wordcount": {
         const c = this.counts();
         return alert(XL.t(
@@ -486,6 +519,11 @@ XL.modes.docx = {
       }
       case "spellcheck": this.editor.spellcheck = !this.editor.spellcheck; return XL.ws.syncRibbonState();
       case "zoom": this.zoom = parseFloat(value) || 1; return this.applyPage();
+      case "page-view":
+        this.pageView = !this.pageView;
+        XL.ws.syncRibbonState();
+        this.reflowPages();
+        return XL.status(this.pageView ? XL.t("Sayfa görünümü açık", "Page view on") : XL.t("Sayfa görünümü kapalı", "Page view off"));
       case "print": return this.print();
     }
   },
@@ -495,6 +533,8 @@ XL.modes.docx = {
     if (state === "footer") return !!(this.page && this.page.footer && this.page.footer.on);
     if (!this.editor) return false;
     if (state === "spellcheck") return this.editor.spellcheck;
+    if (state === "track") return !!this.trackChanges;
+    if (state === "pageview") return !!this.pageView;
     try { return document.queryCommandState(state); } catch (e) { return false; }
   },
 
@@ -843,6 +883,63 @@ XL.modes.docx = {
     set("wd-orient", this.page.orientation);
     set("wd-psize", this.page.size);
     set("wd-zoom", String(this.zoom));
+    this._scheduleReflow();   // sayfa boyutu/kenar boşluğu/zoom değişti → sayfalamayı yeniden hesapla
+  },
+
+  /* ---------- Gerçek sayfalama (sayfa görünümü) (Faz 6) ----------
+   * İçerik tek akışta düzenlenir; ama blok öğeler, bir sayfa sınırını aşacaklarsa
+   * bir sonraki sayfanın üstüne itilir (margin-top) → metin gri oluğa denk gelmez.
+   * Sayfalar gri oluklarla ayrılmış beyaz kâğıtlar gibi görünür. Bu itmeler yalnız
+   * GÖRÜNÜMdür; serialize/.docx'e taşınmaz (cleanField temizler).
+   */
+  _scheduleReflow() { clearTimeout(this._reflowT); this._reflowT = setTimeout(() => this.reflowPages(), 120); },
+
+  reflowPages() {
+    const pageEl = this.pageEl, body = this.body;
+    if (!pageEl || !body) return;
+    // Önceki itmeleri geri al
+    body.querySelectorAll("[data-tc-push]").forEach((b) => {
+      b.style.marginTop = b.getAttribute("data-tc-mt0") || "";
+      if (!b.getAttribute("style")) b.removeAttribute("style");
+      b.removeAttribute("data-tc-push"); b.removeAttribute("data-tc-mt0");
+    });
+    if (!this.pageView) { pageEl.classList.remove("paged"); this.updateCount(); return; }
+    pageEl.classList.add("paged");
+
+    const PXCM = 96 / 2.54;
+    const sizes = { A4: [21, 29.7], Letter: [21.59, 27.94], A5: [14.8, 21] };
+    let [, hC] = sizes[this.page.size] || sizes.A4;
+    if (this.page.orientation === "landscape") hC = (sizes[this.page.size] || sizes.A4)[0];
+    const pageH = hC * PXCM;
+    const cs = getComputedStyle(pageEl);
+    const mT = parseFloat(cs.paddingTop) || 0, mB = parseFloat(cs.paddingBottom) || 0;
+    const GUT = 28;                 // sayfalar arası gri oluk (px)
+    const period = pageH + GUT;
+    const usableH = pageH - mT - mB;
+    pageEl.style.setProperty("--page-h", pageH + "px");
+    pageEl.style.setProperty("--page-gut", GUT + "px");
+
+    let maxBottom = 0;
+    const blocks = [...body.children].filter((n) => n.nodeType === 1 && n.offsetParent !== null);
+    blocks.forEach((block) => {
+      const top = block.offsetTop;                 // pageEl'e göre (pageEl position:relative)
+      const h = block.offsetHeight;
+      const pageIdx = Math.floor(top / period);
+      const usableBottom = pageIdx * period + (pageH - mB);
+      if (h <= usableH && top + h > usableBottom + 0.5) {
+        const nextTop = (pageIdx + 1) * period + mT;
+        const push = nextTop - top;
+        if (push > 0) {
+          block.setAttribute("data-tc-mt0", block.style.marginTop || "");
+          block.setAttribute("data-tc-push", "1");
+          const curMt = parseFloat(getComputedStyle(block).marginTop) || 0;
+          block.style.marginTop = (curMt + push) + "px";
+        }
+      }
+      maxBottom = Math.max(maxBottom, block.offsetTop + block.offsetHeight);
+    });
+    this._pageCount = Math.max(1, Math.floor(maxBottom / period) + 1);
+    this.updateCount();
   },
 
   // Özel kenar boşluğu iletişim kutusu (cm, 4 kenar)
@@ -954,6 +1051,148 @@ XL.modes.docx = {
       `<div class="wd-fn-item"><sup>${i + 1}</sup> <span>${XL.esc(m.getAttribute("data-text") || "")}</span></div>`).join("");
   },
 
+  /* ---------- Değişiklik izleme (track changes) (Faz 6) ----------
+   * Açıkken gövdedeki giriş/silme doğrudan uygulanmaz; işaretlenir:
+   *   ekleme → <ins class="tc tc-ins" data-author data-ts>…</ins>
+   *   silme  → <del class="tc tc-del" …>…</del>  (içerik korunur, üstü çizili gösterilir)
+   * Kabul: ins aç (metni bırak) + del sil.  Reddet: ins sil + del aç.
+   * .docx'e InsertedTextRun / DeletedTextRun (w:ins / w:del) olarak yazılır.
+   */
+  tcAuthorName() {
+    return (XL.auth && XL.auth.user && XL.auth.user.email && XL.auth.user.email.split("@")[0]) || XL.t("Siz", "You");
+  },
+
+  onBeforeInput(e) {
+    if (!this.trackChanges) return;
+    const it = e.inputType || "";
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !this.body.contains(sel.anchorNode)) return;
+
+    if (it === "insertText" || it === "insertReplacementText" || it === "insertCompositionText") {
+      e.preventDefault();
+      const range = sel.getRangeAt(0);
+      if (!range.collapsed) this._tcDeleteRange(range);
+      this._tcInsert(e.data != null ? e.data : "");
+      this._afterTc();
+    } else if (it.startsWith("delete")) {
+      e.preventDefault();
+      let range = sel.getRangeAt(0);
+      if (range.collapsed) {
+        const fwd = it.toLowerCase().includes("forward");
+        const gran = it.toLowerCase().includes("word") ? "word" : it.toLowerCase().includes("line") ? "lineboundary" : "character";
+        try { sel.modify("extend", fwd ? "forward" : "backward", gran); } catch (err) {}
+        range = sel.getRangeAt(0);
+        if (range.collapsed) return; // belge sınırı
+      }
+      this._tcDeleteRange(range);
+      this._afterTc();
+    }
+    // insertParagraph / biçimlendirme / vb. v1'de izlenmez (varsayılan davranış)
+  },
+
+  _tcInsert(text) {
+    if (text === "") return;
+    const sel = window.getSelection();
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const sc = range.startContainer;
+    // İmleç zaten aynı yazarın ins'inin içindeyse metni oraya ekle (tek ins sürsün)
+    const inIns = sc.nodeType === 3 && sc.parentElement && sc.parentElement.closest(".tc-ins");
+    if (inIns && inIns.dataset.author === this.tcAuthor && sc.nodeType === 3) {
+      const off = range.startOffset;
+      sc.insertData(off, text);
+      const r = document.createRange(); r.setStart(sc, off + text.length); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+      return;
+    }
+    const ins = document.createElement("ins");
+    ins.className = "tc tc-ins"; ins.dataset.author = this.tcAuthor; ins.dataset.ts = String(Date.now());
+    ins.textContent = text;
+    range.insertNode(ins);
+    // İmleci ins metninin SONUNA koy → sonraki tuş aynı ins'e eklenir
+    const r = document.createRange(); r.setStart(ins.firstChild, ins.firstChild.length); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+  },
+
+  _tcDeleteRange(range) {
+    const sel = window.getSelection();
+    // Tamamen aynı yazarın (kabul edilmemiş) eklentisi içindeyse → gerçekten sil
+    const anc = range.commonAncestorContainer;
+    const ancEl = anc.nodeType === 3 ? anc.parentElement : anc;
+    const wholeIns = ancEl && ancEl.closest(".tc-ins");
+    if (wholeIns) {
+      const r0 = range.cloneRange();
+      range.deleteContents();
+      if (!wholeIns.textContent) wholeIns.remove();
+      const r = document.createRange(); r.setStart(r0.startContainer, r0.startOffset); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+      return;
+    }
+    const frag = range.extractContents();
+    frag.querySelectorAll && frag.querySelectorAll(".tc-ins").forEach((i) => i.remove()); // eklentiler yok olur
+    if (!frag.textContent) {
+      const r = document.createRange(); r.setStart(range.startContainer, range.startOffset); r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+      return;
+    }
+    const del = document.createElement("del");
+    del.className = "tc tc-del"; del.dataset.author = this.tcAuthor; del.dataset.ts = String(Date.now());
+    del.appendChild(frag);
+    range.insertNode(del);
+    const r = document.createRange(); r.setStartAfter(del); r.collapse(true);
+    sel.removeAllRanges(); sel.addRange(r);
+  },
+
+  _afterTc() {
+    this.saveRange();
+    this.updateCount();
+    this.renderFootnotes();
+    this._scheduleReflow();
+    XL.ws.changed();
+  },
+
+  _unwrap(el) {
+    const p = el.parentNode; if (!p) return;
+    while (el.firstChild) p.insertBefore(el.firstChild, el);
+    p.removeChild(el);
+  },
+
+  acceptReject(el, accept) {
+    const isIns = el.classList.contains("tc-ins");
+    if ((isIns && accept) || (!isIns && !accept)) this._unwrap(el); else el.remove();
+    this._tcPopHide();
+    this.afterChange();
+    this._scheduleReflow();
+  },
+
+  acceptRejectAll(accept) {
+    this._tcPopHide();
+    this.body.querySelectorAll(".tc-ins").forEach((el) => { if (accept) this._unwrap(el); else el.remove(); });
+    this.body.querySelectorAll(".tc-del").forEach((el) => { if (accept) el.remove(); else this._unwrap(el); });
+    this.afterChange();
+    this._scheduleReflow();
+    XL.status(accept ? XL.t("Tüm değişiklikler kabul edildi.", "All changes accepted.") : XL.t("Tüm değişiklikler reddedildi.", "All changes rejected."));
+  },
+
+  _tcClick(el) {
+    this._tcPopHide();
+    const isIns = el.classList.contains("tc-ins");
+    const pop = document.createElement("div");
+    pop.id = "tc-pop";
+    const who = el.dataset.author ? " · " + XL.esc(el.dataset.author) : "";
+    pop.innerHTML = `<span class="tc-pop-label">${isIns ? XL.t("Ekleme", "Insertion") : XL.t("Silme", "Deletion")}${who}</span>
+      <button data-a="1" title="${XL.t("Kabul et", "Accept")}">✓</button>
+      <button data-a="0" title="${XL.t("Reddet", "Reject")}">✗</button>`;
+    document.body.appendChild(pop);
+    const rect = el.getBoundingClientRect();
+    pop.style.left = Math.max(6, rect.left) + "px";
+    pop.style.top = (rect.top - pop.offsetHeight - 6 < 4 ? rect.bottom + 6 : rect.top - pop.offsetHeight - 6) + "px";
+    pop.querySelector('[data-a="1"]').onclick = () => this.acceptReject(el, true);
+    pop.querySelector('[data-a="0"]').onclick = () => this.acceptReject(el, false);
+  },
+
+  _tcPopHide() { const p = document.getElementById("tc-pop"); if (p) p.remove(); },
+
   print() {
     window.print();
   },
@@ -970,8 +1209,8 @@ XL.modes.docx = {
       chars: text.replace(/\n/g, "").length,
       charsNoSpace: text.replace(/\s/g, "").length,
       paras: body.querySelectorAll("p,h1,h2,h3,h4,li,blockquote,pre").length,
-      // Küçük yuvarlama payı: tam bir sayfa yüksekliği 1 sayfa sayılsın
-      pages: Math.max(1, Math.ceil((body.scrollHeight - 4) / pageH) + breaks),
+      // Sayfa görünümü açıksa itmelerle hesaplanan gerçek sayfa sayısı; değilse yükseklikten tahmin
+      pages: (this.pageView && this._pageCount) ? this._pageCount : Math.max(1, Math.ceil((body.scrollHeight - 4) / pageH) + breaks),
     };
   },
 

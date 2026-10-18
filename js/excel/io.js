@@ -1,4 +1,5 @@
-/* excel/io.js — .xlsx / .csv içe-dışa aktarma (SheetJS) */
+/* excel/io.js — .xlsx / .csv içe-dışa aktarma
+ * OKUMA + CSV: SheetJS (XLSX). YAZMA: ExcelJS (font/dolgu/hizalama stilleri — SheetJS yazamaz). */
 XL.io = {
   // Dosyayı oku → Excel belge verisi döndür
   async readFile(file) {
@@ -81,93 +82,101 @@ XL.io = {
     return out;
   },
 
-  // Belge verisinden .xlsx indir (önce motordaki canlı durum serialize edilmiş olmalı)
-  async save(data, filename) {
-    const wb = XLSX.utils.book_new();
+  /* =====================================================================
+   *  DIŞA AKTARMA (.xlsx) — ExcelJS
+   *  SheetJS community font/dolgu/hizalama stillerini YAZAMIYORDU; ExcelJS yazar.
+   *  Değer/formül/sayı biçimi + birleştirme + sütun/satır boyutu + kenar boşluğu +
+   *  üst/alt bilgi + KALIN/İTALİK/ALTI ÇİZİLİ/RENK/DOLGU/HİZALAMA aktarılır.
+   * ===================================================================== */
+
+  // #rrggbb / #rgb → ExcelJS ARGB ("FFRRGGBB")
+  argb(hex) {
+    let h = String(hex || "").replace("#", "").trim();
+    if (h.length === 3) h = h.split("").map((x) => x + x).join("");
+    if (/^[0-9a-fA-F]{6}$/.test(h)) return "FF" + h.toUpperCase();
+    return "FF000000";
+  },
+
+  _numFmtString(numfmt) {
+    return { number: "#,##0.00", currency: '#,##0.00 "₺"', percent: "0.00%", date: "dd.mm.yyyy" }[numfmt] || null;
+  },
+
+  // Bir biçim nesnesini ({bold,italic,underline,color,bg,align,numfmt}) ExcelJS hücresine uygula
+  applyCellStyle(cell, f) {
+    if (!f) return;
+    const font = {};
+    if (f.bold) font.bold = true;
+    if (f.italic) font.italic = true;
+    if (f.underline) font.underline = true;
+    if (f.color) font.color = { argb: this.argb(f.color) };
+    if (Object.keys(font).length) cell.font = font;
+    if (f.bg) cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: this.argb(f.bg) } };
+    if (f.align) cell.alignment = Object.assign({}, cell.alignment, { horizontal: f.align });
+    if (f.numfmt) { const z = this._numFmtString(f.numfmt); if (z) cell.numFmt = z; }
+  },
+
+  // Belge verisinden ExcelJS Workbook kur (saf; indirmez — test de kullanır)
+  async buildWorkbook(data) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = XL.APP_NAME || "UniTEAM";
+    wb.created = new Date();
     const pg = data.page || null;
     const mode = XL.modes.xlsx;
     const margins = pg ? (typeof pg.margins === "object" ? pg.margins : (mode.MARGINS[pg.margins] || mode.MARGINS.normal)) : null;
+
     data.sheets.forEach((s, idx) => {
-      const ws = {};
-      let maxR = 0, maxC = 0;
+      const ws = wb.addWorksheet((s.name || ("Sayfa" + (idx + 1))).substring(0, 31));
       const sheetId = XL.state.sheets[idx] ? XL.state.sheets[idx].id : null;
+
       Object.entries(s.cells).forEach(([key, raw]) => {
         const [r, c] = key.split(",").map(Number);
-        const addr = XLSX.utils.encode_cell({ r, c });
+        const cell = ws.getCell(r + 1, c + 1);   // ExcelJS 1-tabanlı
         if (raw.startsWith("=")) {
           const val = sheetId !== null ? XL.engine.getValue(r, c, sheetId) : null;
-          if (typeof val === "number") ws[addr] = { t: "n", f: raw.slice(1), v: val };
-          else if (typeof val === "boolean") ws[addr] = { t: "b", f: raw.slice(1), v: val };
-          else ws[addr] = { t: "s", f: raw.slice(1), v: XL.isError(val) ? val.value : String(val ?? "") };
+          const result = XL.isError(val) ? { error: val.value } : (val == null ? null : val);
+          cell.value = { formula: raw.slice(1), result };
         } else if (raw.trim() !== "" && !isNaN(raw)) {
-          ws[addr] = { t: "n", v: Number(raw) };
+          cell.value = Number(raw);
         } else if (raw === "TRUE" || raw === "FALSE") {
-          ws[addr] = { t: "b", v: raw === "TRUE" };
+          cell.value = raw === "TRUE";
         } else {
-          ws[addr] = { t: "s", v: raw };
+          cell.value = raw;
         }
-        const f = (s.formats || {})[r + ":" + c];
-        if (f && f.numfmt && ws[addr].t === "n") {
-          ws[addr].z = { number: "#,##0.00", currency: '#,##0.00 "₺"', percent: "0.00%", date: "dd.mm.yyyy" }[f.numfmt];
-        }
-        maxR = Math.max(maxR, r); maxC = Math.max(maxC, c);
+        this.applyCellStyle(cell, (s.formats || {})[r + ":" + c]);
       });
 
-      // Sayfa düzeni: sütun genişliği / satır yüksekliği / birleştirmeler (px → SheetJS).
-      if (s.colWidths && Object.keys(s.colWidths).length) {
-        const cols = [];
-        Object.entries(s.colWidths).forEach(([c, px]) => { cols[+c] = { wpx: px }; maxC = Math.max(maxC, +c); });
-        for (let i = 0; i < cols.length; i++) if (!cols[i]) cols[i] = {};
-        ws["!cols"] = cols;
-      }
-      if (s.rowHeights && Object.keys(s.rowHeights).length) {
-        const rows = [];
-        Object.entries(s.rowHeights).forEach(([r, px]) => { rows[+r] = { hpx: px }; maxR = Math.max(maxR, +r); });
-        for (let i = 0; i < rows.length; i++) if (!rows[i]) rows[i] = {};
-        ws["!rows"] = rows;
-      }
-      if (Array.isArray(s.merges) && s.merges.length) {
-        ws["!merges"] = s.merges.map(([r1, c1, r2, c2]) => {
-          maxR = Math.max(maxR, r2); maxC = Math.max(maxC, c2);
-          return { s: { r: r1, c: c1 }, e: { r: r2, c: c2 } };
-        });
-      }
+      // Değeri olmayan ama biçimli (boş ama stilli) hücreler de stillensin
+      Object.entries(s.formats || {}).forEach(([fk, f]) => {
+        const [r, c] = fk.split(":").map(Number);
+        if (!(s.cells && s.cells[r + "," + c])) this.applyCellStyle(ws.getCell(r + 1, c + 1), f);
+      });
 
-      ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
-      if (margins) ws["!margins"] = Object.assign({}, margins);
-      XLSX.utils.book_append_sheet(wb, ws, s.name.substring(0, 31));
+      // Sütun genişliği (px → ~Excel karakter genişliği) / satır yüksekliği (px → punto)
+      if (s.colWidths) Object.entries(s.colWidths).forEach(([c, px]) => { ws.getColumn(+c + 1).width = Math.round((px / 7) * 100) / 100; });
+      if (s.rowHeights) Object.entries(s.rowHeights).forEach(([r, px]) => { ws.getRow(+r + 1).height = Math.round((px * 72 / 96) * 100) / 100; });
+      if (Array.isArray(s.merges)) s.merges.forEach(([r1, c1, r2, c2]) => { try { ws.mergeCells(r1 + 1, c1 + 1, r2 + 1, c2 + 1); } catch (e) {} });
+
+      if (margins) ws.pageSetup = Object.assign({}, ws.pageSetup, {
+        margins: { left: margins.left, right: margins.right, top: margins.top, bottom: margins.bottom, header: margins.header || 0.3, footer: margins.footer || 0.3 },
+      });
+      // Üst/alt bilgi (&L/&C/&R bölüm kodları) — ExcelJS yerel olarak yazar
+      const hf = (o) => `&L${o.l || ""}&C${o.c || ""}&R${o.r || ""}`;
+      if (pg && pg.header && (pg.header.l || pg.header.c || pg.header.r)) ws.headerFooter.oddHeader = hf(pg.header);
+      if (pg && pg.footer && (pg.footer.l || pg.footer.c || pg.footer.r)) ws.headerFooter.oddFooter = hf(pg.footer);
     });
-
-    // Üst/alt bilgi metni SheetJS ile yazılamadığından oluşan .xlsx'e doğrudan enjekte edilir
-    const hasHF = pg && [pg.header, pg.footer].some((o) => o && (o.l || o.c || o.r));
-    if (!hasHF) return XLSX.writeFile(wb, filename);
-
-    const ab = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = await this.injectHeaderFooter(ab, pg);
-    XL.download(blob, filename);
+    return wb;
   },
 
-  // Oluşan .xlsx paketindeki her çalışma sayfasına <headerFooter> ekle (JSZip ile)
-  async injectHeaderFooter(arrayBuffer, pg) {
-    const zip = await JSZip.loadAsync(arrayBuffer);
-    const xmlEsc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // &L/&C/&R bölüm kodları + kullanıcı metni (ör. &P sayfa no); sonra tümü XML için kaçışlanır
-    const code = (o) => xmlEsc(`&L${o.l || ""}&C${o.c || ""}&R${o.r || ""}`);
-    let hf = "<headerFooter>";
-    if (pg.header && (pg.header.l || pg.header.c || pg.header.r)) hf += `<oddHeader>${code(pg.header)}</oddHeader>`;
-    if (pg.footer && (pg.footer.l || pg.footer.c || pg.footer.r)) hf += `<oddFooter>${code(pg.footer)}</oddFooter>`;
-    hf += "</headerFooter>";
+  // Belge verisinden .xlsx Blob
+  async buildBlob(data) {
+    const wb = await this.buildWorkbook(data);
+    const buf = await wb.xlsx.writeBuffer();
+    return new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  },
 
-    const files = Object.keys(zip.files).filter((p) => /^xl\/worksheets\/sheet\d+\.xml$/.test(p));
-    for (const p of files) {
-      let xml = await zip.file(p).async("string");
-      if (xml.includes("<headerFooter")) continue;
-      // Şema sırası: headerFooter, pageMargins'ten sonra gelmeli
-      if (/<pageMargins[^>]*\/>/.test(xml)) xml = xml.replace(/(<pageMargins[^>]*\/>)/, "$1" + hf);
-      else xml = xml.replace("</worksheet>", hf + "</worksheet>");
-      zip.file(p, xml);
-    }
-    return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  // Belge verisinden .xlsx indir (önce motordaki canlı durum serialize edilmiş olmalı)
+  async save(data, filename) {
+    XL.download(await this.buildBlob(data), filename);
   },
 
   // Etkin sayfayı CSV olarak indir

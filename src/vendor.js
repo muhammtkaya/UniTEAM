@@ -8,6 +8,7 @@
  * import/export modüllerine geçince bu köprü kalkacak.)
  */
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import Chart from "chart.js/auto";
 import mammoth from "mammoth/mammoth.browser.js";
 import * as docx from "docx";
@@ -19,7 +20,8 @@ import * as Y from "yjs";
 // `import * as XLSX` bir salt-okunur ES modül namespace'idir. Eski CDN UMD global'i
 // ise düz/yazılabilir bir nesneydi; bazı kodlar (ör. testler writeFile'ı geçici
 // override ediyor) buna güvenir. Yazılabilir sığ kopya ile eski davranışı koru.
-window.XLSX = { ...XLSX };
+window.XLSX = { ...XLSX };     // okuma + CSV + korpus oracle (SheetJS)
+window.ExcelJS = ExcelJS;      // .xlsx YAZIMI (font/dolgu/hizalama stilleri — SheetJS yazamaz)
 window.Chart = Chart;
 window.mammoth = mammoth;
 window.docx = docx;

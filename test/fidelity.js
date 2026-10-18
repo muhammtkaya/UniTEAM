@@ -14,32 +14,49 @@ async function run({ baseURL }) {
     await page.goto(baseURL + "/index.html", { waitUntil: "networkidle0" });
     await waitReady(page);
 
-    // ---------------- XLSX ----------------
-    const xlsx = await page.evaluate(() => {
+    // ---------------- XLSX (ExcelJS yazıcı; stiller dahil) ----------------
+    const xlsx = await page.evaluate(async () => {
       const data = { rows: 100, cols: 26, activeSheet: 0, sheets: [{ name: "S1",
         cells: { "0,0": "Ad", "1,0": "Ali", "2,0": "Ayşe", "0,1": "Puan", "1,1": "90", "2,1": "85", "3,1": "=SUM(B2:B3)" }, formats: {} }] };
       XL.engine.load(data);
-      // Sayfa düzeni: birleştirme (A1:B1) + sütun genişliği (B=140px) + satır yüksekliği (1=30px)
       const sid = XL.state.sheets[0].id;
+      // Sayfa düzeni: birleştirme (A1:B1) + sütun genişliği (B=140px) + satır yüksekliği (1=30px)
       XL.state.layout[sid] = { colWidths: { 1: 140 }, rowHeights: { 0: 30 }, merges: [[0, 0, 0, 1]] };
+      // Stiller (SheetJS yazamıyordu): A1 kalın+kırmızı yazı+sarı dolgu+ortalı; A2 italik
+      XL.state.formats[sid + ":0:0"] = { bold: true, color: "#ff0000", bg: "#ffff00", align: "center" };
+      XL.state.formats[sid + ":1:0"] = { italic: true };
       const ser = XL.engine.serialize();
-      let cap = null; const orig = XLSX.writeFile; XLSX.writeFile = (wb) => { cap = wb; };
-      XL.io.save(ser, "t.xlsx"); XLSX.writeFile = orig;
-      const out = XLSX.write(cap, { type: "array", bookType: "xlsx" });
-      const wb2 = XLSX.read(out, { type: "array", cellFormula: true, cellStyles: true });
-      const d2 = XL.io.workbookToData(wb2); const s = d2.sheets[0];
-      return { name: s.name, a2: s.cells["1,0"], b2: s.cells["1,1"], formula: s.cells["3,1"],
-        mergeCount: (s.merges || []).length, merge0: JSON.stringify((s.merges || [])[0] || null),
-        colW: (s.colWidths || {})["1"], rowH: (s.rowHeights || {})["0"] };
+      const blob = await XL.io.buildBlob(ser);
+      const wb2 = new ExcelJS.Workbook();
+      await wb2.xlsx.load(await blob.arrayBuffer());
+      const ws = wb2.worksheets[0];
+      const cv = (r, c) => { const v = ws.getCell(r, c).value; return v && typeof v === "object" ? v : v; };
+      const a1 = ws.getCell(1, 1);
+      const bFormula = ws.getCell(4, 2).value;
+      return {
+        name: ws.name,
+        a2: String(cv(2, 1)), b2: String(cv(2, 2)),
+        formula: bFormula && bFormula.formula ? "=" + bFormula.formula : null,
+        mergeCount: (ws.model.merges || []).length, merge0: (ws.model.merges || [])[0] || null,
+        colW: ws.getColumn(2).width, rowH: ws.getRow(1).height,
+        bold: !!(a1.font && a1.font.bold), fontColor: a1.font && a1.font.color && a1.font.color.argb,
+        fill: a1.fill && a1.fill.fgColor && a1.fill.fgColor.argb, align: a1.alignment && a1.alignment.horizontal,
+        italic2: !!(ws.getCell(2, 1).font && ws.getCell(2, 1).font.italic),
+      };
     });
     console.log("  XLSX:", JSON.stringify(xlsx));
     check("Sayfa adı korundu (S1)", xlsx.name === "S1", xlsx);
     check("Metin hücresi korundu (A2=Ali)", xlsx.a2 === "Ali", xlsx);
     check("Sayı hücresi korundu (B2=90)", xlsx.b2 === "90", xlsx);
     check("Formül korundu (=SUM(B2:B3))", xlsx.formula === "=SUM(B2:B3)", xlsx);
-    check("Birleştirme korundu (A1:B1)", xlsx.mergeCount === 1 && xlsx.merge0 === "[0,0,0,1]", xlsx);
-    check("Sütun genişliği korundu (~140px)", Math.abs((xlsx.colW || 0) - 140) <= 8, xlsx);
-    check("Satır yüksekliği korundu (~30px)", Math.abs((xlsx.rowH || 0) - 30) <= 8, xlsx);
+    check("Birleştirme korundu (A1:B1)", xlsx.mergeCount === 1 && xlsx.merge0 === "A1:B1", xlsx);
+    check("Sütun genişliği korundu (~140px→~20)", Math.abs((xlsx.colW || 0) - 20) <= 4, xlsx);
+    check("Satır yüksekliği korundu (~30px→~22.5pt)", Math.abs((xlsx.rowH || 0) - 22.5) <= 4, xlsx);
+    check("Kalın stili yazıldı", xlsx.bold === true, xlsx);
+    check("Yazı rengi yazıldı (kırmızı)", xlsx.fontColor === "FFFF0000", xlsx);
+    check("Dolgu rengi yazıldı (sarı)", xlsx.fill === "FFFFFF00", xlsx);
+    check("Hizalama yazıldı (center)", xlsx.align === "center", xlsx);
+    check("İtalik stili (A2) yazıldı", xlsx.italic2 === true, xlsx);
 
     // --- Koşullu biçim + veri doğrulama: uygulama-içi round-trip (serialize→load) [Faz 6]
     const rules = await page.evaluate(() => {

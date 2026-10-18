@@ -10,7 +10,8 @@ karşılamak için tutulur.
 
 | Kütüphane | Sürüm | Görev | Lisans |
 |---|---|---|---|
-| SheetJS (xlsx) | 0.20.3 | `.xlsx` / `.csv` okuma-yazma | Apache-2.0 |
+| SheetJS (xlsx) | 0.20.3 | `.xlsx` / `.csv` **okuma** | Apache-2.0 |
+| ExcelJS | 4.4.0 | `.xlsx` **yazma** (font/dolgu/hizalama stilleri) | MIT |
 | Chart.js | 4.4.1 | Grafikler | MIT |
 | docx | 8.5.0 | `.docx` yazma | MIT |
 | mammoth | 1.13.0 | Yedek `.docx` okuma | BSD-2-Clause |
@@ -25,6 +26,9 @@ Copyright (C) 2012-present SheetJS LLC.
 Apache License 2.0 koşulları altında lisanslanmıştır. Lisansın tam metni:
 https://www.apache.org/licenses/LICENSE-2.0 — Bu bileşenin dağıtımında NOTICE
 dosyası ve lisans başlıkları korunmalıdır.
+
+## ExcelJS — MIT License
+Copyright (c) 2014-2024 Guyon Roche
 
 ## Chart.js — MIT License
 Copyright (c) 2014-present Chart.js Contributors

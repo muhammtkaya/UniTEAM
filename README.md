@@ -285,8 +285,9 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **PowerPoint slayta grafik** (`js/pptx/mode.js`, `pptx-io.js`): yeni `chart` öğesi (sütun/çizgi/pasta), uygulama içi SVG render, "📊 Grafik" ekleme düğmesi + çift tıkla veri düzenleyici, `.pptx`'e PptxGenJS `addChart` ile aktarım. *(Grafiğin `.pptx`'ten geri okunması kapsam dışı — büyük iş.)*
 - [x] **Word dipnot** (`js/word/mode.js`, `docx-io.js`): satır içi işaretçi + sayfa altı türetilen liste + otomatik numaralama; "🔖 Dipnot Ekle" (Gözden Geçir); `.docx`'e gerçek OOXML dipnotu (`FootnoteReferenceRun` + `Document.footnotes`).
 - [x] **Excel büyük sayfada artımlı canlı render** (`js/realtime.js`): uzak değişiklik yalnız hücre/biçimse ve sayfa yapısı aynıysa yalnız değişen hücreler `setCell` + tek repaint (tam `engine.load` + `grid.build` yok); yapısal değişiklikte tam yükleme fallback.
+- [x] **Excel font/dolgu/hizalama stili `.xlsx` yazımı → ExcelJS'e geçildi** (`src/vendor.js`, `js/excel/io.js`): yazıcı ExcelJS (kalın/italik/altı çizili/renk/dolgu/hizalama + değer/formül/sayı biçimi/birleştirme/boyut/kenar boşluğu/üst-alt bilgi). **Okuma + CSV SheetJS'te kaldı** (fidelity %99.7 korunur). *(Dış dosyadan stil **okuma** ayrı/ileri iş.)*
 - [ ] **Kalan (kütüphane kısıtı / büyük ayrı iş — ayrı karar/greenlight gerektirir):**
-  - Excel font/dolgu stili `.xlsx` **yazımı**: SheetJS community desteklemez → ExcelJS gibi farklı yazıcıya geçiş = büyük bağımlılık/mimari değişim.
+  - Excel: dış `.xlsx`'ten font/dolgu stili **okuma** (okuyucu ExcelJS'e de alınabilir — ayrı iş).
   - Word **değişiklik izleme (track changes)** + **gerçek sayfalama** (metin reflow): her biri büyük, ayrı iş.
   - PPT animasyon/geçişlerin `.pptx`'e aktarımı: PptxGenJS animasyon XML'i üretmez (format kısıtı).
   - Geniş gerçek-dünya `.xlsx/.docx/.pptx` regresyon korpusu: telifli dosyalar (`.gitignore`'da) gerektirir — kod değil, veri işi.

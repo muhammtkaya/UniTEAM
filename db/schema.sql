@@ -771,3 +771,37 @@ create policy audit_admin_select on public.audit_log
 --   list_org_documents(org) / list_audit_log(org) -> admin yönetişim görünümleri
 -- Tam gövdeler: supabase/migrations/20261018130000_organizations.sql
 -- =============================================================================
+
+
+-- =============================================================================
+-- FAZ 2 — HESAP GÜVENLİĞİ (giriş geçmişi + şüpheli giriş uyarısı)
+-- -----------------------------------------------------------------------------
+-- 2FA/MFA (TOTP) Supabase Auth'ta YERLEŞİKTİR (auth.mfa.*; config.toml'da açık) →
+-- şema gerektirmez. Burada Supabase'in vermediği iki parça:
+--   1) login_events — giriş GEÇMİŞİ (OLAY tablosu: her satır değişmez bir login).
+--   2) notifications.data jsonb — yorum-dışı (güvenlik) bildirim türleri için esnek yük.
+-- Tam gövdeler: supabase/migrations/20261018140000_account_security.sql
+-- =============================================================================
+
+alter table public.notifications add column if not exists data jsonb;
+
+create table public.login_events (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references public.profiles (id) on delete cascade,
+  device_label  text,         -- kabaca "Chrome · Windows"
+  user_agent    text,         -- tam UA (teşhis)
+  ip            text,         -- istemciden güvenilmez; Faz 9'da edge doldurabilir
+  is_new_device boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+create index idx_login_events_user on public.login_events (user_id, created_at desc);
+
+alter table public.login_events enable row level security;
+-- Kullanıcı yalnız KENDİ geçmişini görür (yazma yalnız record_login_event RPC ile).
+create policy login_events_self_select on public.login_events
+  for select using (user_id = auth.uid());
+
+-- record_login_event(device,ua): girişte çağrılır; yeni cihazı tespit eder, kaydeder,
+--   ilk giriş DEĞİLSE + yeni cihazsa 'security_new_device' bildirimi atar (definer).
+-- list_notifications(): jsonb "data" sütununu da döndürecek şekilde güncellendi.
+-- =============================================================================

@@ -315,13 +315,22 @@ XL.comments = {
     if (!rows.length) { box.innerHTML = `<p class="muted">${XL.t("Bildirim yok.", "No notifications.")}</p>`; return; }
 
     box.innerHTML = `<div class="ntf-top"><button id="ntf-allread">${XL.t("Tümünü okundu işaretle", "Mark all as read")}</button></div>` +
-      rows.map((r) => `
+      rows.map((r) => {
+        let text;
+        if (r.type === "security_new_device") {
+          const dev = (r.data && r.data.device) || XL.t("bilinmeyen cihaz", "unknown device");
+          text = `<b>🔐 ${XL.t("Güvenlik", "Security")}</b> ${XL.t("yeni bir cihazdan giriş algılandı", "sign-in detected from a new device")} · <i>${XL.esc(dev)}</i>`;
+        } else {
+          text = `<b>${XL.esc((r.actor_email || XL.t("Biri", "Someone")).split("@")[0])}</b>
+            ${XL.t("sizi bir yorumda bahsetti", "mentioned you in a comment")}${r.document_name ? ` · <i>${XL.esc(r.document_name)}</i>` : ""}`;
+        }
+        return `
         <div class="ntf${r.read ? "" : " ntf-unread"}" data-id="${r.id}" data-doc="${r.document_id || ""}">
-          <div class="ntf-text"><b>${XL.esc((r.actor_email || XL.t("Biri", "Someone")).split("@")[0])}</b>
-            ${XL.t("sizi bir yorumda bahsetti", "mentioned you in a comment")}${r.document_name ? ` · <i>${XL.esc(r.document_name)}</i>` : ""}</div>
+          <div class="ntf-text">${text}</div>
           ${r.excerpt ? `<div class="ntf-ex muted">"${XL.esc(r.excerpt)}"</div>` : ""}
           <div class="muted ntf-time">${this._timeAgo(r.created_at)}</div>
-        </div>`).join("");
+        </div>`;
+      }).join("");
 
     document.getElementById("ntf-allread").onclick = async () => { await this.markAllRead(); await this.openNotifications(); this.refreshBadge(); };
     box.querySelectorAll(".ntf").forEach((el) => el.onclick = async () => {

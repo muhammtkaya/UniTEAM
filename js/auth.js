@@ -46,12 +46,14 @@ XL.auth = {
     });
 
     // Oturum değişince (giriş/çıkış/token yenileme) arayüzü güncelle.
-    this.client.auth.onAuthStateChange((_event, session) => {
+    this.client.auth.onAuthStateChange((event, session) => {
       this.user = session ? session.user : null;
       this._renderButton();
       this._closePopover();
       if (XL.cloud) XL.cloud.handleUrlLink();  // giriş sonrası bekleyen linki aç
       if (XL.org) XL.org.handleUrlInvite();    // giriş sonrası bekleyen daveti kabul et
+      // Yalnız TAZE girişte giriş olayını kaydet (sayfa yenileme/token tazeleme değil).
+      if (event === "SIGNED_IN" && XL.security) XL.security.recordLogin();
     });
 
     this._wireButton();
@@ -100,6 +102,7 @@ XL.auth = {
       <button id="ap-cloud-save" class="ap-item ap-action">${XL.t("☁ Buluta kaydet", "☁ Save to cloud")}</button>
       <button id="ap-cloud-list" class="ap-item ap-action">${XL.t("📥 Bulut belgelerim", "📥 My cloud documents")}</button>
       <button id="ap-orgs" class="ap-item ap-action">${XL.t("🏢 Organizasyonlarım", "🏢 My organizations")}</button>
+      <button id="ap-security" class="ap-item ap-action">${XL.t("🔐 Güvenlik", "🔐 Security")}</button>
       <hr>
       <button id="ap-signout" class="ap-item">${XL.t("Çıkış yap", "Sign out")}</button>`;
     document.body.appendChild(pop);
@@ -110,6 +113,7 @@ XL.auth = {
     document.getElementById("ap-cloud-save").addEventListener("click", () => { this._closePopover(); XL.cloud.saveActive(); });
     document.getElementById("ap-cloud-list").addEventListener("click", () => { this._closePopover(); XL.cloud.openPicker(); });
     document.getElementById("ap-orgs").addEventListener("click", () => { this._closePopover(); XL.org.openPanel(); });
+    document.getElementById("ap-security").addEventListener("click", () => { this._closePopover(); XL.security.openPanel(); });
     document.getElementById("ap-signout").addEventListener("click", () => this.signOut());
   },
   _closePopover() {
@@ -213,8 +217,13 @@ XL.auth = {
       } else {
         const { error } = await this.client.auth.signInWithPassword({ email, password: pass });
         if (error) throw error;
-        this._msg(XL.t("Giriş yapıldı.", "Signed in."), "ok");
-        setTimeout(() => this.closeModal(), 500);
+        // İki adımlı doğrulama (2FA) açıksa ikinci faktörü sor (aal1 → aal2).
+        this.closeModal();
+        if (XL.security) {
+          const ok = await XL.security.maybeChallenge();
+          if (!ok) return;  // iptal → maybeChallenge zaten signOut etti
+        }
+        XL.status(XL.t("Giriş yapıldı.", "Signed in."));
       }
     } catch (err) {
       this._msg(this._friendlyError(err));

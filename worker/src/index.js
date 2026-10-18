@@ -46,6 +46,22 @@ function fail(code, message, status) {
   return json({ error: { code, message } }, status);
 }
 
+/* --- Rate limiting (abuse önleme) — IP başına kayan pencere sayacı --------- *
+ * NOT: Bu isolate-yerel (bellekte) bir sayaçtır → "kod hazırlığı" seviyesidir;
+ * Worker isolate'leri geçici ve colo başına ayrı olduğundan YAKLAŞIKTIR. Üretimde
+ * global doğruluk için Durable Object / KV / Cloudflare Rate Limiting kullanılmalı.
+ * Yine de tek isolate'e gelen kaba sel/brute-force'u ucuzca frenler.
+ */
+const _rl = new Map(); // key -> { count, resetAt }
+function rateLimit(key, limit, windowMs) {
+  const now = Date.now();
+  let e = _rl.get(key);
+  if (!e || now >= e.resetAt) { e = { count: 0, resetAt: now + windowMs }; _rl.set(key, e); }
+  e.count++;
+  if (_rl.size > 20000) { for (const [k, v] of _rl) if (now >= v.resetAt) _rl.delete(k); } // ara temizlik
+  return e.count <= limit;
+}
+
 // WebSocket ikili mesajını Uint8Array'e çevirir (ArrayBuffer | Blob | TypedArray).
 async function toBytes(data) {
   if (data instanceof ArrayBuffer) return new Uint8Array(data);
@@ -112,6 +128,12 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // Genel IP rate limit (sağlık kontrolü hariç): 120 istek / 60 sn.
+    const ip = request.headers.get("CF-Connecting-IP") || "anon";
+    if (path !== "/health" && !rateLimit("g:" + ip, 120, 60000)) {
+      return fail("rate_limited", "Çok fazla istek. Lütfen biraz sonra tekrar deneyin.", 429);
+    }
+
     // Sağlık kontrolü — kimlik gerektirmez.
     if (path === "/health" && request.method === "GET") {
       return json({ ok: true, service: "uniteam-worker", time: new Date().toISOString() });
@@ -130,6 +152,10 @@ export default {
     if (room) {
       if (request.headers.get("Upgrade") !== "websocket") {
         return fail("bad_request", "WebSocket bağlantısı bekleniyor.", 426);
+      }
+      // WS bağlantı kurma denemeleri için daha sıkı limit: 30 / 60 sn.
+      if (!rateLimit("ws:" + ip, 30, 60000)) {
+        return fail("rate_limited", "Çok fazla bağlantı denemesi.", 429);
       }
       // Tarayıcı WebSocket başlık gönderemediği için token query'den gelir.
       const token = url.searchParams.get("token");
@@ -186,7 +212,8 @@ export class DocRoom {
     const pair = new WebSocketPair();
     const client = pair[0], server = pair[1];
     server.accept();
-    const session = { ws: server, aw: null }; // aw = son awareness (geç gelenlere)
+    // aw = son awareness; rl* = mesaj sel koruması (oturum başına kayan pencere).
+    const session = { ws: server, aw: null, rlCount: 0, rlReset: Date.now() + 10000 };
     this.sessions.add(session);
 
     // 1) Saklı doc güncellemelerini gönder ([0]=doc). 2) Diğerlerinin awareness'ı ([1]).
@@ -196,9 +223,21 @@ export class DocRoom {
       if (s !== session && s.aw) { try { server.send(framed(1, s.aw)); } catch (e) {} }
     }
 
+    const MAX_MSG = 1 << 20;   // 1 MB — tek mesaj boyut tavanı (zip-bomb/abuse)
+    const MAX_RATE = 400;       // 10 sn'de en çok 400 mesaj (sel koruması)
+
     server.addEventListener("message", async (evt) => {
+      // Mesaj sel koruması: pencere dolduysa oturumu kapat.
+      const now = Date.now();
+      if (now >= session.rlReset) { session.rlReset = now + 10000; session.rlCount = 0; }
+      if (++session.rlCount > MAX_RATE) {
+        try { server.close(1008, "rate limit"); } catch (e) {}
+        this.sessions.delete(session);
+        return;
+      }
       const bytes = await toBytes(evt.data);
       if (!bytes || bytes.length < 1) return;
+      if (bytes.length > MAX_MSG) return; // aşırı büyük mesajı sessizce yoksay
       const type = bytes[0];
       const payload = bytes.subarray(1);
       if (type === 0) {

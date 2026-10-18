@@ -29,6 +29,15 @@ erDiagram
     organizations ||--o{ documents : "sahiplenir (org_id)"
     organizations ||--o{ audit_log : "denetim"
     profiles      ||--o{ audit_log : "aktör"
+    profiles      ||--o{ login_events : "giriş geçmişi"
+
+    login_events {
+        uuid id PK
+        uuid user_id FK
+        text device_label "Chrome · Windows"
+        bool is_new_device
+        timestamptz created_at
+    }
 
     organizations {
         uuid id PK
@@ -118,6 +127,12 @@ erDiagram
 | **organization_members** *(Faz 1)* | Üyelik (bağlantı) | organizations ↔ profiles **N:M**; rol (`admin`/`member`) + durum taşır. |
 | **organization_invites** *(Faz 1)* | Davet | Hesabı olmayana da e-posta ile davet; token ile kabul → üyelik. |
 | **audit_log** *(Faz 1)* | Denetim kaydı | Append-only "kim ne yaptı" izi (uyumluluk + güvenlik). |
+| **login_events** *(Faz 2)* | Giriş olayı | Her satır değişmez bir giriş (**olay tablosu**); cihaz görünürlüğü + yeni-cihaz (şüpheli giriş) tespiti. |
+
+> **Faz 2 not:** 2FA/MFA (TOTP) Supabase Auth'ta **yerleşiktir** (`auth.mfa.*`),
+> ayrı tablo gerektirmez. `notifications` tablosuna bir `data jsonb` sütunu eklendi:
+> yorum-dışı (güvenlik) bildirim türleri için esnek yük — şema değişmeden yeni
+> bildirim türü eklenir (açık/kapalı prensibi).
 
 ---
 

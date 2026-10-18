@@ -117,6 +117,7 @@ js/
   auth.js             Kimlik (Supabase Auth): kayıt/giriş/çıkış, hesap menüsü
   cloud.js            Bulut belge katmanı + paylaşım (e-posta/link/herkese açık)
   org.js              Organizasyonlar & admin paneli (çok-kiracılık, RBAC, davet, denetim)
+  security.js         Hesap güvenliği (2FA/MFA, giriş geçmişi, oturum yönetimi)
   comments.js         Yorumlar + @bahsetmeler + bildirimler
   realtime.js         Gerçek zamanlı eş düzenleme (Yjs CRDT + Durable Object)
   excel/
@@ -236,11 +237,13 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **Audit log:** her yönetim işlemi (`org.create`, `member.add/role/status/remove`, `invite.create/accept`, `doc.transfer/move`) SECURITY DEFINER RPC'leri içinde atomik kaydedilir; yalnız adminler okur.
 - ⏳ **Kalan (canlı):** bulut Supabase'e migration uygulanıp çok-kullanıcılı akışların canlı yığınla doğrulanması (Faz 9 deploy ile). v1 kapsam notu: org üyeliği tek başına belge erişimi vermez — adminler yönetişim için erişir; "takım sürücüsü" (tüm üyeler tüm org belgelerini görür) ileride bir org ayarı.
 
-### Faz 2 — Hesap güvenliği & kimlik (kod)
-- [ ] 2FA/MFA, şüpheli giriş uyarıları
-- [ ] SSO/SAML + SCIM provizyon altyapısı (kod hazırlığı; canlıya alma Faz 9)
-- [ ] Oturum/refresh token & cihaz oturumu sertleştirme
-- [ ] API/WS için rate limiting + abuse önleme (kod tarafı)
+### Faz 2 — Hesap güvenliği & kimlik (kod) ✅ (yerelde)
+- [x] **2FA/MFA (TOTP):** Supabase Auth'un yerleşik `auth.mfa.*`'ı — `js/security.js`'te kaydet (QR + secret) / doğrula / kaldır; **girişte ikinci faktör** sorulur (aal1→aal2, iptal → oturum kapanır). `config.toml`'da TOTP açıldı.
+- [x] **Şüpheli giriş uyarıları:** `login_events` (giriş olay tablosu) + `record_login_event` RPC → yeni cihaz tespiti; ilk giriş değilse yeni cihazda `security_new_device` **bildirimi** (zil + anlık). Giriş geçmişi güvenlik panelinde.
+- [x] **Oturum sertleştirme:** güvenlik panelinde "diğer cihazlardan çık" (`signOut scope:others`) + "her yerden çık" (`global`); son girişler listesi (cihaz + yeni-cihaz işareti).
+- [x] **Rate limiting + abuse önleme (Worker):** IP başına genel 120/dk + WS bağlantı 30/dk limiti; `DocRoom`'da oturum başına mesaj sel koruması (400/10sn → kapat) + 1 MB mesaj boyut tavanı. *(İzolat-yerel sayaç = "kod hazırlığı"; üretimde Durable Object/KV ile global doğruluk.)*
+- [ ] **SSO/SAML + SCIM:** ertelendi — Supabase SSO (SAML) bir **canlı/proje ayarıdır** (yerel kod tarafı anlamlı değil); OAuth (Google/Microsoft/Apple) ile birlikte Faz 9 (deploy) kapsamında.
+- ⏳ **Kalan (canlı):** MFA + giriş akışlarının canlı Supabase yığınıyla doğrulanması; gerçek rate-limit için Worker deploy.
 
 ### Faz 3 — Faturalandırma & plan/kota (kod)
 - [ ] Stripe entegrasyonu (abonelik/seat)

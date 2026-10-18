@@ -280,7 +280,7 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **PowerPoint giriş animasyonları:** öğe başına `anim` (belir/uçarak/yakınlaş), "Geçişler → Animasyon" şeridi + ▶ önizleme, slayt gösterisinde sırayla oynatılır. *(Uygulama içi; PptxGenJS animasyon XML'i desteklemediği için `.pptx`'e aktarılmaz.)*
 - [x] **Not:** Word üst/alt bilgi + sayfa numarası zaten mevcut (önceki çalışma).
 - [ ] **Kalan (kütüphane kısıtı / büyük iş):** Excel font/dolgu stili `.xlsx` yazımı (SheetJS community desteklemez → farklı yazıcı gerekir); Word dipnot + **değişiklik izleme** + gerçek sayfalama (metin reflow — büyük iş); PPT slayta grafik + animasyon/geçişlerin `.pptx`'e aktarımı (format kısıtı); büyük sayfada artımlı render; geniş gerçek-dünya korpusu.
-- ⏳ v1 sınırı: koşullu biçim/veri doğrulama canlı eş düzenlemede henüz senkronlanmaz.
+- [x] **Koşullu biçim/veri doğrulama canlı eş düzenleme senkronu** (`js/realtime.js`): kurallar artık `xlMeta`'da sayfa indeksine göre taşınır (layout deseniyle birebir), uzak değişiklikte korunur.
 
 ### Faz 7 — Gözlemlenebilirlik (kod entegrasyonu)
 - [ ] Hata takibi (Sentry), yapılandırılmış log, metrik SDK'leri (servise bağlama Faz 9)

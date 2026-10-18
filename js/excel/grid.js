@@ -251,6 +251,7 @@ XL.grid = {
 
     XL.modes.xlsx.syncFormulaBar();
     if (scroll) this.ensureVisible();
+    if (XL.realtime && XL.realtime.onLocalSelection) XL.realtime.onLocalSelection();  // canlı seçim göstergesi (Faz 6-B)
   },
 
   ensureVisible() {

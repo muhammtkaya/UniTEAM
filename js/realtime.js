@@ -107,6 +107,20 @@ XL.realtime = {
     this.ws.send(this._framed(1, new TextEncoder().encode(JSON.stringify(state))));
   },
 
+  // Excel/PPT seçimi değişince (grid.updateSelection / pptx.select çağırır) — canlı seçim göstergesi.
+  onLocalSelection() {
+    if (!this._aw || !this.connected()) return;
+    if (this._xl && XL.state && XL.state.sheets) {
+      const idx = XL.state.sheets.findIndex((s) => s.id === XL.state.activeSheetId);
+      const a = XL.state.active || { r: 0, c: 0 };
+      this._aw.cursor = { kind: "xl", sheet: idx, r: a.r, c: a.c };
+    } else if (this._pptx && XL.modes.pptx) {
+      this._aw.cursor = { kind: "pp", slide: XL.modes.pptx.cur, el: XL.modes.pptx.selId || null };
+    } else return;
+    this._sendAwareness();
+    this._renderCursors();   // yerel görünüm değişince uzak göstergeleri yeniden konumla
+  },
+
   _onAwareness(payload) {
     if (!this._aw) return;
     try {
@@ -142,34 +156,79 @@ XL.realtime = {
     let cont = document.getElementById("rt-cursors");
     if (!cont) { cont = document.createElement("div"); cont.id = "rt-cursors"; document.body.appendChild(cont); }
     cont.innerHTML = "";
-    const body = XL.modes.docx && XL.modes.docx.body;
-    if (!body) return;
     for (const { state } of this._aw.remote.values()) {
       const cur = state.cursor;
-      if (!cur || !cur.bid) continue;
-      const top = body.querySelector(`[data-bid="${cur.bid}"]`);
-      if (!top) continue;
-      let remaining = cur.offset, target = null, toff = 0;
-      const walker = document.createTreeWalker(top, NodeFilter.SHOW_TEXT);
-      let n; while ((n = walker.nextNode())) { if (remaining <= n.length) { target = n; toff = remaining; break; } remaining -= n.length; }
-      const r = document.createRange();
-      if (target) r.setStart(target, toff); else { r.selectNodeContents(top); r.collapse(false); }
-      r.collapse(true);
-      const rect = r.getBoundingClientRect();
-      if (!rect || (rect.left === 0 && rect.top === 0)) continue;
-      const caret = document.createElement("div");
-      caret.className = "rt-caret";
-      caret.style.left = rect.left + "px";
-      caret.style.top = rect.top + "px";
-      caret.style.height = (rect.height || 16) + "px";
-      caret.style.background = state.color;
-      const label = document.createElement("div");
-      label.className = "rt-caret-label";
-      label.textContent = (state.email || "?").split("@")[0];
-      label.style.background = state.color;
-      caret.appendChild(label);
-      cont.appendChild(caret);
+      if (!cur) continue;
+      // Geriye dönük uyum: kind yoksa Word imleci varsay.
+      const kind = cur.kind || (cur.bid ? "wd" : null);
+      if (kind === "wd") this._drawWordCaret(cont, state, cur);
+      else if (kind === "xl") this._drawCellSel(cont, state, cur);
+      else if (kind === "pp") this._drawElSel(cont, state, cur);
     }
+  },
+
+  _nameLabel(state, cls) {
+    const label = document.createElement("div");
+    label.className = cls || "rt-caret-label";
+    label.textContent = (state.email || "?").split("@")[0];
+    label.style.background = state.color;
+    return label;
+  },
+
+  _drawWordCaret(cont, state, cur) {
+    const body = XL.modes.docx && XL.modes.docx.body;
+    if (!body || !cur.bid) return;
+    const top = body.querySelector(`[data-bid="${cur.bid}"]`);
+    if (!top) return;
+    let remaining = cur.offset, target = null, toff = 0;
+    const walker = document.createTreeWalker(top, NodeFilter.SHOW_TEXT);
+    let n; while ((n = walker.nextNode())) { if (remaining <= n.length) { target = n; toff = remaining; break; } remaining -= n.length; }
+    const r = document.createRange();
+    if (target) r.setStart(target, toff); else { r.selectNodeContents(top); r.collapse(false); }
+    r.collapse(true);
+    const rect = r.getBoundingClientRect();
+    if (!rect || (rect.left === 0 && rect.top === 0)) return;
+    const caret = document.createElement("div");
+    caret.className = "rt-caret";
+    caret.style.left = rect.left + "px"; caret.style.top = rect.top + "px";
+    caret.style.height = (rect.height || 16) + "px"; caret.style.background = state.color;
+    caret.appendChild(this._nameLabel(state));
+    cont.appendChild(caret);
+  },
+
+  // Excel: uzak kullanıcının seçili hücresini çerçevele (yalnız aynı sayfadaysa).
+  _drawCellSel(cont, state, cur) {
+    if (!XL.grid || !XL.grid.cells) return;
+    const idx = XL.state.sheets.findIndex((s) => s.id === XL.state.activeSheetId);
+    if (cur.sheet !== idx) return;
+    const td = XL.grid.cells[cur.r] && XL.grid.cells[cur.r][cur.c];
+    if (!td) return;
+    const rect = td.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const box = document.createElement("div");
+    box.className = "rt-cellsel";
+    box.style.left = rect.left + "px"; box.style.top = rect.top + "px";
+    box.style.width = rect.width + "px"; box.style.height = rect.height + "px";
+    box.style.outlineColor = state.color;
+    box.appendChild(this._nameLabel(state, "rt-sel-label"));
+    cont.appendChild(box);
+  },
+
+  // PPT: uzak kullanıcının seçili öğesini çerçevele (yalnız aynı slayttaysa).
+  _drawElSel(cont, state, cur) {
+    const mode = XL.modes.pptx;
+    if (!mode || mode.cur !== cur.slide || !cur.el || !mode.stageSlide) return;
+    const el = mode.stageSlide.querySelector(`.pp-el[data-id="${cur.el}"]`);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (!rect || rect.width === 0) return;
+    const box = document.createElement("div");
+    box.className = "rt-cellsel";
+    box.style.left = rect.left + "px"; box.style.top = rect.top + "px";
+    box.style.width = rect.width + "px"; box.style.height = rect.height + "px";
+    box.style.outlineColor = state.color;
+    box.appendChild(this._nameLabel(state, "rt-sel-label"));
+    cont.appendChild(box);
   },
 
   disconnect() {
@@ -249,7 +308,8 @@ XL.realtime = {
     this._word.onSel = () => {
       if (!this._aw) return;
       if (document.activeElement !== mode.body) return;
-      this._aw.cursor = this._saveCaret(mode.body);
+      const car = this._saveCaret(mode.body);
+      this._aw.cursor = car ? Object.assign({ kind: "wd" }, car) : null;
       this._sendAwareness();
     };
     document.addEventListener("selectionchange", this._word.onSel);

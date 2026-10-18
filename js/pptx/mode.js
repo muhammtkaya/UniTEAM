@@ -190,7 +190,15 @@ XL.modes.pptx = {
           </select>
           <button data-cmd="transition-all">${tt("Tümüne uygula", "Apply to all")}</button>
           <button data-cmd="preview-transition">▶ ${tt("Önizle", "Preview")}</button>
-        </div><label>${tt("Bu Slayda Geçiş", "Transition to This Slide")}</label></div>` },
+        </div><label>${tt("Bu Slayda Geçiş", "Transition to This Slide")}</label></div>
+        <div class="rgroup"><div class="rrow">
+          <select data-cmd="anim" id="pp-anim" title="${tt("Seçili öğeye giriş animasyonu", "Entrance animation for selected element")}">
+            <option value="">${tt("Animasyon…", "Animation…")}</option>
+            <option value="none">${tt("Yok", "None")}</option><option value="fade">${tt("Belir (fade)", "Fade in")}</option>
+            <option value="fly">${tt("Uçarak gir", "Fly in")}</option><option value="zoom">${tt("Yakınlaş", "Zoom in")}</option>
+          </select>
+          <button data-cmd="preview-anim">▶ ${tt("Önizle", "Preview")}</button>
+        </div><label>${tt("Animasyon (öğe)", "Animation (element)")}</label></div>` },
 
       { name: tt("Slayt Gösterisi", "Slide Show"), html: `
         <div class="rgroup"><div class="rrow">
@@ -657,6 +665,9 @@ XL.modes.pptx = {
     const el = id && this.el(id);
     const sz = document.getElementById("pp-size");
     if (sz) sz.value = el && el.fontSize ? String(el.fontSize) : "";
+    const an = document.getElementById("pp-anim");
+    if (an) an.value = el && el.anim ? el.anim : "";
+    if (XL.realtime && XL.realtime.onLocalSelection) XL.realtime.onLocalSelection();  // canlı seçim göstergesi (Faz 6-B)
   },
 
   startEditing(id, evt) {
@@ -962,6 +973,13 @@ XL.modes.pptx = {
         this.data.slides.forEach((s) => (s.bg = bg));
         this.commit(); return this.renderAll();
       }
+      case "anim": {
+        resetSelect(cmd);
+        if (!value) return;
+        if (!(this.editingId || this.selId)) return alert(XL.t("Önce bir öğe seçin.", "Select an element first."));
+        return this.setProp({ anim: value === "none" ? null : value });
+      }
+      case "preview-anim": return this.startShow(this.cur, true);
       case "transition": this.slide().transition = value; return this.commit();
       case "transition-all": {
         const t = this.slide().transition || "none";
@@ -1044,7 +1062,19 @@ XL.modes.pptx = {
     if (animate && slide.transition && slide.transition !== "none") {
       s.classList.add("tr-" + slide.transition);
     }
-    if (this.show.previewOnly) setTimeout(() => this.show && this.show.previewOnly && this.endShow(), 1200);
+    // Öğe giriş animasyonları (yalnız gösteride; .pptx'e aktarılmaz — PptxGenJS kısıtı).
+    if (animate) {
+      let order = 0;
+      slide.elements.forEach((e) => {
+        if (!e.anim || e.anim === "none") return;
+        const box = s.querySelector(`.pp-el[data-id="${e.id}"]`);
+        if (!box) return;
+        box.classList.add("pp-anim", "pp-anim-" + e.anim);
+        box.style.animationDelay = (order * 0.35) + "s";
+        order++;
+      });
+    }
+    if (this.show.previewOnly) setTimeout(() => this.show && this.show.previewOnly && this.endShow(), 1800);
   },
 
   fitShow() {

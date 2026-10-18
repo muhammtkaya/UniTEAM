@@ -196,8 +196,8 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 - **Otomatik kayıt kotası:** tarayıcı belleği yaklaşık 5 MB'tır. Çok resimli belgelerde otomatik kayıt başarısız olabilir; durum çubuğunda uyarı çıkar. Bu durumda **Kaydet** ile dosyayı indirin.
 - **Belgeler tarayıcıya özeldir:** otomatik kaydedilen veriler yalnızca o tarayıcıda durur; başka bir cihaza veya tarayıcıya taşınmaz.
 - **Excel:** koşullu biçimlendirme ve veri doğrulama **uygulama içinde** çalışır ancak SheetJS kısıtı nedeniyle `.xlsx`'e yazılmaz (font/dolgu stili yazımı da öyle). Türkçe fonksiyon adları (`=TOPLA`) yazılabilir; kayıtta İngilizce'ye çevrilir.
-- **Word:** üst/alt bilgi, dipnot, yorum ve değişiklik izleme yok. Sayfa sınırları çizgiyle gösterilir; metin henüz gerçek sayfalara bölünmez.
-- **PowerPoint:** öğe döndürme eklendi (`.pptx` içe/dışa aktarımlı); öğe animasyonları ve slayta grafik ekleme henüz yok. Slayt geçişleri `.pptx` dosyasına aktarılmaz.
+- **Word:** üst/alt bilgi ve sayfa numarası var; dipnot ve değişiklik izleme henüz yok. Sayfa sınırları çizgiyle gösterilir; metin henüz gerçek sayfalara bölünmez.
+- **PowerPoint:** öğe döndürme (`.pptx` içe/dışa aktarımlı) ve giriş animasyonları (uygulama içi) var; slayta grafik ekleme henüz yok. Animasyon/geçişler `.pptx` dosyasına aktarılmaz.
 - **Dokunmatik / dar ekran:** temel responsive düzen ve dokunma hedefleri eklendi; ızgarada tam dokunmatik sürükle-seçim henüz sınırlı.
 
 ---
@@ -274,8 +274,13 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **PowerPoint: döndürme** (`rot`): öğe render (CSS transform) + ⟲/⟳ şerit düğmeleri + **.pptx içe/dışa aktarım** (OOXML `rot` 60000/derece ↔ PptxGenJS `rotate`).
 - [x] **Bozuk dosyada zarif hata:** `openFile` artık bozuk/geçersiz dosyada çökme yerine anlaşılır (iki dilli) mesaj verir.
 - [x] **Biçim sadakati testleri:** fidelity'ye koşullu biçim + veri doğrulama round-trip + PPT döndürme round-trip eklendi (**43/43 test**).
-- [ ] **Bölüm B (kalan):** Excel font/dolgu stili `.xlsx` yazımı; Word üst/alt bilgi + dipnot + değişiklik izleme + gerçek sayfalama; PPT animasyon + slayta grafik + geçişlerin `.pptx`'e aktarımı; canlı hücre/öğe seçim göstergeleri + büyük sayfada artımlı render; geniş gerçek-dünya korpusu.
-- ⏳ v1 sınırı: koşullu biçim/veri doğrulama canlı eş düzenlemede henüz senkronlanmaz (uzak değişiklikte sıfırlanabilir).
+
+**Bölüm B** (2026-10-18):
+- [x] **Canlı seçim göstergeleri (Excel + PPT):** awareness kanalı genişletildi — uzak kullanıcının seçili hücresi (Excel, aynı sayfada) ve seçili öğesi (PPT, aynı slaytta) kullanıcı rengi + adıyla çerçevelenir (`js/realtime.js`; Word imleci zaten vardı).
+- [x] **PowerPoint giriş animasyonları:** öğe başına `anim` (belir/uçarak/yakınlaş), "Geçişler → Animasyon" şeridi + ▶ önizleme, slayt gösterisinde sırayla oynatılır. *(Uygulama içi; PptxGenJS animasyon XML'i desteklemediği için `.pptx`'e aktarılmaz.)*
+- [x] **Not:** Word üst/alt bilgi + sayfa numarası zaten mevcut (önceki çalışma).
+- [ ] **Kalan (kütüphane kısıtı / büyük iş):** Excel font/dolgu stili `.xlsx` yazımı (SheetJS community desteklemez → farklı yazıcı gerekir); Word dipnot + **değişiklik izleme** + gerçek sayfalama (metin reflow — büyük iş); PPT slayta grafik + animasyon/geçişlerin `.pptx`'e aktarımı (format kısıtı); büyük sayfada artımlı render; geniş gerçek-dünya korpusu.
+- ⏳ v1 sınırı: koşullu biçim/veri doğrulama canlı eş düzenlemede henüz senkronlanmaz.
 
 ### Faz 7 — Gözlemlenebilirlik (kod entegrasyonu)
 - [ ] Hata takibi (Sentry), yapılandırılmış log, metrik SDK'leri (servise bağlama Faz 9)

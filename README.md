@@ -279,8 +279,17 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **Canlı seçim göstergeleri (Excel + PPT):** awareness kanalı genişletildi — uzak kullanıcının seçili hücresi (Excel, aynı sayfada) ve seçili öğesi (PPT, aynı slaytta) kullanıcı rengi + adıyla çerçevelenir (`js/realtime.js`; Word imleci zaten vardı).
 - [x] **PowerPoint giriş animasyonları:** öğe başına `anim` (belir/uçarak/yakınlaş), "Geçişler → Animasyon" şeridi + ▶ önizleme, slayt gösterisinde sırayla oynatılır. *(Uygulama içi; PptxGenJS animasyon XML'i desteklemediği için `.pptx`'e aktarılmaz.)*
 - [x] **Not:** Word üst/alt bilgi + sayfa numarası zaten mevcut (önceki çalışma).
-- [ ] **Kalan (kütüphane kısıtı / büyük iş):** Excel font/dolgu stili `.xlsx` yazımı (SheetJS community desteklemez → farklı yazıcı gerekir); Word dipnot + **değişiklik izleme** + gerçek sayfalama (metin reflow — büyük iş); PPT slayta grafik + animasyon/geçişlerin `.pptx`'e aktarımı (format kısıtı); büyük sayfada artımlı render; geniş gerçek-dünya korpusu.
 - [x] **Koşullu biçim/veri doğrulama canlı eş düzenleme senkronu** (`js/realtime.js`): kurallar artık `xlMeta`'da sayfa indeksine göre taşınır (layout deseniyle birebir), uzak değişiklikte korunur.
+
+**Bölüm C** (2026-10-18 — kalan saf-kod maddeleri):
+- [x] **PowerPoint slayta grafik** (`js/pptx/mode.js`, `pptx-io.js`): yeni `chart` öğesi (sütun/çizgi/pasta), uygulama içi SVG render, "📊 Grafik" ekleme düğmesi + çift tıkla veri düzenleyici, `.pptx`'e PptxGenJS `addChart` ile aktarım. *(Grafiğin `.pptx`'ten geri okunması kapsam dışı — büyük iş.)*
+- [x] **Word dipnot** (`js/word/mode.js`, `docx-io.js`): satır içi işaretçi + sayfa altı türetilen liste + otomatik numaralama; "🔖 Dipnot Ekle" (Gözden Geçir); `.docx`'e gerçek OOXML dipnotu (`FootnoteReferenceRun` + `Document.footnotes`).
+- [x] **Excel büyük sayfada artımlı canlı render** (`js/realtime.js`): uzak değişiklik yalnız hücre/biçimse ve sayfa yapısı aynıysa yalnız değişen hücreler `setCell` + tek repaint (tam `engine.load` + `grid.build` yok); yapısal değişiklikte tam yükleme fallback.
+- [ ] **Kalan (kütüphane kısıtı / büyük ayrı iş — ayrı karar/greenlight gerektirir):**
+  - Excel font/dolgu stili `.xlsx` **yazımı**: SheetJS community desteklemez → ExcelJS gibi farklı yazıcıya geçiş = büyük bağımlılık/mimari değişim.
+  - Word **değişiklik izleme (track changes)** + **gerçek sayfalama** (metin reflow): her biri büyük, ayrı iş.
+  - PPT animasyon/geçişlerin `.pptx`'e aktarımı: PptxGenJS animasyon XML'i üretmez (format kısıtı).
+  - Geniş gerçek-dünya `.xlsx/.docx/.pptx` regresyon korpusu: telifli dosyalar (`.gitignore`'da) gerektirir — kod değil, veri işi.
 
 ### Faz 7 — Gözlemlenebilirlik (kod entegrasyonu)
 - [ ] Hata takibi (Sentry), yapılandırılmış log, metrik SDK'leri (servise bağlama Faz 9)

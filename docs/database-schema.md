@@ -23,6 +23,40 @@ erDiagram
     documents ||--o{ document_versions : "sürümleri"
     profiles  ||--o{ document_versions : "oluşturan"
 
+    organizations ||--o{ organization_members : "üyeleri"
+    profiles      ||--o{ organization_members : "üyelikleri"
+    organizations ||--o{ organization_invites : "davetleri"
+    organizations ||--o{ documents : "sahiplenir (org_id)"
+    organizations ||--o{ audit_log : "denetim"
+    profiles      ||--o{ audit_log : "aktör"
+
+    organizations {
+        uuid id PK
+        text name
+        text slug UK
+        uuid created_by FK "nullable"
+    }
+    organization_members {
+        uuid org_id PK "FK (bileşik PK)"
+        uuid user_id PK "FK (bileşik PK)"
+        enum org_role "admin|member"
+        enum status "active|suspended"
+    }
+    organization_invites {
+        uuid id PK
+        uuid org_id FK
+        text email "UK(org_id,email)"
+        text token UK
+        enum status "pending|accepted|revoked"
+    }
+    audit_log {
+        uuid id PK
+        uuid org_id FK
+        uuid actor_id FK "nullable"
+        text action
+        jsonb metadata
+    }
+
     profiles {
         uuid id PK "FK → auth.users.id"
         text email
@@ -41,6 +75,7 @@ erDiagram
         uuid folder_id FK "nullable"
         text name
         enum type "xlsx|docx|pptx"
+        uuid org_id FK "nullable (Faz 1)"
         enum storage_provider
         text storage_external_id
         timestamptz trashed_at "soft delete"
@@ -79,6 +114,10 @@ erDiagram
 | **document_shares** | Paylaşım (bağlantı) | documents ↔ profiles **N:M** ilişkisini çözer; rolü taşır. |
 | **share_links** | Paylaşım linki | Token'lı erişim ("linki olan görsün"). |
 | **document_versions** | Sürüm | Belgenin anlık görüntü geçmişi. |
+| **organizations** *(Faz 1)* | Organizasyon (kiracı) | Şirket/ekip; çok-kiracılığın (multi-tenancy) kökü. |
+| **organization_members** *(Faz 1)* | Üyelik (bağlantı) | organizations ↔ profiles **N:M**; rol (`admin`/`member`) + durum taşır. |
+| **organization_invites** *(Faz 1)* | Davet | Hesabı olmayana da e-posta ile davet; token ile kabul → üyelik. |
+| **audit_log** *(Faz 1)* | Denetim kaydı | Append-only "kim ne yaptı" izi (uyumluluk + güvenlik). |
 
 ---
 
@@ -116,6 +155,16 @@ erDiagram
 | **documents ↔ profiles** | **N:M** | `document_shares` bağlantı tablosu üzerinden (+ `role` özniteliği) |
 | documents → share_links | **1:N** | `share_links.document_id` FK |
 | documents → document_versions | **1:N** | `document_versions.document_id` FK |
+| **organizations ↔ profiles** *(Faz 1)* | **N:M** | `organization_members` bağlantı tablosu (+ `org_role`, `status`); bileşik doğal PK `(org_id, user_id)` |
+| organizations → documents *(Faz 1)* | **1:N** | `documents.org_id` FK (nullable; org'a bağlı belge) |
+| organizations → audit_log *(Faz 1)* | **1:N** | `audit_log.org_id` FK (denetim kaydı) |
+
+> **Faz 1 yetki (RBAC) deseni:** Org içi rol (`org_role`: admin/member) belge içi
+> rolden (`doc_role`) ayrıdır. `user_doc_role()` genişletildi: bir org **admini**,
+> org'a bağlı belgede `owner` yetkisi kazanır → ayrılan çalışanın belgesine erişim/devir.
+> Üye yönetimi yalnız **SECURITY DEFINER RPC'leri** ile yapılır (son-admin koruması,
+> erişim devri ve audit tek yerde, atomik). Org üyeliği tek başına belge erişimi vermez
+> (adminler yönetişim için erişir; üyeler normal paylaşımla) — "takım sürücüsü" ileride bir ayar.
 
 > **Çekirdek desen:** "Bir belgeyi birçok kişi paylaşabilir, bir kişi birçok belgeye
 > erişebilir" = N:M. İlişkisel veritabanı N:M'i doğrudan tutamaz; araya bir

@@ -42,6 +42,7 @@ XL.auth = {
       this._ready = true;
       this._renderButton();
       if (XL.cloud) XL.cloud.handleUrlLink();  // ?link=<token> varsa aç
+      if (XL.org) XL.org.handleUrlInvite();    // ?invite=<token> varsa kabul et
     });
 
     // Oturum değişince (giriş/çıkış/token yenileme) arayüzü güncelle.
@@ -50,6 +51,7 @@ XL.auth = {
       this._renderButton();
       this._closePopover();
       if (XL.cloud) XL.cloud.handleUrlLink();  // giriş sonrası bekleyen linki aç
+      if (XL.org) XL.org.handleUrlInvite();    // giriş sonrası bekleyen daveti kabul et
     });
 
     this._wireButton();
@@ -97,6 +99,7 @@ XL.auth = {
       <hr>
       <button id="ap-cloud-save" class="ap-item ap-action">${XL.t("☁ Buluta kaydet", "☁ Save to cloud")}</button>
       <button id="ap-cloud-list" class="ap-item ap-action">${XL.t("📥 Bulut belgelerim", "📥 My cloud documents")}</button>
+      <button id="ap-orgs" class="ap-item ap-action">${XL.t("🏢 Organizasyonlarım", "🏢 My organizations")}</button>
       <hr>
       <button id="ap-signout" class="ap-item">${XL.t("Çıkış yap", "Sign out")}</button>`;
     document.body.appendChild(pop);
@@ -106,6 +109,7 @@ XL.auth = {
     pop.style.right = Math.max(8, window.innerWidth - r.right) + "px";
     document.getElementById("ap-cloud-save").addEventListener("click", () => { this._closePopover(); XL.cloud.saveActive(); });
     document.getElementById("ap-cloud-list").addEventListener("click", () => { this._closePopover(); XL.cloud.openPicker(); });
+    document.getElementById("ap-orgs").addEventListener("click", () => { this._closePopover(); XL.org.openPanel(); });
     document.getElementById("ap-signout").addEventListener("click", () => this.signOut());
   },
   _closePopover() {

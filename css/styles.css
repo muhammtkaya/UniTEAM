@@ -568,3 +568,32 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 }
 body.doc-readonly #wd-body, body.doc-readonly #pp-stage { cursor: default; }
 body.doc-readonly #btn-save { opacity: .85; }
+
+/* ===== Organizasyonlar & yönetim paneli (Faz 1) ===== */
+.org-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.org-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; }
+.org-item .oi-ic { font-size: 18px; }
+.org-item .oi-name { display: flex; flex-direction: column; font-weight: 600; }
+.org-item .oi-meta { font-weight: 400; font-size: 11px; color: #6b7280; }
+.org-item .oi-manage { margin-left: auto; border: 1px solid #d1d5db; background: #f9fafb; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+.org-item .oi-manage:hover { background: #f3f4f6; }
+
+.org-tabs { display: flex; gap: 4px; margin: 10px 0; }
+.org-tab { border: 1px solid #d1d5db; background: #f9fafb; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+.org-tab.active { background: #107c41; color: #fff; border-color: #107c41; }
+
+.org-members { display: flex; flex-direction: column; gap: 5px; }
+.org-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid #eef0f2; border-radius: 7px; }
+.org-row .or-email { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.org-row .or-email .oi-meta { display: block; font-size: 11px; color: #6b7280; }
+.org-row .or-susp { color: #b45309; }
+.org-row select { font-size: 12px; padding: 2px 4px; }
+.org-row .or-susp-btn { border: 1px solid #d1d5db; background: #f9fafb; border-radius: 6px; padding: 3px 8px; cursor: pointer; font-size: 11px; }
+.org-row .or-susp-btn:hover { background: #f3f4f6; }
+
+.org-audit { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.org-audit .au-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 5px 8px; border-bottom: 1px solid #f1f5f9; }
+.org-audit .au-act { font-weight: 600; }
+.org-audit .au-by { color: #2563eb; }
+.org-audit .au-meta { color: #6b7280; }
+.org-audit .au-when { margin-left: auto; color: #9ca3af; }

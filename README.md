@@ -114,6 +114,11 @@ css/styles.css        Tüm stiller (mod renkleri, şerit, üç modun arayüzü, 
 js/
   core.js             Ortak ad alanı (XL), yardımcılar, paylaşılan panel
   workspace.js        Belgeler, ＋ menüsü, mod değiştirme, şerit, açma/kaydetme, otomatik kayıt
+  auth.js             Kimlik (Supabase Auth): kayıt/giriş/çıkış, hesap menüsü
+  cloud.js            Bulut belge katmanı + paylaşım (e-posta/link/herkese açık)
+  org.js              Organizasyonlar & admin paneli (çok-kiracılık, RBAC, davet, denetim)
+  comments.js         Yorumlar + @bahsetmeler + bildirimler
+  realtime.js         Gerçek zamanlı eş düzenleme (Yjs CRDT + Durable Object)
   excel/
     mode.js           Excel modu: şerit, formül çubuğu, sayfa sekmeleri, komutlar
     formula.js        Kendi formül/hesap motorumuz (HyperFormula yerine, bağımlılıksız)
@@ -224,11 +229,12 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **Kendi lisans dosyası ✅:** `LICENSE` tescilli (proprietary, tüm hakları saklı) — ticari dağıtıma uygun; telif sahibi dolduruldu. `THIRD-PARTY-NOTICES.md` güncel (HyperFormula kaldırıldı, sürümler/atıflar doğru). *(Telif sahibini bir şirket/tüzel kişi altında lisanslayacaksanız `LICENSE`'taki adı güncelleyin.)*
 - [x] **xlsx açığı + parse sertleştirme ✅:** xlsx açığı zaten kapalı (0.20.3 — eski prototype-pollution/ReDoS giderilmiş). Gerçek bağımlılık açıkları kapatıldı: `image-size` (high, görsel-parse DoS) override ile 2.x, `vite` (high, dev-server) 6.4.4, `mammoth` (directory-traversal) 1.13.0. Kod sertleştirmesi: güvensiz dosyadan gelen anahtarlarla kurulan sözlükler `Object.create(null)` (docx/pptx okuyucuları → prototype pollution engeli) + merkezi dosya boyutu tavanı (75 MB, DoS/zip-bomb) + açmada zarif hata. 34/34 test. *(Kalan 3 moderate `sprintf-js/argparse` uyarısı mammoth'un CLI zincirinde — tarayıcı paketine girmez.)*
 
-### Faz 1 — Çok-kiracılık & yetki modeli (en büyük kod işi, enterprise çekirdeği)
-- [ ] Organizasyon / takım / workspace şeması + RLS (belgeler org'a bağlanabilsin)
-- [ ] Org rolleri + RBAC (admin / üye; org-sahipli belgeler, ayrılan çalışandan erişim devri)
-- [ ] Admin paneli (üye davet/askıya alma, kota görünürlüğü, denetim)
-- [ ] Audit log (denetim kaydı)
+### Faz 1 — Çok-kiracılık & yetki modeli (en büyük kod işi, enterprise çekirdeği) ✅ (yerelde)
+- [x] **Organizasyon / takım şeması + RLS:** `organizations` (kiracı), `organization_members` (N:M üyelik, rol+durum), `organization_invites` (e-posta daveti), `audit_log` (append-only denetim) + `documents.org_id`. Migration `20261018130000_organizations.sql`; tam öğretici DDL `db/schema.sql`'de.
+- [x] **Org rolleri + RBAC:** `org_role` (admin/member) + `member_status` (active/suspended). `user_doc_role()` genişletildi → org **admini** org'a bağlı belgede `owner` yetkisi kazanır (**ayrılan çalışandan erişim devri**: üye çıkarılınca belgeleri bir admine otomatik devredilir). Son-admin koruması.
+- [x] **Admin paneli (frontend):** `js/org.js` = `XL.org` + hesap menüsünde "🏢 Organizasyonlarım". Üye davet (hesabı yoksa token'lı davet bağlantısı) / rol değiştir / askıya al-etkinleştir / çıkar; belge sahipliği devri; kota (belge) görünürlüğü; denetim kaydı sekmesi. Belge sahibi paylaş panelinden belgeyi org'a bağlayabilir.
+- [x] **Audit log:** her yönetim işlemi (`org.create`, `member.add/role/status/remove`, `invite.create/accept`, `doc.transfer/move`) SECURITY DEFINER RPC'leri içinde atomik kaydedilir; yalnız adminler okur.
+- ⏳ **Kalan (canlı):** bulut Supabase'e migration uygulanıp çok-kullanıcılı akışların canlı yığınla doğrulanması (Faz 9 deploy ile). v1 kapsam notu: org üyeliği tek başına belge erişimi vermez — adminler yönetişim için erişir; "takım sürücüsü" (tüm üyeler tüm org belgelerini görür) ileride bir org ayarı.
 
 ### Faz 2 — Hesap güvenliği & kimlik (kod)
 - [ ] 2FA/MFA, şüpheli giriş uyarıları

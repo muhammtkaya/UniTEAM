@@ -619,3 +619,155 @@ create policy documents_bytes_public_select on storage.objects
     bucket_id = 'documents'
     and public.doc_has_public_link(public.doc_id_from_object_name(name))
   );
+
+
+-- =============================================================================
+-- FAZ 1 — ÇOK-KİRACILIK (multi-tenancy) & RBAC
+-- -----------------------------------------------------------------------------
+-- Tek tek kullanıcıların ötesine geçip ORGANİZASYON (kiracı/tenant) kavramını
+-- ekler: şirket/ekip, üyeleri+rolleri, belgeler bir org'a bağlanabilir, org
+-- yöneticileri yönetişim yetkisi kazanır (üye yönetimi + belge devri + denetim).
+-- Tam DDL + RPC gövdeleri: supabase/migrations/20261018130000_organizations.sql
+-- =============================================================================
+
+create type org_role      as enum ('admin', 'member');
+create type member_status as enum ('active', 'suspended');
+create type invite_status as enum ('pending', 'accepted', 'revoked');
+
+-- organizations — KİRACI (tenant). slug = unique doğal anahtar (URL dostu kimlik).
+-- created_by on delete set null → kurucu silinse de org yaşar; sahiplik admin
+-- ÜYELİĞİYLE tanımlanır (daha dayanıklı).
+create table public.organizations (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  slug       text not null unique,
+  created_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- organization_members — ÜYELİK: organizations <-> profiles N:M bağlantı tablosu,
+-- öznitelikli (org_role + status). BİLEŞİK DOĞAL PK (org_id, user_id) -> bir
+-- kullanıcının bir org'da en fazla bir üyeliği. (document_shares ile aynı desen.)
+create table public.organization_members (
+  org_id     uuid not null references public.organizations (id) on delete cascade,
+  user_id    uuid not null references public.profiles (id) on delete cascade,
+  org_role   org_role not null default 'member',
+  status     member_status not null default 'active',
+  invited_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (org_id, user_id)
+);
+create index idx_org_members_user on public.organization_members (user_id);
+
+-- organization_invites — e-posta DAVETİ (henüz hesabı olmayana da). Kişi kaydolup
+-- token'ı kabul edince üyeliğe dönüşür. token unique; unique(org_id,email).
+create table public.organization_invites (
+  id         uuid primary key default gen_random_uuid(),
+  org_id     uuid not null references public.organizations (id) on delete cascade,
+  email      text not null,
+  org_role   org_role not null default 'member',
+  token      text not null unique,
+  status     invite_status not null default 'pending',
+  invited_by uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz,
+  unique (org_id, email)
+);
+create index idx_org_invites_email on public.organization_invites (lower(email));
+
+-- audit_log — DENETİM KAYDI (append-only; güncelleme/silme policy'si YOK ->
+-- kayıtlar değiştirilemez). metadata jsonb: olaya özel esnek ayrıntı.
+create table public.audit_log (
+  id          uuid primary key default gen_random_uuid(),
+  org_id      uuid references public.organizations (id) on delete cascade,
+  actor_id    uuid references public.profiles (id) on delete set null,
+  action      text not null,
+  target_type text,
+  target_id   uuid,
+  metadata    jsonb,
+  created_at  timestamptz not null default now()
+);
+create index idx_audit_org on public.audit_log (org_id, created_at desc);
+
+-- documents.org_id — belgeyi org'a bağla. NULL=kişisel (eski davranış). Dolu=org'a
+-- ait -> adminler yönetişim erişimi kazanır. on delete set null -> org silinse belge
+-- yok olmaz, kişiselleşir (veri kaybı yok).
+alter table public.documents
+  add column org_id uuid references public.organizations (id) on delete set null;
+create index idx_documents_org on public.documents (org_id);
+
+-- RBAC yardımcıları (SECURITY DEFINER -> RLS döngüsünü keser; user_doc_role deseni).
+create or replace function public.user_org_role(p_org uuid)
+returns org_role language sql stable security definer set search_path = public as $$
+  select m.org_role from organization_members m
+  where m.org_id = p_org and m.user_id = auth.uid() and m.status = 'active' limit 1;
+$$;
+create or replace function public.is_org_admin(p_org uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from organization_members m
+    where m.org_id = p_org and m.user_id = auth.uid()
+      and m.org_role = 'admin' and m.status = 'active');
+$$;
+
+-- user_doc_role GENİŞLETİLDİ: org admini, org'a bağlı belgede 'owner' yetkisi
+-- kazanır (ayrılan çalışanın belgesine erişim/devir). Sıra: sahip -> org admini -> paylaşım.
+create or replace function public.user_doc_role(doc uuid)
+returns doc_role language sql stable security definer set search_path = public as $$
+  select case
+    when exists (select 1 from documents d where d.id = doc and d.owner_id = auth.uid())
+      then 'owner'::doc_role
+    when exists (select 1 from documents d
+                 join organization_members m on m.org_id = d.org_id
+                 where d.id = doc and m.user_id = auth.uid()
+                   and m.org_role = 'admin' and m.status = 'active')
+      then 'owner'::doc_role
+    else (select s.role from document_shares s
+          where s.document_id = doc and s.user_id = auth.uid() and s.status = 'active' limit 1)
+  end;
+$$;
+
+-- documents_select RLS: org adminine görünürlük eklendi (user_doc_role cagrilmaz --
+-- INSERT..RETURNING döngüsünü önlemek için koşullar satır-içi).
+drop policy if exists documents_select on public.documents;
+create policy documents_select on public.documents for select using (
+  owner_id = auth.uid()
+  or exists (select 1 from public.document_shares s
+             where s.document_id = documents.id and s.user_id = auth.uid() and s.status = 'active')
+  or exists (select 1 from public.organization_members m
+             where m.org_id = documents.org_id and m.user_id = auth.uid()
+               and m.org_role = 'admin' and m.status = 'active')
+);
+
+-- RLS — yeni tablolar.
+alter table public.organizations        enable row level security;
+alter table public.organization_members enable row level security;
+alter table public.organization_invites enable row level security;
+alter table public.audit_log            enable row level security;
+
+create policy orgs_member_select on public.organizations for select using (
+  exists (select 1 from public.organization_members m
+          where m.org_id = organizations.id and m.user_id = auth.uid()));
+create policy orgs_admin_update on public.organizations
+  for update using (public.is_org_admin(id)) with check (public.is_org_admin(id));
+create policy orgs_admin_delete on public.organizations for delete using (public.is_org_admin(id));
+
+create policy members_select on public.organization_members
+  for select using (public.user_org_role(org_id) is not null);
+create policy invites_admin_select on public.organization_invites
+  for select using (public.is_org_admin(org_id));
+create policy audit_admin_select on public.audit_log
+  for select using (public.is_org_admin(org_id));
+
+-- RPC'LER (SECURITY DEFINER + açık yetki kontrolü; yazma yalnız bunlarla). Özet:
+--   create_organization(name)                  -> org kur + kurucuyu admin üye yap (atomik)
+--   list_my_organizations()                    -> üye olduğum org'lar (rol+durum+üye sayısı)
+--   list_org_members(org) / list_org_invites(org) -> üyeler / bekleyen davetler
+--   invite_to_org(org,email,role)              -> hesabı varsa üye yap, yoksa davet üret
+--   accept_org_invite(token)                   -> e-posta eşleşirse üyeliğe dönüştür
+--   set_member_role / set_member_status        -> rol/askı (son-admin koruması)
+--   remove_member(org,user)                    -> çıkar + BELGE ERİŞİM DEVRİ (admine)
+--   transfer_document_ownership(doc,newOwner)  -> sahiplik devri (sahip/admin)
+--   move_document_to_org(doc,org)              -> belgeyi org'a bağla/çöz (sahip)
+--   list_org_documents(org) / list_audit_log(org) -> admin yönetişim görünümleri
+-- Tam gövdeler: supabase/migrations/20261018130000_organizations.sql
+-- =============================================================================

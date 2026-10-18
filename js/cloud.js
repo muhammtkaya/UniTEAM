@@ -341,6 +341,11 @@ XL.cloud = {
         </div>
         <label class="lk-public"><input type="checkbox" id="lk-public"> ${XL.t("🌐 Herkese açık (giriş gerekmez, salt görüntüleme)", "🌐 Public (no sign-in, view only)")}</label>
         <div id="lk-list"><p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p></div>
+        <div class="share-sub">${XL.t("Organizasyon", "Organization")}</div>
+        <div class="share-form">
+          <select id="org-move"><option value="">${XL.t("(kişisel — org yok)", "(personal — no org)")}</option></select>
+        </div>
+        <p class="muted" style="font-size:11px">${XL.t("Bir organizasyona bağlarsan org yöneticileri yönetişim erişimi kazanır.", "Linking to an org gives its admins governance access.")}</p>
       </div>`);
 
     const roleName = Object.fromEntries(roles);
@@ -414,8 +419,30 @@ XL.cloud = {
         refreshLinks();
       } catch (e) { msg(e.message || String(e)); }
     });
+    // Organizasyon bağlama (yalnız sahibi; XL.org RPC'leri üzerinden).
+    const wireOrg = async () => {
+      const sel = document.getElementById("org-move");
+      if (!sel || !XL.org) return;
+      try {
+        const [orgs, meta] = await Promise.all([XL.org.listMine(), this.getMeta(docId).catch(() => null)]);
+        const cur = meta ? meta.org_id : null;
+        orgs.forEach((o) => {
+          const opt = document.createElement("option");
+          opt.value = o.id; opt.textContent = o.name;
+          if (o.id === cur) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener("change", async () => {
+          msg("");
+          try { await XL.org.moveDoc(docId, sel.value || null); msg(XL.t("Organizasyon güncellendi.", "Organization updated."), "ok"); }
+          catch (e) { msg(e.message || String(e)); }
+        });
+      } catch { /* org yoksa/erişilemezse sessizce geç */ }
+    };
+
     refresh();
     refreshLinks();
+    wireOrg();
   },
 
   _shareError(e) {

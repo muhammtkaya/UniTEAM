@@ -17,6 +17,7 @@ import "../js/i18n.js";
 import "../js/config.js";
 import "../js/auth.js";
 import "../js/cloud.js";
+import "../js/org.js";
 import "../js/comments.js";
 import "../js/realtime.js";
 import "../js/storage.js";

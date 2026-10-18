@@ -645,6 +645,19 @@ XL.realtime = {
       const layoutJson = JSON.stringify(layout);
       if (p.xlMeta.get("layout") !== layoutJson) p.xlMeta.set("layout", layoutJson);
 
+      // Koşullu biçim + veri doğrulama (Faz 6) — sayfa İNDEKSİne göre (layout gibi).
+      const cf = {}, dv = {};
+      st.sheets.forEach((s, idx) => {
+        const c = XL.state.condfmt && XL.state.condfmt[s.id];
+        if (c && c.length) cf[idx] = c;
+        const v = XL.state.validations && XL.state.validations[s.id];
+        if (v && Object.keys(v).length) dv[idx] = v;
+      });
+      const cfJson = JSON.stringify(cf);
+      if (p.xlMeta.get("condfmt") !== cfJson) p.xlMeta.set("condfmt", cfJson);
+      const dvJson = JSON.stringify(dv);
+      if (p.xlMeta.get("validations") !== dvJson) p.xlMeta.set("validations", dvJson);
+
       const names = st.sheets.map((s) => s.name), cur = p.xlSheets.toArray();
       if (cur.length !== names.length || cur.some((n, i) => n !== names[i])) {
         p.xlSheets.delete(0, p.xlSheets.length);
@@ -689,6 +702,11 @@ XL.realtime = {
     const pr = p.xlMeta.get("page"); if (pr) { try { const pg = JSON.parse(pr); if (pg) data.page = pg; } catch (e) {} }
     const lr = p.xlMeta.get("layout");
     if (lr) { try { const lo = JSON.parse(lr); Object.entries(lo).forEach(([idx, l]) => { if (sheets[idx]) Object.assign(sheets[idx], l); }); } catch (e) {} }
+    // Koşullu biçim + veri doğrulama → engine.load'un beklediği sayfa alanlarına (condFmt / validations).
+    const cfr = p.xlMeta.get("condfmt");
+    if (cfr) { try { const cf = JSON.parse(cfr); Object.entries(cf).forEach(([idx, v]) => { if (sheets[idx]) sheets[idx].condFmt = v; }); } catch (e) {} }
+    const dvr = p.xlMeta.get("validations");
+    if (dvr) { try { const dv = JSON.parse(dvr); Object.entries(dv).forEach(([idx, v]) => { if (sheets[idx]) sheets[idx].validations = v; }); } catch (e) {} }
     return data;
   },
 

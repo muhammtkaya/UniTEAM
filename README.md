@@ -119,8 +119,10 @@ js/
   org.js              Organizasyonlar & admin paneli (çok-kiracılık, RBAC, davet, denetim)
   security.js         Hesap güvenliği (2FA/MFA, giriş geçmişi, oturum yönetimi)
   byos.js             Belge byte deposu sağlayıcı soyutlaması (relay + Drive/OneDrive iskeleti)
+  onboarding.js       Karşılama + yardım paneli + şablon galerisi
   comments.js         Yorumlar + @bahsetmeler + bildirimler
   realtime.js         Gerçek zamanlı eş düzenleme (Yjs CRDT + Durable Object)
+  i18n.js             Çoklu dil (N dil + sözlük + RTL) + Türkçe fonksiyon adları
   excel/
     mode.js           Excel modu: şerit, formül çubuğu, sayfa sekmeleri, komutlar
     formula.js        Kendi formül/hesap motorumuz (HyperFormula yerine, bağımlılıksız)
@@ -191,10 +193,10 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 
 - **Otomatik kayıt kotası:** tarayıcı belleği yaklaşık 5 MB'tır. Çok resimli belgelerde otomatik kayıt başarısız olabilir; durum çubuğunda uyarı çıkar. Bu durumda **Kaydet** ile dosyayı indirin.
 - **Belgeler tarayıcıya özeldir:** otomatik kaydedilen veriler yalnızca o tarayıcıda durur; başka bir cihaza veya tarayıcıya taşınmaz.
-- **Excel:** koşullu biçimlendirme, veri doğrulama ve Türkçe fonksiyon adları (`=TOPLA`) henüz yok (hücre birleştirme, sütun genişliği ve satır yüksekliği eklendi). Fonksiyonlar İngilizce adlarıyla yazılır (gerçek `.xlsx` dosyaları da böyle saklar).
+- **Excel:** koşullu biçimlendirme ve veri doğrulama henüz yok (hücre birleştirme, sütun genişliği ve satır yüksekliği eklendi). Türkçe fonksiyon adları (`=TOPLA`) yazılabilir; kayıtta İngilizce'ye çevrilir (gerçek `.xlsx` dosyaları da İngilizce saklar).
 - **Word:** üst/alt bilgi, dipnot, yorum ve değişiklik izleme yok. Sayfa sınırları çizgiyle gösterilir; metin henüz gerçek sayfalara bölünmez.
 - **PowerPoint:** öğe animasyonları, döndürme ve slayta grafik ekleme yok. Slayt geçişleri `.pptx` dosyasına aktarılmaz.
-- **Dokunmatik ekranlar** için ayrıca bir uyarlama yapılmadı.
+- **Dokunmatik / dar ekran:** temel responsive düzen ve dokunma hedefleri eklendi; ızgarada tam dokunmatik sürükle-seçim henüz sınırlı.
 
 ---
 
@@ -257,11 +259,12 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **BYOS soyutlaması:** `js/byos.js` — sağlayıcı arayüzü (`putBytes/getBytes/copy/remove`); bugün etkin tek sağlayıcı `relay` (Supabase Storage), `gdrive`/`onedrive` **iskelet** (OAuth + domain gerektirdiği için çağrıldığında net "Faz 9" hatası). `cloud.js` artık byte'lara tek bir arayüzden konuşur.
 - [ ] **BYOS canlı (Google Drive / OneDrive):** OAuth client kaydı (Google Cloud Console / Azure) + domain gerektirir → **Faz 9** (deploy/OAuth go-live) ile adaptörlerin içi doldurulur.
 
-### Faz 5 — Erişim genişliği (kod)
-- [ ] Mobil / responsive / dokunmatik arayüz
-- [ ] i18n derinleştirme: RTL (Arapça/İbranice), yerel tarih/sayı/para biçimleri, daha fazla dil, Türkçe fonksiyon adları (`=TOPLA`), CJK/Unicode font kapsamı
-- [ ] Erişilebilirlik (a11y): klavye navigasyonu, ARIA, kontrast
-- [ ] Onboarding, uygulama içi yardım, şablon galerisi
+### Faz 5 — Erişim genişliği (kod) ✅ (yerelde)
+- [x] **i18n derinleştirme:** çok-dilli motor (`XL.t` artık sözlük katmanıyla N dil — TR/EN/DE/ES/AR; eksik dize İngilizce'ye düşer), **RTL** (Arapça/İbranice → `<html dir=rtl>`), üstte 🌐 dil menüsü. **Türkçe fonksiyon adları** (`=TOPLA`, `=EĞER`, `=DÜŞEYARA`… → hesaplanır ve kayıtta İngilizce'ye kanonikleşir, `.xlsx` birlikte çalışır). Yerel sayı/tarih/para biçimleri (`Intl`, arayüz diline göre). CJK/Arapça yazı tipi yedekleri.
+- [x] **Erişilebilirlik (a11y):** "İçeriğe geç" skip-link, ARIA rolleri (toolbar/dialog/menu) + ikon düğmelerine `aria-label` (iki dilli `data-i18n-aria`), görünür klavye odağı (`:focus-visible`).
+- [x] **Responsive / dokunmatik:** dar ekran (≤760/480px) için üst çubuk sarması, kaydırılabilir şerit, tam genişlik panel; dokunma hedefleri + `touch-action`.
+- [x] **Onboarding:** ilk açılışta bloklamayan karşılama banner'ı (bir kez), "❔ Yardım & Şablonlar" paneli (hızlı başlangıç + kısayollar + diller) ve **şablon galerisi** (boş + önceden doldurulmuş Excel Bütçe / Word Mektup).
+- ⏳ **Kalan (artımlı):** DE/ES/AR sözlüklerinin derin (mod şeritleri/diyaloglar) doldurulması; tam dokunmatik grid sürükleme; daha fazla şablon.
 
 ### Faz 6 — Dosya sadakati & eş düzenleme olgunluğu (kod)
 - [ ] Excel: koşullu biçim, veri doğrulama, font/dolgu stili `.xlsx` yazımı

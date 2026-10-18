@@ -292,7 +292,8 @@
             while (eat(",")) args.push(parseExpr());
           }
           if (!eat(")")) throw new Error(") bekleniyordu");
-          return { t: "call", name: name.toUpperCase(), args };
+          const up = name.toUpperCase();
+          return { t: "call", name: FN_ALIASES[up] || up, args };
         }
         // Sayfa niteleyici?  ident!
         if (toks[p + 1] && toks[p + 1].t === "op" && toks[p + 1].v === "!") {
@@ -1081,10 +1082,57 @@
   def("PV", (A, H) => { const r = num(H.sc(A[0])); const nper = num(H.sc(A[1])); const pmt = num(H.sc(A[2])); const fv = A.length > 3 ? num(H.sc(A[3])) : 0; const type = A.length > 4 ? num(H.sc(A[4])) : 0; for (const x of [r, nper, pmt, fv, type]) if (isErr(x)) return x; if (r === 0) return -(fv + pmt * nper); const p = Math.pow(1 + r, nper); return -(fv + pmt * (1 + r * type) * (p - 1) / r) / p; });
   def("NPER", (A, H) => { const r = num(H.sc(A[0])); const pmt = num(H.sc(A[1])); const pv = num(H.sc(A[2])); const fv = A.length > 3 ? num(H.sc(A[3])) : 0; const type = A.length > 4 ? num(H.sc(A[4])) : 0; for (const x of [r, pmt, pv, fv, type]) if (isErr(x)) return x; if (r === 0) return -(pv + fv) / pmt; const num_ = pmt * (1 + r * type) - fv * r, den = pv * r + pmt * (1 + r * type); return Math.log(num_ / den) / Math.log(1 + r); });
 
+  /* ===================== Türkçe fonksiyon adları (i18n) =====================
+   * Kullanıcı =TOPLA(...) yazabilsin diye Türkçe adları İngilizce karşılıklarına
+   * eşleyen alias tablosu. Anahtarlar JS .toUpperCase() çıktısıdır (i ve ı → I).
+   * İki yerde kullanılır: (1) parser, hesaplama alias'ı çözer; (2) canonicalize,
+   * kayıttan ÖNCE formülü İngilizce'ye çevirir → saklanan/.xlsx'e yazılan hep
+   * İngilizce (gerçek Excel de böyle: yerelleştirilmiş gösterir, İngilizce saklar).
+   */
+  const FN_ALIASES = {
+    TOPLA: "SUM", ORTALAMA: "AVERAGE", "EĞER": "IF", VE: "AND", VEYA: "OR",
+    "DEĞIL": "NOT", "EĞERHATA": "IFERROR", "EĞERSAY": "COUNTIF", "ÇOKEĞERSAY": "COUNTIFS",
+    ETOPLA: "SUMIF", "ÇOKETOPLA": "SUMIFS", "TOPLA.ÇARPIM": "SUMPRODUCT", "ÇARPIM": "PRODUCT",
+    SAY: "COUNT", "BAĞ_DEĞ_DOLU_SAY": "COUNTA", MAK: "MAX", "MIN": "MIN",
+    YUVARLA: "ROUND", "AŞAĞIYUVARLA": "ROUNDDOWN", "YUKARIYUVARLA": "ROUNDUP",
+    "METNEÇEVIR": "TEXT", "BIRLEŞTIR": "CONCATENATE", UZUNLUK: "LEN", SOLDAN: "LEFT",
+    "SAĞDAN": "RIGHT", "PARÇAAL": "MID", "BÜYÜKHARF": "UPPER", "KÜÇÜKHARF": "LOWER",
+    "DÜŞEYARA": "VLOOKUP", YATAYARA: "HLOOKUP", "INDIS": "INDEX", "KAÇINCI": "MATCH",
+    "BUGÜN": "TODAY", "ŞIMDI": "NOW", YIL: "YEAR", AY: "MONTH", "GÜN": "DAY",
+    MUTLAK: "ABS", "KAREKÖK": "SQRT", EBOBM: "GCD", EKOK: "LCM",
+  };
+
+  // Formüldeki Türkçe fonksiyon adlarını İngilizce'ye çevir (tırnaklı metni atlar;
+  // yalnız '(' öncesi tanımlayıcıları eşler).
+  function canonicalize(src) {
+    if (typeof src !== "string" || src[0] !== "=") return src;
+    const idchar = /[A-Za-zÇĞİÖŞÜçğıöşü0-9_.]/;
+    let out = "", i = 0; const n = src.length;
+    while (i < n) {
+      const ch = src[i];
+      if (ch === '"') { // metin değişmezini aynen kopyala ("" kaçışıyla)
+        out += ch; i++;
+        while (i < n) { out += src[i]; if (src[i] === '"') { if (src[i + 1] === '"') { out += '"'; i += 2; continue; } i++; break; } i++; }
+        continue;
+      }
+      if (/[A-Za-zÇĞİÖŞÜçğıöşü_]/.test(ch)) {
+        let j = i; while (j < n && idchar.test(src[j])) j++;
+        const word = src.slice(i, j);
+        let k = j; while (k < n && src[k] === " ") k++;
+        out += (src[k] === "(" && FN_ALIASES[word.toUpperCase()]) ? FN_ALIASES[word.toUpperCase()] : word;
+        i = j; continue;
+      }
+      out += ch; i++;
+    }
+    return out;
+  }
+
   /* ============================ Dışa aktarım ============================ */
   const HyperFormula = {
     buildEmpty() { return new Engine(); },
     getRegisteredFunctionNames() { return Object.keys(FUNCTIONS).sort(); },
+    canonicalize,
+    FN_ALIASES,
     _Engine: Engine,
   };
   window.HyperFormula = HyperFormula;

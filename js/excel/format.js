@@ -34,10 +34,14 @@ XL.format = {
   },
 
   // Hesaplanmış değeri biçime göre metne çevir
+  // Aktif arayüz diline göre BCP-47 etiketi ve para birimi (yerel biçimler — Faz 5).
+  _loc() { return ({ tr: "tr-TR", en: "en-US", de: "de-DE", es: "es-ES", ar: "ar-SA" })[(XL.i18n && XL.i18n.locale) || "tr"] || "tr-TR"; },
+  _ccy() { return ({ tr: "TRY", en: "USD", de: "EUR", es: "EUR", ar: "SAR" })[(XL.i18n && XL.i18n.locale) || "tr"] || "TRY"; },
+
   display(value, r, c) {
     if (value === null || value === undefined || value === "") return "";
     if (XL.isError(value)) return value.value; // #DIV/0! vb.
-    if (typeof value === "boolean") return value ? "DOĞRU" : "YANLIŞ";
+    if (typeof value === "boolean") return value ? XL.t("DOĞRU", "TRUE") : XL.t("YANLIŞ", "FALSE");
 
     const f = XL.getFormat(r, c);
     const fmt = f.numfmt || "general";
@@ -45,28 +49,29 @@ XL.format = {
 
     if (!isNum) return String(value);
 
+    const loc = this._loc();
     switch (fmt) {
       case "number":
-        return value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return value.toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       case "currency":
-        return value.toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+        return value.toLocaleString(loc, { style: "currency", currency: this._ccy() });
       case "percent":
-        return (value * 100).toLocaleString("tr-TR", { maximumFractionDigits: 2 }) + "%";
+        return (value * 100).toLocaleString(loc, { maximumFractionDigits: 2 }) + "%";
       case "date":
         return XL.format.serialToDate(value);
       default:
         // Genel: gereksiz sıfırları at
         return Number.isInteger(value) ? String(value)
-          : value.toLocaleString("tr-TR", { maximumFractionDigits: 10 });
+          : value.toLocaleString(loc, { maximumFractionDigits: 10 });
     }
   },
 
-  // Excel seri tarihini (1 = 1899-12-31) okunur tarihe çevir
+  // Excel seri tarihini (1 = 1899-12-31) okunur tarihe çevir (yerel biçim)
   serialToDate(serial) {
     const ms = Math.round((serial - 25569) * 86400 * 1000);
     const d = new Date(ms);
     if (isNaN(d)) return String(serial);
-    return d.toLocaleDateString("tr-TR");
+    return d.toLocaleDateString(XL.format._loc());
   },
 
   isNumeric(value) {

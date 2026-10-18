@@ -7,7 +7,10 @@
   --head-bg: #f3f3f3;
   --bar-bg: #f8f8f8;
   --sel-fill: rgba(16, 124, 65, 0.12);
-  font-family: "Segoe UI", system-ui, Arial, sans-serif;
+  /* CJK/Arapça/Kiril kapsamı için yedek yazı tipleri (Faz 5 i18n) */
+  font-family: "Segoe UI", system-ui, Arial, "Noto Sans", "Segoe UI Emoji",
+    "Microsoft YaHei", "Malgun Gothic", "Hiragino Kaku Gothic Pro", "Noto Sans CJK SC",
+    "Noto Naskh Arabic", "Segoe UI Historic", sans-serif;
 }
 body[data-mode="xlsx"] { --accent: #107c41; --accent-dark: #0b5a2f; --accent-soft: #e2efda; }
 body[data-mode="docx"] { --accent: #185abd; --accent-dark: #103f91; --accent-soft: #dde6f6; }
@@ -613,3 +616,64 @@ body.doc-readonly #btn-save { opacity: .85; }
 .cloud-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .ci-ver { border: none; background: transparent; cursor: pointer; font-size: 15px; padding: 2px 4px; }
 .ci-ver:hover { transform: scale(1.15); }
+
+/* ===== Faz 5: erişim genişliği (i18n/RTL + a11y + responsive + onboarding) ===== */
+
+/* Skip link (a11y): klavyeyle odaklanınca görünür */
+#skip-link { position: fixed; top: -48px; left: 8px; z-index: 3000; background: #107c41; color: #fff;
+  padding: 8px 14px; border-radius: 0 0 8px 8px; transition: top .15s; text-decoration: none; }
+#skip-link:focus { top: 0; }
+
+/* Görünür klavye odağı (a11y) — yalnız klavye navigasyonunda */
+:focus-visible { outline: 2px solid #1d6fe0; outline-offset: 1px; border-radius: 3px; }
+button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid #1d6fe0; }
+
+/* Dil menüsü (açılır) */
+#lang-menu { position: fixed; z-index: 2000; background: #fff; border: 1px solid #d1d5db;
+  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.18); padding: 4px; min-width: 150px; }
+#lang-menu .lang-opt { display: block; width: 100%; text-align: start; border: none; background: transparent;
+  padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+#lang-menu .lang-opt:hover { background: #f3f4f6; }
+#lang-menu .lang-opt.active { background: #e2efda; font-weight: 600; }
+
+/* Karşılama banner (bloklamaz) */
+#welcome-banner { position: fixed; top: 52px; inset-inline-end: 12px; z-index: 1500; display: flex; align-items: center;
+  gap: 10px; max-width: min(92vw, 440px); background: #0f172a; color: #fff; padding: 10px 12px;
+  border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.28); font-size: 13px; }
+#welcome-banner .wb-btn { border: none; background: #22c55e; color: #06270f; font-weight: 600; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+#welcome-banner .wb-x { border: none; background: transparent; color: #cbd5e1; cursor: pointer; font-size: 15px; }
+
+/* Yardım & şablonlar paneli */
+.help-ui { display: flex; flex-direction: column; gap: 16px; }
+.help-sec h4 { margin: 0 0 6px; }
+.help-sec ul { margin: 0; padding-inline-start: 18px; display: flex; flex-direction: column; gap: 4px; }
+.help-keys { width: 100%; border-collapse: collapse; font-size: 13px; }
+.help-keys td { padding: 4px 6px; border-bottom: 1px solid #f1f5f9; }
+.help-keys td:first-child { font-family: Consolas, monospace; white-space: nowrap; color: #334155; }
+.tmpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.tmpl-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px;
+  border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; cursor: pointer; font-size: 12px; text-align: center; }
+.tmpl-card:hover { border-color: #107c41; background: #f6fbf8; }
+.tmpl-card .tc-ic { font-size: 26px; }
+
+/* RTL (Arapça/İbranice) düzeltmeleri — çoğu akış dir=rtl ile otomatik döner */
+html[dir="rtl"] .brand, html[dir="rtl"] #welcome-banner { direction: rtl; }
+html[dir="rtl"] #status { text-align: start; }
+
+/* Dokunmatik: daha büyük dokunma hedefleri + varsayılan jestler */
+button, select, .doctab, .tmpl-card { touch-action: manipulation; }
+
+/* Responsive: dar ekran / mobil */
+@media (max-width: 760px) {
+  #topbar { flex-wrap: wrap; height: auto; padding: 6px 8px; gap: 4px; }
+  #doc-title { order: 3; flex-basis: 100%; }
+  .top-actions { flex-wrap: wrap; gap: 4px; }
+  .top-actions button { padding: 6px 8px; font-size: 13px; min-height: 36px; }
+  #ribbon { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #panel { inset-inline: 0; width: auto; max-width: none; border-radius: 12px 12px 0 0; }
+  #welcome-banner { inset-inline: 8px; max-width: none; }
+}
+@media (max-width: 480px) {
+  .brand .mode-name, #mode-name { display: none; }
+  .top-actions button { min-width: 40px; }
+}

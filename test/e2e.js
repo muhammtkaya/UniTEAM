@@ -70,6 +70,17 @@ async function run({ baseURL }) {
     check("Statik düğme EN oldu (Save)", /Save/.test(i18n.saveEN), i18n);
     check("TR'ye dönünce düğme tekrar 'Kaydet'", /Kaydet/.test(i18n.saveTR), i18n);
 
+    // --- i18n: Türkçe fonksiyon adı (=TOPLA) hesaplanır + İngilizce'ye kanonikleşir
+    const fn = await page.evaluate(() => {
+      XL.engine.setCell(10, 5, "3");            // F11
+      XL.engine.setCell(11, 5, "4");            // F12
+      XL.engine.setCell(12, 5, "=TOPLA(F11:F12)"); // F13 (Türkçe SUM)
+      return { val: XL.engine.getValue(12, 5), raw: XL.engine.getRaw(12, 5) };
+    });
+    console.log("  tr-fn:", JSON.stringify(fn));
+    check("Türkçe =TOPLA hesaplandı (7)", fn.val === 7, fn);
+    check("=TOPLA kayıtta İngilizce'ye çevrildi (=SUM)", /=SUM\(/i.test(fn.raw), fn);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

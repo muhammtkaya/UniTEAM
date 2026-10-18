@@ -45,3 +45,6 @@ import "../js/pptx/mode.js";
 
 // --- Çalışma alanı (belgeler + başlatma) ---
 import "../js/workspace.js";
+
+// --- Onboarding (karşılama + yardım + şablonlar) — en son ---
+import "../js/onboarding.js";

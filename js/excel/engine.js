@@ -120,6 +120,11 @@ XL.engine = {
 
   setCell(r, c, raw, id) {
     const sheet = id ?? XL.state.activeSheetId;
+    // Türkçe fonksiyon adlarını (=TOPLA) kayıttan önce İngilizce'ye çevir → .xlsx
+    // birlikte çalışabilirliği korunur (gerçek Excel de İngilizce saklar).
+    if (typeof raw === "string" && raw[0] === "=" && XL.formula && XL.formula.canonicalize) {
+      raw = XL.formula.canonicalize(raw);
+    }
     const content = raw === "" ? null : raw;
     return XL.state.hf.setCellContents({ sheet, row: r, col: c }, [[content]]);
   },

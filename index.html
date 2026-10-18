@@ -10,31 +10,33 @@
        (src/vendor.js). Böylece sürüm sabit, çevrimdışı çalışır, internet gerekmez. -->
 </head>
 <body data-mode="xlsx">
+  <a href="#workarea" id="skip-link" data-i18n="İçeriğe geç|Skip to content">İçeriğe geç</a>
   <!-- ÜST ÇUBUK: ortak dosya işlemleri -->
-  <header id="topbar">
+  <header id="topbar" role="banner">
     <div class="brand"><span id="mode-icon">📊</span> <span id="mode-name">Excel</span></div>
     <div id="doc-title"></div>
-    <div class="top-actions">
-      <button id="btn-lang" title="Dil">🌐 TR</button>
-      <button id="btn-theme" data-i18n-title="Görünümü özelleştir (renk)|Customize appearance (color)" title="Görünümü özelleştir (renk)">🎨</button>
+    <div class="top-actions" role="toolbar" data-i18n-aria="Dosya ve hesap araçları|File and account tools" aria-label="Dosya ve hesap araçları">
+      <button id="btn-lang" data-i18n-aria="Dil seçimi|Language selection" aria-label="Dil" aria-haspopup="menu" title="Dil">🌐 TR</button>
+      <button id="btn-theme" data-i18n-title="Görünümü özelleştir (renk)|Customize appearance (color)" data-i18n-aria="Görünümü özelleştir|Customize appearance" aria-label="Görünümü özelleştir" title="Görünümü özelleştir (renk)">🎨</button>
       <button id="btn-open" data-i18n="📂 Aç|📂 Open" data-i18n-title="Dosya aç (.xlsx .csv .docx .pptx)|Open file (.xlsx .csv .docx .pptx)" title="Dosya aç (.xlsx .csv .docx .pptx)">📂 Aç</button>
       <button id="btn-save" data-i18n="💾 Kaydet|💾 Save" data-i18n-title="Etkin belgeyi indir|Download active document" title="Etkin belgeyi indir">💾 Kaydet</button>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.docx,.pptx" hidden />
       <button id="btn-live" data-i18n="🟢 Canlı|🟢 Live" data-i18n-title="Canlı ortak düzenleme (Word, PowerPoint, Excel)|Live co-editing (Word, PowerPoint, Excel)" title="Canlı ortak düzenleme (Word, PowerPoint, Excel)">🟢 Canlı</button>
-      <button id="btn-comments" data-i18n-title="Yorumlar|Comments" title="Yorumlar">💬</button>
-      <button id="btn-notif" class="hidden" data-i18n-title="Bildirimler|Notifications" title="Bildirimler">🔔</button>
+      <button id="btn-comments" data-i18n-title="Yorumlar|Comments" data-i18n-aria="Yorumlar|Comments" aria-label="Yorumlar" title="Yorumlar">💬</button>
+      <button id="btn-notif" class="hidden" data-i18n-title="Bildirimler|Notifications" data-i18n-aria="Bildirimler|Notifications" aria-label="Bildirimler" title="Bildirimler">🔔</button>
+      <button id="btn-help" data-i18n-title="Yardım ve şablonlar|Help and templates" data-i18n-aria="Yardım|Help" aria-label="Yardım" title="Yardım ve şablonlar">❔</button>
       <button id="btn-account" data-i18n="👤 Giriş|👤 Sign in" data-i18n-title="Giriş yap / Kayıt ol|Sign in / Sign up" title="Giriş yap / Kayıt ol">👤 Giriş</button>
     </div>
   </header>
 
   <!-- ŞERİT: etkin modun araçları -->
-  <nav id="ribbon"></nav>
+  <nav id="ribbon" role="toolbar" data-i18n-aria="Şerit araç çubuğu|Ribbon toolbar" aria-label="Şerit"></nav>
 
   <!-- ALT ÇUBUK: Excel'de formül çubuğu -->
   <div id="subbar"></div>
 
   <!-- ÇALIŞMA ALANI: etkin modun içeriği -->
-  <main id="workarea"></main>
+  <main id="workarea" tabindex="-1"></main>
 
   <!-- BELGE ÇUBUĞU: ＋ menüsü ve belge sekmeleri -->
   <footer id="docbar">
@@ -51,10 +53,10 @@
   </footer>
 
   <!-- Grafik / Pivot / iletişim paneli -->
-  <div id="panel" class="hidden">
+  <div id="panel" class="hidden" role="dialog" aria-labelledby="panel-title">
     <div class="panel-head">
       <span id="panel-title">Panel</span>
-      <button id="panel-close">✕</button>
+      <button id="panel-close" data-i18n-aria="Paneli kapat|Close panel" aria-label="Kapat">✕</button>
     </div>
     <div id="panel-body"></div>
   </div>

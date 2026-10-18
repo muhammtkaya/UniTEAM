@@ -157,7 +157,10 @@ XL.modes.docx = {
         <div class="rgroup"><div class="rrow">
           <button data-cmd="wordcount" class="big">🔢<span>${t("Sözcük Sayısı", "Word Count")}</span></button>
           <button data-cmd="spellcheck" data-state="spellcheck" class="big">✔<span>${t("Yazım Denetimi", "Spell Check")}</span></button>
-        </div><label>${t("Yazım Denetleme", "Proofing")}</label></div>` },
+        </div><label>${t("Yazım Denetleme", "Proofing")}</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="footnote" class="big" title="${t("İmlecin olduğu yere dipnot ekle", "Insert a footnote at the cursor")}">🔖<span>${t("Dipnot Ekle", "Insert Footnote")}</span></button>
+        </div><label>${t("Dipnotlar", "Footnotes")}</label></div>` },
 
       { name: t("Görünüm", "View"), html: `
         <div class="rgroup"><div class="rrow">
@@ -182,6 +185,7 @@ XL.modes.docx = {
           <div id="wd-header" class="wd-hf wd-header" data-label="${XL.t("Üst Bilgi", "Header")}" contenteditable="true" spellcheck="true"></div>
         </div>
         <div id="wd-body" contenteditable="true" spellcheck="true"></div>
+        <div id="wd-footnotes" class="wd-footnotes" contenteditable="false"></div>
         <div id="wd-footer-wrap" class="wd-hf-wrap">
           <button class="wd-hf-x" data-hf="footer" contenteditable="false" title="${XL.t("Alt bilgiyi kaldır", "Remove footer")}">✕ ${XL.t("Kaldır", "Remove")}</button>
           <div id="wd-footer" class="wd-hf wd-footer" data-label="${XL.t("Alt Bilgi", "Footer")}" contenteditable="true" spellcheck="true"></div>
@@ -198,12 +202,14 @@ XL.modes.docx = {
       b.addEventListener("click", () => this.toggleHF(b.dataset.hf)));
     this.editor = this.body; // o an düzenlenen etkin alan (body/header/footer)
     this.page = this.normalizePage(doc.data.page);
+    this.footnotesEl = document.getElementById("wd-footnotes");
     this.body.innerHTML = doc.data.html || "<p><br></p>";
     this.header.innerHTML = this.page.header.html || "<p><br></p>";
     this.footer.innerHTML = this.page.footer.html || "<p><br></p>";
     this.savedRange = null;
     this.applyPage();
     this.applyHF();
+    this.renderFootnotes();
 
     try {
       document.execCommand("defaultParagraphSeparator", false, "p");
@@ -211,7 +217,7 @@ XL.modes.docx = {
     } catch (e) {}
 
     [this.body, this.header, this.footer].forEach((ed) => {
-      ed.addEventListener("input", () => { this.ensureParagraph(); this.normalize(); this.saveRange(); this.updateCount(); XL.ws.changed(); });
+      ed.addEventListener("input", () => { this.ensureParagraph(); this.normalize(); this.saveRange(); this.updateCount(); this.renderFootnotes(); XL.ws.changed(); });
       ed.addEventListener("keydown", (e) => this.onKey(e));
       // selectionchange'e ek olarak: imleç her hareket ettiğinde seçimi sakla
       ed.addEventListener("keyup", () => this.saveRange());
@@ -221,6 +227,9 @@ XL.modes.docx = {
         // Ctrl+tık bağlantıyı açar (Word'deki gibi)
         const a = e.target.closest("a");
         if (a && (e.ctrlKey || e.metaKey)) window.open(a.href, "_blank", "noopener");
+        // Dipnot işaretçisine tıklama → metni düzenle
+        const fn = e.target.closest(".wd-fn");
+        if (fn) { e.preventDefault(); this.editFootnote(fn); return; }
         // Resim seçimi
         ed.querySelectorAll("img.sel").forEach((i) => i.classList.remove("sel"));
         if (e.target.tagName === "IMG") { e.target.classList.add("sel"); this.selectedImg = e.target; }
@@ -468,6 +477,7 @@ XL.modes.docx = {
         this.page.margin = value; this.applyPage(); return XL.ws.changed();
       case "page-orient": this.page.orientation = value; this.applyPage(); return XL.ws.changed();
       case "page-size": this.page.size = value; this.applyPage(); return XL.ws.changed();
+      case "footnote": return this.insertFootnote();
       case "wordcount": {
         const c = this.counts();
         return alert(XL.t(
@@ -902,6 +912,46 @@ XL.modes.docx = {
     this.restoreRange();
     // data-field ile işaretli, dışa aktarımda gerçek sayfa numarası alanına çevrilir
     this.exec("insertHTML", '<span class="wd-field" data-field="page" contenteditable="false">1</span>&#8203;');
+  },
+
+  /* ---------- Dipnotlar (Faz 6) ----------
+   * Gövdede satır içi işaretçi: <sup class="wd-fn" data-text="…" contenteditable="false">N</sup>
+   * Metin data-text'te saklanır (gövde HTML'iyle birlikte kalıcılaşır); numara render'da
+   * belge sırasına göre yeniden hesaplanır. Sayfa altındaki liste türetilir (serialize edilmez).
+   */
+  insertFootnote() {
+    if (this.editor !== this.body) {
+      // Dipnot gövdeye eklenir; imleç gövdede değilse gövdeye al
+      this.body.focus(); this.editor = this.body;
+    }
+    this.restoreRange();
+    const text = prompt(XL.t("Dipnot metni:", "Footnote text:"), "");
+    if (text == null) return;
+    const html = `<sup class="wd-fn" data-text="${XL.esc(text)}" contenteditable="false" title="${XL.esc(text)}">0</sup>&#8203;`;
+    this.exec("insertHTML", html);
+    this.renderFootnotes();
+    XL.ws.changed();
+  },
+
+  editFootnote(sup) {
+    const cur = sup.getAttribute("data-text") || "";
+    const text = prompt(XL.t("Dipnot metni (boş = sil):", "Footnote text (empty = delete):"), cur);
+    if (text == null) return;
+    if (text === "") sup.remove();
+    else { sup.setAttribute("data-text", text); sup.setAttribute("title", text); }
+    this.renderFootnotes();
+    XL.ws.changed();
+  },
+
+  // İşaretçileri belge sırasına göre yeniden numaralandır + alt listeyi çiz
+  renderFootnotes() {
+    if (!this.body || !this.footnotesEl) return;
+    const marks = [...this.body.querySelectorAll("sup.wd-fn")];
+    marks.forEach((m, i) => { m.textContent = String(i + 1); });
+    if (!marks.length) { this.footnotesEl.innerHTML = ""; this.footnotesEl.style.display = "none"; return; }
+    this.footnotesEl.style.display = "";
+    this.footnotesEl.innerHTML = marks.map((m, i) =>
+      `<div class="wd-fn-item"><sup>${i + 1}</sup> <span>${XL.esc(m.getAttribute("data-text") || "")}</span></div>`).join("");
   },
 
   print() {

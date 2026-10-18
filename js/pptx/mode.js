@@ -43,6 +43,10 @@ XL.modes.pptx = {
     diamond: "Elmas", rightArrow: "Sağ Ok", star5: "Yıldız",
   },
 
+  // Grafik türleri (Faz 6) — uygulama içi SVG + .pptx'e PptxGenJS addChart ile aktarılır.
+  CHART_TYPES: { bar: "Sütun", line: "Çizgi", pie: "Pasta" },
+  CHART_PALETTE: ["#4472c4", "#ed7d31", "#a5a5a5", "#ffc000", "#5b9bd5", "#70ad47", "#9e480e", "#997300"],
+
   createData() {
     const d = {
       theme: "office",
@@ -163,6 +167,7 @@ XL.modes.pptx = {
           <button data-cmd="textbox" class="big">🅰<span>${tt("Metin Kutusu", "Text Box")}</span></button>
           <button data-cmd="image" class="big">🖼<span>${tt("Resim", "Picture")}</span></button>
           <button data-cmd="table" class="big">▦<span>${tt("Tablo", "Table")}</span></button>
+          <button data-cmd="chart" class="big">📊<span>${tt("Grafik", "Chart")}</span></button>
         </div><label>${tt("Ekle", "Insert")}</label></div>
         <div class="rgroup"><div class="rrow">
           <button data-cmd="hf-dialog" class="big">🔢<span>${tt("Üst/Alt Bilgi", "Header/Footer")}</span></button>
@@ -412,6 +417,8 @@ XL.modes.pptx = {
       img.src = e.src;
       img.draggable = false;
       box.appendChild(img);
+    } else if (e.type === "chart") {
+      box.innerHTML = this.chartSVG(e);
     } else {
       if (e.type === "shape") {
         box.innerHTML = this.shapeSVG(e.shape, e.fill === "none" ? "none" : (e.fill || t.accent), e.stroke || "none", "100%", "100%");
@@ -466,6 +473,103 @@ XL.modes.pptx = {
       star5: `<polygon points="50,2 61,38 98,38 68,60 79,96 50,74 21,96 32,60 2,38 39,38" ${common}/>`,
     };
     return `<svg class="${cls}" viewBox="0 0 100 100" preserveAspectRatio="none" width="${w}" height="${h}">${paths[shape] || paths.rect}</svg>`;
+  },
+
+  // Grafik SVG'si (uygulama içi çizim; bar/line/pie). Kutuyu doldurur (viewBox = e.w × e.h).
+  chartSVG(e) {
+    const W = Math.max(60, e.w), H = Math.max(40, e.h);
+    const t = this.THEMES[this.data && this.data.theme] || this.THEMES.office;
+    const esc = XL.esc;
+    const pal = this.CHART_PALETTE;
+    const cats = Array.isArray(e.cats) ? e.cats : [];
+    const series = Array.isArray(e.series) && e.series.length ? e.series : [{ name: "", values: [] }];
+    const title = e.title || "";
+    const titleH = title ? 24 : 8;
+    const multi = series.length > 1 || e.chartType === "pie";
+    const legendH = multi ? 20 : 6;
+    let body = "";
+
+    if (e.chartType === "pie") {
+      const vals = (series[0].values || []).map((v) => Math.abs(+v) || 0);
+      const total = vals.reduce((a, b) => a + b, 0) || 1;
+      const cx = W / 2, cy = titleH + (H - titleH - legendH) / 2;
+      const rad = Math.max(10, Math.min(W / 2, (H - titleH - legendH) / 2) - 6);
+      let ang = -Math.PI / 2;
+      vals.forEach((v, i) => {
+        const frac = v / total, a2 = ang + frac * 2 * Math.PI;
+        const x1 = cx + rad * Math.cos(ang), y1 = cy + rad * Math.sin(ang);
+        const x2 = cx + rad * Math.cos(a2), y2 = cy + rad * Math.sin(a2);
+        const large = frac > 0.5 ? 1 : 0;
+        const d = frac >= 0.999
+          ? `M ${cx} ${cy - rad} A ${rad} ${rad} 0 1 1 ${cx - 0.01} ${cy - rad} Z`
+          : `M ${cx} ${cy} L ${x1.toFixed(1)} ${y1.toFixed(1)} A ${rad} ${rad} 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z`;
+        body += `<path d="${d}" fill="${pal[i % pal.length]}" stroke="#fff" stroke-width="1"/>`;
+        ang = a2;
+      });
+    } else {
+      // Bar / line: eksen + plot
+      const axL = 34, axB = 16;
+      const x0 = axL, y0 = titleH, x1 = W - 6, y1 = H - legendH - axB;
+      const pw = Math.max(1, x1 - x0), ph = Math.max(1, y1 - y0);
+      let max = 0, min = 0;
+      series.forEach((s) => (s.values || []).forEach((v) => { const n = +v || 0; if (n > max) max = n; if (n < min) min = n; }));
+      if (max === min) max = min + 1;
+      const yOf = (v) => y1 - ((v - min) / (max - min)) * ph;
+      // Eksen çizgileri + sıfır taban
+      body += `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}" stroke="#bbb" stroke-width="1"/>`;
+      body += `<line x1="${x0}" y1="${yOf(0)}" x2="${x1}" y2="${yOf(0)}" stroke="#bbb" stroke-width="1"/>`;
+      body += `<text x="${x0 - 4}" y="${y0 + 8}" text-anchor="end" font-size="9" fill="#888">${esc(this._fmtNum(max))}</text>`;
+      const n = cats.length || (series[0].values || []).length || 1;
+      const slot = pw / n;
+      if (e.chartType === "line") {
+        series.forEach((s, si) => {
+          const pts = (s.values || []).map((v, i) => `${(x0 + slot * (i + 0.5)).toFixed(1)},${yOf(+v || 0).toFixed(1)}`).join(" ");
+          if (pts) body += `<polyline points="${pts}" fill="none" stroke="${pal[si % pal.length]}" stroke-width="2"/>`;
+        });
+      } else {
+        const groupW = slot * 0.7, barW = groupW / series.length;
+        series.forEach((s, si) => {
+          (s.values || []).forEach((v, i) => {
+            const val = +v || 0;
+            const bx = x0 + slot * i + (slot - groupW) / 2 + si * barW;
+            const by = Math.min(yOf(val), yOf(0)), bh = Math.abs(yOf(val) - yOf(0));
+            body += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${Math.max(0, bh).toFixed(1)}" fill="${pal[si % pal.length]}"/>`;
+          });
+        });
+      }
+      // Kategori etiketleri
+      cats.forEach((c, i) => {
+        body += `<text x="${(x0 + slot * (i + 0.5)).toFixed(1)}" y="${y1 + 12}" text-anchor="middle" font-size="9" fill="#666">${esc(String(c).slice(0, 10))}</text>`;
+      });
+    }
+
+    // Başlık
+    if (title) body += `<text x="${W / 2}" y="16" text-anchor="middle" font-size="13" font-weight="600" fill="${t.title}">${esc(title)}</text>`;
+    // Gösterge (legend)
+    if (multi) {
+      const items = e.chartType === "pie" ? cats : series.map((s) => s.name || "");
+      let lx = 6;
+      const ly = H - legendH + 4;
+      items.forEach((nm, i) => {
+        body += `<rect x="${lx}" y="${ly}" width="9" height="9" fill="${pal[i % pal.length]}"/>`;
+        const label = esc(String(nm).slice(0, 14));
+        body += `<text x="${lx + 12}" y="${ly + 8}" font-size="9" fill="#555">${label}</text>`;
+        lx += 24 + label.length * 5.2;
+      });
+    }
+    return `<svg class="pp-chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" width="100%" height="100%" style="background:#fff">${body}</svg>`;
+  },
+
+  _fmtNum(v) { return Math.abs(v) >= 1000 ? Math.round(v / 100) / 10 + "k" : (Math.round(v * 100) / 100); },
+
+  // Varsayılan grafik verisi (ekleme ve boş durum için)
+  defaultChart() {
+    return {
+      chartType: "bar",
+      title: XL.t("Grafik Başlığı", "Chart Title"),
+      cats: [XL.t("1. Çeyrek", "Q1"), XL.t("2. Çeyrek", "Q2"), XL.t("3. Çeyrek", "Q3"), XL.t("4. Çeyrek", "Q4")],
+      series: [{ name: XL.t("Seri 1", "Series 1"), values: [4.3, 2.5, 3.5, 4.5] }],
+    };
   },
 
   renderStage() {
@@ -618,7 +722,9 @@ XL.modes.pptx = {
     document.addEventListener("dblclick", (e) => {
       if (!active() || this.show) return;
       const box = e.target.closest("#pp-stage .pp-el");
-      if (box && box.querySelector(".pp-text")) this.startEditing(box.dataset.id, e);
+      if (!box) return;
+      if (box.classList.contains("pp-t-chart")) { this.openChartData(box.dataset.id); return; }
+      if (box.querySelector(".pp-text")) this.startEditing(box.dataset.id, e);
     });
 
     document.addEventListener("keydown", (e) => this.onKey(e));
@@ -789,6 +895,64 @@ XL.modes.pptx = {
     this.renderStage();
     clearTimeout(this.nudgeTimer);
     this.nudgeTimer = setTimeout(() => { this.commit(); this.refreshThumb(); }, 400);
+  },
+
+  // Grafik veri düzenleyici (çift tıkla açılır)
+  openChartData(id) {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;
+    const el = this.el(id);
+    if (!el || el.type !== "chart") return;
+    this.select(id);
+    const tt = XL.t;
+    const typeOpts = Object.entries(this.CHART_TYPES).map(([k, v]) =>
+      `<option value="${k}"${el.chartType === k ? " selected" : ""}>${v}</option>`).join("");
+    XL.showPanel(tt("Grafik Verisi", "Chart Data"), `
+      <div class="cf-ui chart-data">
+        <div class="cf-form">
+          <label>${tt("Tür", "Type")} <select id="ch-type">${typeOpts}</select></label>
+          <label>${tt("Başlık", "Title")} <input type="text" id="ch-title" value="${XL.esc(el.title || "")}" style="width:180px"></label>
+        </div>
+        <label class="share-sub">${tt("Kategoriler (virgülle)", "Categories (comma separated)")}</label>
+        <input type="text" id="ch-cats" value="${XL.esc((el.cats || []).join(", "))}" style="width:100%">
+        <div class="share-sub">${tt("Seriler", "Series")}</div>
+        <div id="ch-series"></div>
+        <button id="ch-addseries" class="oi-manage">+ ${tt("Seri ekle", "Add series")}</button>
+        <p style="margin-top:10px"><button id="ch-apply" class="share-add">${tt("Uygula", "Apply")}</button></p>
+      </div>`);
+
+    const seriesBox = document.getElementById("ch-series");
+    const drawSeries = (list) => {
+      seriesBox.innerHTML = list.map((s, i) => `
+        <div class="org-row ch-srow" data-i="${i}">
+          <input type="text" class="ch-sname" value="${XL.esc(s.name || "")}" placeholder="${tt("Ad", "Name")}" style="width:90px">
+          <input type="text" class="ch-svals" value="${XL.esc((s.values || []).join(", "))}" placeholder="${tt("değerler", "values")}" style="flex:1;min-width:120px">
+          <button class="sr-del" data-del="${i}">✕</button>
+        </div>`).join("");
+      seriesBox.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
+        const cur = read().series; cur.splice(+b.dataset.del, 1);
+        if (!cur.length) cur.push({ name: "", values: [] });
+        drawSeries(cur);
+      }));
+    };
+    const read = () => ({
+      chartType: document.getElementById("ch-type").value,
+      title: document.getElementById("ch-title").value,
+      cats: document.getElementById("ch-cats").value.split(",").map((x) => x.trim()).filter((x) => x !== ""),
+      series: [...seriesBox.querySelectorAll(".ch-srow")].map((row) => ({
+        name: row.querySelector(".ch-sname").value.trim(),
+        values: row.querySelector(".ch-svals").value.split(",").map((x) => parseFloat(x.trim())).filter((x) => isFinite(x)),
+      })),
+    });
+    drawSeries(JSON.parse(JSON.stringify(el.series || [])));
+    document.getElementById("ch-addseries").addEventListener("click", () => {
+      const cur = read().series; cur.push({ name: XL.t("Seri", "Series") + " " + (cur.length + 1), values: [] }); drawSeries(cur);
+    });
+    document.getElementById("ch-apply").addEventListener("click", () => {
+      const d = read();
+      if (!d.series.length) d.series = [{ name: "", values: [] }];
+      this.setProp(d);
+      XL.hidePanel();
+    });
   },
 
   duplicateElement() {
@@ -963,6 +1127,8 @@ XL.modes.pptx = {
         html += "</table>";
         return this.addElement({ type: "text", x: 80, y: 140, w: 800, h: 40 * r, fontSize: 16, html });
       }
+      case "chart":
+        return this.addElement(Object.assign({ type: "chart", x: 180, y: 110, w: 600, h: 360 }, this.defaultChart()));
       case "theme": this.data.theme = value; this.commit(); return this.renderAll();
       case "aspect": return this.setAspect(value);
       case "hf-dialog": return this.footerDialog();

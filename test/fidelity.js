@@ -93,6 +93,22 @@ async function run({ baseURL }) {
     check("Liste 2 öğe korundu", docx.li === 2, docx);
     check("Metin içeriği korundu", /Başlık/.test(docx.text) && /kalın/.test(docx.text) && /bir/.test(docx.text), docx);
 
+    // ---------------- DOCX dipnot (Faz 6) ----------------
+    const fn = await page.evaluate(async () => {
+      const root = document.createElement("div");
+      root.innerHTML = '<p>Metin<sup class="wd-fn" data-text="Kaynak: 2026 raporu" contenteditable="false">1</sup> devam eder.</p>';
+      const blob = await XL.docxIO.exportBlob(root, { size: "A4", orientation: "portrait", margin: "normal" });
+      const buf = await blob.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const fnXml = zip.file("word/footnotes.xml") ? await zip.file("word/footnotes.xml").async("string") : "";
+      const docXml = zip.file("word/document.xml") ? await zip.file("word/document.xml").async("string") : "";
+      return { hasFootnotesPart: !!fnXml, textInFootnote: /Kaynak: 2026 raporu/.test(fnXml), refInBody: /footnoteReference/.test(docXml) };
+    });
+    console.log("  DOCX footnote:", JSON.stringify(fn));
+    check("Dipnot bölümü (.docx) oluşturuldu", fn.hasFootnotesPart, fn);
+    check("Dipnot metni footnotes.xml'de", fn.textInFootnote, fn);
+    check("Dipnot başvurusu gövdede", fn.refInBody, fn);
+
     // ---------------- PPTX ----------------
     const pptx = await page.evaluate(async () => {
       const mode = XL.modes.pptx;
@@ -115,6 +131,24 @@ async function run({ baseURL }) {
     check("Başlık metni korundu", /Sunu Başlığı/.test(pptx.joined), pptx);
     check("Alt satır metni korundu", /Alt satır metni/.test(pptx.joined), pptx);
     check("Döndürme korundu (~30°)", Math.abs((pptx.rot || 0) - 30) <= 1, pptx);
+
+    // ---------------- PPTX grafik (Faz 6) ----------------
+    const chart = await page.evaluate(async () => {
+      const mode = XL.modes.pptx;
+      const data = mode.createData();
+      data.slides[0].elements.push(Object.assign({ id: "c1", type: "chart", x: 180, y: 110, w: 600, h: 360 }, mode.defaultChart()));
+      const blob = await XL.pptxIO.exportBlob(data, mode);
+      const buf = await blob.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const parts = Object.keys(zip.files).filter((f) => /ppt\/charts\/chart\d+\.xml$/.test(f));
+      // Uygulama içi SVG render de çalışmalı
+      const svg = mode.chartSVG(data.slides[0].elements[data.slides[0].elements.length - 1]);
+      return { parts: parts.length, svgHasRect: /<rect/.test(svg), svgHasText: /Grafik Başlığı|Chart Title/.test(svg) };
+    });
+    console.log("  PPTX chart:", JSON.stringify(chart));
+    check("Grafik .pptx'e aktarıldı (chart part)", chart.parts >= 1, chart);
+    check("Grafik SVG render edildi (bar)", chart.svgHasRect, chart);
+    check("Grafik başlığı SVG'de", chart.svgHasText, chart);
 
     check("Sayfa hatası yok", errors.length === 0, errors);
   } finally {

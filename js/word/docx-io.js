@@ -29,6 +29,8 @@ XL.docxIO = {
     const D = docx;
     this.D = D;
     this.listInstance = 0;
+    this.footnotes = {};      // dipnotlar (Faz 6): id → { children:[Paragraph] }
+    this.footnoteId = 0;
     const [pw, ph] = this.PAGE[page.size] || this.PAGE.A4;
     const m = this.resolveMargin(page.margin);
     const contentTw = (page.orientation === "landscape" ? ph : pw) - m.left - m.right;
@@ -61,6 +63,7 @@ XL.docxIO = {
     const doc = new D.Document({
       creator: XL.APP_NAME,
       styles: { default: { document: { run: { font: "Calibri", size: 22 } } } },
+      footnotes: Object.keys(this.footnotes).length ? this.footnotes : undefined,
       numbering: {
         config: [
           { reference: "num", levels: levels(() => D.LevelFormat.DECIMAL) },
@@ -214,6 +217,14 @@ XL.docxIO = {
     const tag = node.tagName;
     if (node.dataset && node.dataset.field === "page") {
       out.push(new D.TextRun(Object.assign({ children: [D.PageNumber.CURRENT] }, this.runOpts(fmt))));
+      return;
+    }
+    // Dipnot işaretçisi (Faz 6): gerçek OOXML dipnotuna çevir
+    if (node.classList && node.classList.contains("wd-fn")) {
+      const id = ++this.footnoteId;
+      const text = node.getAttribute("data-text") || "";
+      this.footnotes[id] = { children: [new D.Paragraph({ children: [new D.TextRun(text)] })] };
+      out.push(new D.FootnoteReferenceRun(id));
       return;
     }
     if (tag === "BR") { out.push(new D.TextRun({ text: "", break: 1 })); return; }

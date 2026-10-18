@@ -28,6 +28,7 @@ XL.pptxIO = {
           if (e.src) s.addImage(Object.assign({ data: e.src.replace(/^data:/, "") }, pos));
           return;
         }
+        if (e.type === "chart") { this.addChart(pptx, s, e, pos); return; }
         if (e.ph && mode.isEmpty(e.html)) return; // boş yer tutucular gösteride görünmez
 
         const isShape = e.type === "shape";
@@ -73,6 +74,23 @@ XL.pptxIO = {
     });
 
     return pptx.write({ outputType: "blob" });
+  },
+
+  // Grafik öğesini .pptx'e aktar (PptxGenJS addChart). Pasta = ilk seri; bar/line = çok seri.
+  addChart(pptx, s, e, pos) {
+    const type = pptx.ChartType[e.chartType] || pptx.ChartType.bar;
+    const cats = (e.cats && e.cats.length) ? e.cats : ["1", "2", "3"];
+    const series = (e.series && e.series.length) ? e.series : [{ name: "", values: [] }];
+    const norm = (vals) => cats.map((_, i) => (vals && isFinite(+vals[i])) ? +vals[i] : 0);
+    const chartData = e.chartType === "pie"
+      ? [{ name: series[0].name || e.title || "", labels: cats, values: norm(series[0].values) }]
+      : series.map((ser, i) => ({ name: ser.name || ("Series " + (i + 1)), labels: cats, values: norm(ser.values) }));
+    const opts = Object.assign({}, pos, {
+      showTitle: !!e.title, title: e.title || "", titleFontSize: 14,
+      showLegend: series.length > 1 || e.chartType === "pie", legendPos: "b",
+      chartColors: ["4472C4", "ED7D31", "A5A5A5", "FFC000", "5B9BD5", "70AD47", "9E480E", "997300"],
+    });
+    try { s.addChart(type, chartData, opts); } catch (err) { console.warn("Grafik aktarılamadı:", err); }
   },
 
   // Metin kutusu HTML'ini PptxGenJS koşu dizisine çevir

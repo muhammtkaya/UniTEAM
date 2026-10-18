@@ -585,13 +585,20 @@ XL.realtime = {
     const xlCells = ydoc.getMap("xlCells");
     const xlFormats = ydoc.getMap("xlFormats");
     const xlMeta = ydoc.getMap("xlMeta");
-    this._xl = { ydoc, xlSheets, xlCells, xlFormats, xlMeta, applying: false, pushT: null, renderT: null };
+    this._xl = { ydoc, xlSheets, xlCells, xlFormats, xlMeta, applying: false, pushT: null, renderT: null,
+      dirty: { cells: new Set(), formats: new Set(), structural: false } };
 
     if (xlSheets.length === 0) this._xlPush();   // ilk kullanıcı: motordan tohumla
     else this._xlRender();                        // mevcut oda içeriğini yükle
 
+    // Uzak değişiklikte hangi birimlerin kirlendiğini biriktir (artımlı render için).
+    // Yalnız hücre/biçim değişimi → artımlı; yapısal (sayfa/meta/düzen/CF/DV) → tam yükleme.
     const onChange = (evt, tr) => {
       if (tr && tr.origin === "local") return;
+      const d = this._xl.dirty;
+      if (evt.target === xlCells && evt.keysChanged) evt.keysChanged.forEach((k) => d.cells.add(k));
+      else if (evt.target === xlFormats && evt.keysChanged) evt.keysChanged.forEach((k) => d.formats.add(k));
+      else d.structural = true;
       clearTimeout(this._xl.renderT);
       this._xl.renderT = setTimeout(() => this._xlRender(), 150);
     };
@@ -710,7 +717,8 @@ XL.realtime = {
     return data;
   },
 
-  // Y → motor (data yeniden kurulup yüklenir; kullanıcı meşgulse ertele).
+  // Y → motor. Yalnız hücre/biçim değiştiyse ve sayfa yapısı aynıysa ARTIMLI uygula
+  // (büyük sayfalarda tam engine.load + grid.build'den çok daha hızlı); aksi halde tam yükle.
   _xlRender() {
     const p = this._xl; if (!p) return;
     if (document.body.dataset.mode !== "xlsx" || !XL.state.hf) return;
@@ -722,28 +730,66 @@ XL.realtime = {
       return;
     }
 
+    const d = p.dirty;
+    const names = p.xlSheets.toArray();
+    const st = XL.state;
+    const sameStructure = !d.structural
+      && names.length === st.sheets.length
+      && names.every((n, i) => st.sheets[i] && st.sheets[i].name === n);
+
     p.applying = true;
     try {
-      const st = XL.state, m = XL.modes.xlsx;
-      const keepIdx = Math.max(0, st.sheets.findIndex((s) => s.id === st.activeSheetId));
-      const keepActive = { ...st.active }, keepSel = { ...st.sel };
-
-      XL.engine.load(this._xlBuildData());
-
-      const ns = st.sheets;
-      st.activeSheetId = ns[Math.min(keepIdx, ns.length - 1)].id;
-      const clampR = (v) => Math.max(0, Math.min(v, XL.ROWS - 1));
-      const clampC = (v) => Math.max(0, Math.min(v, XL.COLS - 1));
-      st.active = { r: clampR(keepActive.r), c: clampC(keepActive.c) };
-      st.sel = { r1: clampR(keepSel.r1), c1: clampC(keepSel.c1), r2: clampR(keepSel.r2), c2: clampC(keepSel.c2) };
-
-      XL.grid.build();
-      m.applyView();
-      m.renderSheetTabs();
-      m.syncFormulaBar();
+      if (sameStructure && (d.cells.size || d.formats.size)) {
+        this._xlApplyIncremental(d);          // hızlı yol: yalnız değişen hücreler
+      } else {
+        this._xlFullReload();                 // yapısal değişiklik / ilk render
+      }
     } finally {
       p.applying = false;
+      p.dirty = { cells: new Set(), formats: new Set(), structural: false };
     }
+  },
+
+  // Hızlı yol: değişen hücre/biçimleri motora uygula, tek repaint (DOM/engine yeniden kurulmaz).
+  _xlApplyIncremental(d) {
+    const p = this._xl, st = XL.state;
+    d.cells.forEach((k) => {
+      const [idx, r, c] = k.split(":").map(Number);
+      const sheet = st.sheets[idx]; if (!sheet) return;
+      const raw = p.xlCells.get(k);
+      XL.engine.setCell(r, c, raw != null ? raw : "", sheet.id);
+    });
+    d.formats.forEach((k) => {
+      const [idx, r, c] = k.split(":").map(Number);
+      const sheet = st.sheets[idx]; if (!sheet) return;
+      const key = sheet.id + ":" + r + ":" + c;
+      const fj = p.xlFormats.get(k);
+      if (fj == null) delete st.formats[key];
+      else { try { st.formats[key] = JSON.parse(fj); } catch (e) {} }
+    });
+    XL.grid.render();
+    XL.grid.updateSelection(false);
+  },
+
+  // Tam yol: data'yı Y'den kurup engine.load + grid.build (yapısal değişiklikte doğru olan).
+  _xlFullReload() {
+    const st = XL.state, m = XL.modes.xlsx;
+    const keepIdx = Math.max(0, st.sheets.findIndex((s) => s.id === st.activeSheetId));
+    const keepActive = { ...st.active }, keepSel = { ...st.sel };
+
+    XL.engine.load(this._xlBuildData());
+
+    const ns = st.sheets;
+    st.activeSheetId = ns[Math.min(keepIdx, ns.length - 1)].id;
+    const clampR = (v) => Math.max(0, Math.min(v, XL.ROWS - 1));
+    const clampC = (v) => Math.max(0, Math.min(v, XL.COLS - 1));
+    st.active = { r: clampR(keepActive.r), c: clampC(keepActive.c) };
+    st.sel = { r1: clampR(keepSel.r1), c1: clampC(keepSel.c1), r2: clampR(keepSel.r2), c2: clampC(keepSel.c2) };
+
+    XL.grid.build();
+    m.applyView();
+    m.renderSheetTabs();
+    m.syncFormulaBar();
   },
 };
 

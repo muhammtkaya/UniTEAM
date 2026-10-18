@@ -8,6 +8,8 @@ XL.engine = {
     XL.state.sheets = [];
     XL.state.formats = {};
     XL.state.layout = {};
+    XL.state.condfmt = {};
+    XL.state.validations = {};
     XL.ROWS = data.rows || 100;
     XL.COLS = data.cols || 26;
 
@@ -38,6 +40,10 @@ XL.engine = {
         rowHeights: Object.assign({}, s.rowHeights),
         merges: Array.isArray(s.merges) ? s.merges.map((m) => m.slice()) : [],
       };
+
+      // Koşullu biçim + veri doğrulama (Faz 6) — içe aktarımda korunur.
+      XL.state.condfmt[id] = Array.isArray(s.condFmt) ? JSON.parse(JSON.stringify(s.condFmt)) : [];
+      XL.state.validations[id] = s.validations ? JSON.parse(JSON.stringify(s.validations)) : {};
     });
 
     XL.state.page = data.page || null; // yazdırma düzeni (kenar boşluğu + üst/alt bilgi)
@@ -69,6 +75,10 @@ XL.engine = {
       if (lay.colWidths && Object.keys(lay.colWidths).length) out.colWidths = lay.colWidths;
       if (lay.rowHeights && Object.keys(lay.rowHeights).length) out.rowHeights = lay.rowHeights;
       if (lay.merges && lay.merges.length) out.merges = lay.merges.map((m) => m.slice());
+      const cf = (XL.state.condfmt && XL.state.condfmt[s.id]) || [];
+      if (cf.length) out.condFmt = JSON.parse(JSON.stringify(cf));
+      const dv = (XL.state.validations && XL.state.validations[s.id]) || {};
+      if (Object.keys(dv).length) out.validations = JSON.parse(JSON.stringify(dv));
       return out;
     });
     const activeSheet = Math.max(0, XL.state.sheets.findIndex((s) => s.id === XL.state.activeSheetId));
@@ -102,6 +112,8 @@ XL.engine = {
       if (k.startsWith(id + ":")) delete XL.state.formats[k];
     });
     if (XL.state.layout) delete XL.state.layout[id];
+    if (XL.state.condfmt) delete XL.state.condfmt[id];
+    if (XL.state.validations) delete XL.state.validations[id];
     return true;
   },
 

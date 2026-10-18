@@ -118,7 +118,11 @@ XL.modes.xlsx = {
         <div class="rgroup"><div class="rrow">
           <button data-cmd="dedupe" class="big">⧉✕<span>${t("Yinelenenleri Kaldır", "Remove Duplicates")}</span></button>
           <button data-cmd="csv" class="big">⇩<span>${t("CSV İndir", "Download CSV")}</span></button>
-        </div><label>${t("Veri Araçları", "Data Tools")}</label></div>` },
+        </div><label>${t("Veri Araçları", "Data Tools")}</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="cond-format" class="big">🎨<span>${t("Koşullu Biçim", "Conditional Fmt")}</span></button>
+          <button data-cmd="data-validation" class="big">✔<span>${t("Veri Doğrulama", "Data Validation")}</span></button>
+        </div><label>${t("Kurallar", "Rules")}</label></div>` },
 
       { name: t("Görünüm", "View"), html: `
         <div class="rgroup"><div class="rrow">
@@ -261,6 +265,8 @@ XL.modes.xlsx = {
         return;
       }
       case "show-formulas": this.view.showFormulas = !this.view.showFormulas; XL.grid.render(); return this.syncFormulaBar();
+      case "cond-format": return XL.condfmt.openPanel();
+      case "data-validation": return XL.validation.openPanel();
       case "filter": return this.filter();
       case "clear-filter": this.hiddenRows.clear(); return this.applyHidden();
       case "dedupe": return this.dedupe();

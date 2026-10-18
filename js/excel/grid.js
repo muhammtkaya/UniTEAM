@@ -83,8 +83,11 @@ XL.grid = {
     td.classList.toggle("err", XL.isError(val));
     td.style.cssText = "";
     XL.format.styleCell(td, r, c);
+    if (XL.condfmt) XL.condfmt.applyCell(td, r, c, val);   // koşullu biçim (Faz 6)
     const f = XL.getFormat(r, c);
     td.classList.toggle("num", XL.format.isNumeric(val) && !f.align);
+    // Veri doğrulama işareti (açılır liste olan hücrede küçük ok).
+    if (XL.validation) { const rule = XL.validation.ruleFor(r, c); td.classList.toggle("dv-list", !!(rule && rule.type === "list")); }
   },
 
   // Tablo her kurulduğunda yeniden oluşturulur, bu yüzden dinleyicileri ona bağlamak güvenli
@@ -265,6 +268,17 @@ XL.grid = {
     const inp = document.createElement("input");
     inp.type = "text";
     inp.value = raw;
+    // Veri doğrulama listesi varsa açılır öneri (datalist) ekle (Faz 6).
+    if (XL.validation) {
+      const rule = XL.validation.ruleFor(r, c);
+      const opts = XL.validation.options(rule);
+      if (opts.length) {
+        const dlid = "dv-dl-" + r + "-" + c;
+        const dl = document.createElement("datalist"); dl.id = dlid;
+        dl.innerHTML = opts.map((o) => `<option value="${XL.esc(String(o))}"></option>`).join("");
+        td.appendChild(dl); inp.setAttribute("list", dlid);
+      }
+    }
     td.appendChild(inp);
     this.editInput = inp;
     inp.focus();
@@ -285,6 +299,16 @@ XL.grid = {
     if (!this.editing) return;
     const { r, c } = this.editing;
     const val = this.editInput.value;
+    // Veri doğrulama (Faz 6): kurala uymuyorsa girişi reddet (eski değer kalır).
+    if (XL.validation) {
+      const res = XL.validation.check(r, c, val);
+      if (!res.ok) {
+        this.editing = null; this.editInput = null;
+        this.render(); this.updateSelection();
+        XL.status("⚠ " + res.msg);
+        return;
+      }
+    }
     this.editing = null;
     this.editInput = null;
     XL.engine.setCell(r, c, val);

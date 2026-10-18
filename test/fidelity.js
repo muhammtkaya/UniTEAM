@@ -41,6 +41,36 @@ async function run({ baseURL }) {
     check("Sütun genişliği korundu (~140px)", Math.abs((xlsx.colW || 0) - 140) <= 8, xlsx);
     check("Satır yüksekliği korundu (~30px)", Math.abs((xlsx.rowH || 0) - 30) <= 8, xlsx);
 
+    // --- Koşullu biçim + veri doğrulama: uygulama-içi round-trip (serialize→load) [Faz 6]
+    const rules = await page.evaluate(() => {
+      const data = { rows: 50, cols: 10, activeSheet: 0, sheets: [{ name: "R1",
+        cells: { "0,0": "5", "1,0": "80", "2,0": "150" }, formats: {} }] };
+      XL.engine.load(data);
+      const sid = XL.state.sheets[0].id;
+      XL.state.condfmt[sid] = [{ id: "cf1", range: [0, 0, 2, 0], kind: "cell", op: "gt", v1: "100", style: { bg: "#ffe08a" } }];
+      XL.state.validations[sid] = { "5:0": { type: "list", list: ["Evet", "Hayır"] } };
+      const ser = XL.engine.serialize();
+      XL.engine.load(ser); // tekrar yükle
+      const sid2 = XL.state.sheets[0].id;
+      // A3=150 >100 → koşullu stil uygulanmalı; A1=5 → uygulanmamalı
+      const styHigh = XL.condfmt.styleFor(2, 0, 150);
+      const styLow = XL.condfmt.styleFor(0, 0, 5);
+      const dv = XL.validation.ruleFor(5, 0);
+      const bad = XL.validation.check(5, 0, "Belki");
+      const good = XL.validation.check(5, 0, "Evet");
+      return {
+        cfKept: (XL.state.condfmt[sid2] || []).length, styHigh: styHigh && styHigh.bg, styLow,
+        dvType: dv && dv.type, badOk: bad.ok, goodOk: good.ok,
+      };
+    });
+    console.log("  RULES:", JSON.stringify(rules));
+    check("Koşullu biçim kuralı round-trip korundu", rules.cfKept === 1, rules);
+    check("Koşul sağlandığında stil uygulanıyor (>100)", !!rules.styHigh, rules);
+    check("Koşul sağlanmadığında stil yok", rules.styLow === null, rules);
+    check("Veri doğrulama (liste) round-trip korundu", rules.dvType === "list", rules);
+    check("Geçersiz değer reddediliyor", rules.badOk === false, rules);
+    check("Geçerli değer kabul ediliyor", rules.goodOk === true, rules);
+
     // ---------------- DOCX ----------------
     const docx = await page.evaluate(async () => {
       const root = document.createElement("div");
@@ -68,18 +98,23 @@ async function run({ baseURL }) {
       const mode = XL.modes.pptx;
       const data = mode.createData();
       data.slides[0].elements[0].html = "Sunu Başlığı";
+      data.slides[0].elements[0].rot = 30;   // döndürme (Faz 6)
       data.slides[0].elements[1].html = "Alt satır metni";
       const blob = await XL.pptxIO.exportBlob(data, mode);
       const buf = await blob.arrayBuffer();
       const back = await XL.pptxIO.importArrayBuffer(buf);
       const texts = [];
-      back.slides.forEach((s) => s.elements.forEach((e) => { if (e.html) { const d = document.createElement("div"); d.innerHTML = e.html; texts.push(d.textContent.trim()); } }));
-      return { slides: back.slides.length, joined: texts.join(" | ") };
+      let rot = null;
+      back.slides.forEach((s) => s.elements.forEach((e) => {
+        if (e.html) { const d = document.createElement("div"); d.innerHTML = e.html; const tx = d.textContent.trim(); texts.push(tx); if (/Sunu Başlığı/.test(tx)) rot = e.rot; }
+      }));
+      return { slides: back.slides.length, joined: texts.join(" | "), rot };
     });
     console.log("  PPTX:", JSON.stringify(pptx));
     check("Slayt sayısı korundu (1)", pptx.slides === 1, pptx);
     check("Başlık metni korundu", /Sunu Başlığı/.test(pptx.joined), pptx);
     check("Alt satır metni korundu", /Alt satır metni/.test(pptx.joined), pptx);
+    check("Döndürme korundu (~30°)", Math.abs((pptx.rot || 0) - 30) <= 1, pptx);
 
     check("Sayfa hatası yok", errors.length === 0, errors);
   } finally {

@@ -28,6 +28,8 @@ import "../js/storage.js";
 import "../js/excel/formula.js";
 import "../js/excel/engine.js";
 import "../js/excel/layout.js";
+import "../js/excel/condfmt.js";
+import "../js/excel/validation.js";
 import "../js/excel/format.js";
 import "../js/excel/grid.js";
 import "../js/excel/io.js";

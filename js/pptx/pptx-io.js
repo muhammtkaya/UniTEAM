@@ -23,6 +23,7 @@ XL.pptxIO = {
 
       slide.elements.forEach((e) => {
         const pos = { x: inch(e.x), y: inch(e.y), w: inch(e.w), h: inch(e.h) };
+        if (e.rot) pos.rotate = e.rot;   // döndürme (Faz 6) — text/shape/image/table'a uygulanır
         if (e.type === "image") {
           if (e.src) s.addImage(Object.assign({ data: e.src.replace(/^data:/, "") }, pos));
           return;
@@ -385,7 +386,10 @@ XL.pptxIO = {
     if (!x) return null;
     const off = this.kid(x, "off"), ext = this.kid(x, "ext");
     if (!off || !ext) return null;
-    return { x: +off.getAttribute("x"), y: +off.getAttribute("y"), w: +ext.getAttribute("cx"), h: +ext.getAttribute("cy") };
+    // rot: 60000'de bir derece (OOXML). Döndürme (Faz 6).
+    const rotAttr = x.getAttribute("rot");
+    const rot = rotAttr ? Math.round((+rotAttr / 60000) % 360) : 0;
+    return { x: +off.getAttribute("x"), y: +off.getAttribute("y"), w: +ext.getAttribute("cx"), h: +ext.getAttribute("cy"), rot };
   },
 
   defaultSize(chain, ph, inheritedSp) {
@@ -551,6 +555,7 @@ XL.pptxIO = {
       html: txBody ? this.paragraphsToHtml(txBody, bulletDefault, scale) : "",
       valign: anchor === "ctr" ? "middle" : anchor === "b" ? "bottom" : undefined,
     }, this.toPx(tf(xf)));
+    if (xf.rot) el.rot = xf.rot;   // döndürme (Faz 6)
     if (visibleShape) { el.shape = SHAPES[prst] || "rect"; el.fill = fill; if (stroke) el.stroke = stroke; }
     else if (fill && fill !== "none") el.fill = fill;
     if (!visibleShape && stroke) el.stroke = stroke;

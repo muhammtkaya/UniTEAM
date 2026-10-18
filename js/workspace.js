@@ -549,7 +549,13 @@ XL.ws = {
       XL.status(XL.t("Açıldı: ", "Opened: ") + file.name);
     } catch (err) {
       console.error(err);
-      alert(XL.t("Dosya açılamadı: ", "Could not open file: ") + err.message);
+      // Bozuk/beklenmedik dosyada çökme yerine zarif, anlaşılır hata (Faz 6).
+      const msg = String(err && err.message || err);
+      const friendly = /zip|end of central|corrupt|invalid|unexpected|not a|format/i.test(msg)
+        ? XL.t("Dosya bozuk veya bu biçimin desteklenmeyen bir türevi olabilir.",
+               "The file may be corrupt or an unsupported variant of this format.")
+        : msg;
+      alert(XL.t("Dosya açılamadı: ", "Could not open file: ") + file.name + "\n\n" + friendly);
       XL.status("");
     }
   },

@@ -14,6 +14,8 @@ const XL = {
     sel: { r1: 0, c1: 0, r2: 0, c2: 0 },
     formats: {},         // "sheetId:r:c" -> {bold,italic,underline,color,bg,align,numfmt}
     layout: {},          // sheetId -> { colWidths:{c:px}, rowHeights:{r:px}, merges:[[r1,c1,r2,c2]] }
+    condfmt: {},         // sheetId -> [ koşullu biçim kuralları ]  (Faz 6)
+    validations: {},     // sheetId -> { "r:c": veri doğrulama kuralı }  (Faz 6)
   },
 };
 // Bundle köprüsü: diğer dosyalar (artık modül) XL'e global olarak erişsin.

@@ -132,6 +132,8 @@ js/
     io.js             .xlsx / .csv okuma-yazma (SheetJS)
     charts.js         Grafikler (Chart.js)
     pivot.js          Pivot tablo
+    condfmt.js        Koşullu biçimlendirme (kural → dinamik hücre stili)
+    validation.js     Veri doğrulama (açılır liste / sayı / metin uzunluğu)
   word/
     mode.js           Word modu: sayfa düzenleyici, şerit, komutlar
     docx-io.js        .docx okuma (kendi OOXML okuyucusu) ve yazma (docx)
@@ -193,9 +195,9 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 
 - **Otomatik kayıt kotası:** tarayıcı belleği yaklaşık 5 MB'tır. Çok resimli belgelerde otomatik kayıt başarısız olabilir; durum çubuğunda uyarı çıkar. Bu durumda **Kaydet** ile dosyayı indirin.
 - **Belgeler tarayıcıya özeldir:** otomatik kaydedilen veriler yalnızca o tarayıcıda durur; başka bir cihaza veya tarayıcıya taşınmaz.
-- **Excel:** koşullu biçimlendirme ve veri doğrulama henüz yok (hücre birleştirme, sütun genişliği ve satır yüksekliği eklendi). Türkçe fonksiyon adları (`=TOPLA`) yazılabilir; kayıtta İngilizce'ye çevrilir (gerçek `.xlsx` dosyaları da İngilizce saklar).
+- **Excel:** koşullu biçimlendirme ve veri doğrulama **uygulama içinde** çalışır ancak SheetJS kısıtı nedeniyle `.xlsx`'e yazılmaz (font/dolgu stili yazımı da öyle). Türkçe fonksiyon adları (`=TOPLA`) yazılabilir; kayıtta İngilizce'ye çevrilir.
 - **Word:** üst/alt bilgi, dipnot, yorum ve değişiklik izleme yok. Sayfa sınırları çizgiyle gösterilir; metin henüz gerçek sayfalara bölünmez.
-- **PowerPoint:** öğe animasyonları, döndürme ve slayta grafik ekleme yok. Slayt geçişleri `.pptx` dosyasına aktarılmaz.
+- **PowerPoint:** öğe döndürme eklendi (`.pptx` içe/dışa aktarımlı); öğe animasyonları ve slayta grafik ekleme henüz yok. Slayt geçişleri `.pptx` dosyasına aktarılmaz.
 - **Dokunmatik / dar ekran:** temel responsive düzen ve dokunma hedefleri eklendi; ızgarada tam dokunmatik sürükle-seçim henüz sınırlı.
 
 ---
@@ -266,12 +268,14 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [x] **Onboarding:** ilk açılışta bloklamayan karşılama banner'ı (bir kez), "❔ Yardım & Şablonlar" paneli (hızlı başlangıç + kısayollar + diller) ve **şablon galerisi** (boş + önceden doldurulmuş Excel Bütçe / Word Mektup).
 - ⏳ **Kalan (artımlı):** DE/ES/AR sözlüklerinin derin (mod şeritleri/diyaloglar) doldurulması; tam dokunmatik grid sürükleme; daha fazla şablon.
 
-### Faz 6 — Dosya sadakati & eş düzenleme olgunluğu (kod)
-- [ ] Excel: koşullu biçim, veri doğrulama, font/dolgu stili `.xlsx` yazımı
-- [ ] Word: üst/alt bilgi, dipnot, değişiklik izleme, gerçek sayfalama
-- [ ] PowerPoint: animasyon, döndürme, slayta grafik, geçişlerin `.pptx`'e aktarımı
-- [ ] Biçim sadakati testleri (yalnız metin değil) + geniş gerçek-dünya regresyon korpusu + bozuk dosyada zarif hata
-- [ ] Canlı hücre/öğe seçim göstergeleri (Excel+PPT), büyük sayfada artımlı render
+### Faz 6 — Dosya sadakati & eş düzenleme olgunluğu (kod) — 🔶 Bölüm A ✅ (yerelde)
+- [x] **Excel: koşullu biçimlendirme** (`js/excel/condfmt.js`): hücre değeri kuralları (>, <, =, arasında, metin içerir) + renk ölçeği + veri çubuğu; "Veri → Kurallar" şeridi. Belge verisinde saklanır (uygulama içi; SheetJS .xlsx yazımı desteklemez).
+- [x] **Excel: veri doğrulama** (`js/excel/validation.js`): açılır liste (datalist) + sayı aralığı/tam sayı + metin uzunluğu; girişte reddetme. Belge verisinde saklanır.
+- [x] **PowerPoint: döndürme** (`rot`): öğe render (CSS transform) + ⟲/⟳ şerit düğmeleri + **.pptx içe/dışa aktarım** (OOXML `rot` 60000/derece ↔ PptxGenJS `rotate`).
+- [x] **Bozuk dosyada zarif hata:** `openFile` artık bozuk/geçersiz dosyada çökme yerine anlaşılır (iki dilli) mesaj verir.
+- [x] **Biçim sadakati testleri:** fidelity'ye koşullu biçim + veri doğrulama round-trip + PPT döndürme round-trip eklendi (**43/43 test**).
+- [ ] **Bölüm B (kalan):** Excel font/dolgu stili `.xlsx` yazımı; Word üst/alt bilgi + dipnot + değişiklik izleme + gerçek sayfalama; PPT animasyon + slayta grafik + geçişlerin `.pptx`'e aktarımı; canlı hücre/öğe seçim göstergeleri + büyük sayfada artımlı render; geniş gerçek-dünya korpusu.
+- ⏳ v1 sınırı: koşullu biçim/veri doğrulama canlı eş düzenlemede henüz senkronlanmaz (uzak değişiklikte sıfırlanabilir).
 
 ### Faz 7 — Gözlemlenebilirlik (kod entegrasyonu)
 - [ ] Hata takibi (Sentry), yapılandırılmış log, metrik SDK'leri (servise bağlama Faz 9)

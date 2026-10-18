@@ -151,6 +151,8 @@ XL.modes.pptx = {
         </div><div class="rrow">
           <button data-cmd="front" title="${tt("Öne getir", "Bring forward")}">⬆ ${tt("Öne", "Front")}</button>
           <button data-cmd="back" title="${tt("Arkaya gönder", "Send backward")}">⬇ ${tt("Arkaya", "Back")}</button>
+          <button data-cmd="rotate-ccw" title="${tt("Sola döndür (15°)", "Rotate left (15°)")}">⟲</button>
+          <button data-cmd="rotate-cw" title="${tt("Sağa döndür (15°)", "Rotate right (15°)")}">⟳</button>
         </div><label>${tt("Çizim", "Drawing")}</label></div>` },
 
       { name: tt("Ekle", "Insert"), html: `
@@ -395,6 +397,7 @@ XL.modes.pptx = {
     box.className = "pp-el pp-t-" + e.type;
     box.dataset.id = e.id;
     Object.assign(box.style, { left: e.x + "px", top: e.y + "px", width: e.w + "px", height: e.h + "px" });
+    if (e.rot) box.style.transform = "rotate(" + e.rot + "deg)";   // döndürme (Faz 6)
 
     if (e.type === "image") {
       const img = document.createElement("img");
@@ -917,6 +920,14 @@ XL.modes.pptx = {
       case "fill": return this.setProp({ fill: value });
       case "stroke": return this.setProp({ stroke: value });
       case "no-fill": return this.setProp({ fill: "none" });
+      case "rotate-cw": case "rotate-ccw": {
+        const id = this.editingId || this.selId;
+        if (!id) return alert(XL.t("Önce bir öğe seçin.", "Select an element first."));
+        const el = this.el(id);
+        let rot = ((el.rot || 0) + (cmd === "rotate-cw" ? 15 : -15)) % 360;
+        if (rot < 0) rot += 360;
+        return this.setProp({ rot });
+      }
       case "front": case "back": {
         if (!this.selId) return;
         const arr = this.slide().elements;

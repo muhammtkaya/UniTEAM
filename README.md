@@ -118,6 +118,7 @@ js/
   cloud.js            Bulut belge katmanı + paylaşım (e-posta/link/herkese açık)
   org.js              Organizasyonlar & admin paneli (çok-kiracılık, RBAC, davet, denetim)
   security.js         Hesap güvenliği (2FA/MFA, giriş geçmişi, oturum yönetimi)
+  byos.js             Belge byte deposu sağlayıcı soyutlaması (relay + Drive/OneDrive iskeleti)
   comments.js         Yorumlar + @bahsetmeler + bildirimler
   realtime.js         Gerçek zamanlı eş düzenleme (Yjs CRDT + Durable Object)
   excel/
@@ -250,10 +251,11 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [ ] Plan / seat / depolama kotası modeli + enforcement
 - [ ] İş modeli: freemium / abonelik / kurumsal fiyatlandırma
 
-### Faz 4 — Güvenilirlik & veri sahipliği (kod)
-- [ ] BYOS: Google Drive / OneDrive'a belge byte'ı yazma/okuma (relay'den çıkış)
-- [ ] Yedekleme / sürüm geçmişi / çöp kutusu (uygulama katmanı)
-- [ ] Çevrimdışı kuyruk + yeniden bağlanınca çakışma çözümü olgunlaştırma
+### Faz 4 — Güvenilirlik & veri sahipliği (kod) ✅ (yerelde; BYOS canlı kısmı Faz 9)
+- [x] **Sürüm geçmişi + çöp kutusu:** `js/cloud.js` — bulut belgelerinde "🕘 Sürümler" (anlık görüntü oluştur/listele/geri yükle; sunucu-içi kopya, mevcut `document_versions` tablosu) ve "🗑 Çöp kutusu" (soft-delete `trashed_at` → çöpe taşı / geri yükle / kalıcı sil). **Yeni şema/migration gerekmedi** (tablolar/sütunlar zaten vardı).
+- [x] **Çevrimdışı kuyruk:** IndexedDB `outbox` store'u (`js/storage.js`, DB sürümü 1→2); çevrimdışıyken/ağ hatasında bulut kaydı kuyruğa alınır, yeniden çevrimiçi olunca (`online` olayı + giriş) otomatik eşitlenir. Çakışma: bulut byte'ında son-yazan-kazanır; canlı eş düzenleme yolu zaten Yjs CRDT ile birleştirir.
+- [x] **BYOS soyutlaması:** `js/byos.js` — sağlayıcı arayüzü (`putBytes/getBytes/copy/remove`); bugün etkin tek sağlayıcı `relay` (Supabase Storage), `gdrive`/`onedrive` **iskelet** (OAuth + domain gerektirdiği için çağrıldığında net "Faz 9" hatası). `cloud.js` artık byte'lara tek bir arayüzden konuşur.
+- [ ] **BYOS canlı (Google Drive / OneDrive):** OAuth client kaydı (Google Cloud Console / Azure) + domain gerektirir → **Faz 9** (deploy/OAuth go-live) ile adaptörlerin içi doldurulur.
 
 ### Faz 5 — Erişim genişliği (kod)
 - [ ] Mobil / responsive / dokunmatik arayüz

@@ -608,3 +608,8 @@ body.doc-readonly #btn-save { opacity: .85; }
 .mfa-enroll { display: flex; flex-direction: column; gap: 8px; }
 .mfa-qr { width: 164px; height: 164px; align-self: center; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px; }
 .mfa-secret { display: block; font-family: monospace; font-size: 13px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 8px; word-break: break-all; text-align: center; }
+
+/* Bulut araç çubuğu (Faz 4) */
+.cloud-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.ci-ver { border: none; background: transparent; cursor: pointer; font-size: 15px; padding: 2px 4px; }
+.ci-ver:hover { transform: scale(1.15); }

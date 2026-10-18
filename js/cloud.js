@@ -66,31 +66,117 @@ XL.cloud = {
 
   async remove(id) {
     this._assert();
-    // Önce byte'ı sil (varsa), sonra satırı (cascade değil — storage ayrı).
-    await this.client().storage.from("documents").remove([`${id}.json`]).catch(() => {});
+    // Önce byte'ları sil (ana + sürüm anlık görüntüleri), sonra satırı.
+    // (storage ayrı; document_versions satırları FK cascade ile gider.)
+    const refs = [XL.byos.mainRef(id)];
+    try {
+      const vers = await this.listVersions(id);
+      vers.forEach((v) => { if (v.storage_external_id) refs.push(v.storage_external_id); });
+    } catch (e) { /* sürüm yoksa yoksay */ }
+    await this.client().storage.from("documents").remove(refs).catch(() => {});
     const { error } = await this.client().from("documents").delete().eq("id", id);
     if (error) throw error;
   },
 
-  /* ---------- İçerik (Storage byte'ları) ---------- */
+  /* ---------- Sürüm geçmişi (document_versions) — Faz 4 ---------- */
 
-  // doc.data (JS nesnesi) → JSON blob → Storage "<id>.json" (üzerine yaz).
-  async putBytes(id, dataObj) {
+  // Etkin belgenin anlık görüntüsünü sürüm olarak sakla (ana byte'ı kopyalayarak).
+  async createVersion(docId, label) {
     this._assert();
-    const blob = new Blob([JSON.stringify(dataObj)], { type: "application/json" });
-    const { error } = await this.client().storage
-      .from("documents")
-      .upload(`${id}.json`, blob, { upsert: true, contentType: "application/json" });
+    // 1) Sürüm satırı (id'yi DB üretir) — created_by = giriş yapan.
+    const { data: row, error } = await this.client().from("document_versions")
+      .insert({ document_id: docId, label: label || null, created_by: XL.auth.user.id, storage_provider: "relay" })
+      .select().single();
     if (error) throw error;
+    // 2) Mevcut "<id>.json"u sürüm nesnesine kopyala (sunucu-içi, ucuz).
+    const ref = XL.byos.versionRef(docId, row.id);
+    try { await this._provider("relay").copy(XL.byos.mainRef(docId), ref); }
+    catch (e) { await this.client().from("document_versions").delete().eq("id", row.id); throw e; }
+    // 3) Referansı sürüm satırına yaz.
+    await this.client().from("document_versions").update({ storage_external_id: ref }).eq("id", row.id);
+    return row.id;
   },
 
-  // Storage "<id>.json" → JSON → doc.data nesnesi.
-  async getBytes(id) {
+  async listVersions(docId) {
     this._assert();
-    const { data, error } = await this.client().storage.from("documents").download(`${id}.json`);
+    const { data, error } = await this.client().from("document_versions")
+      .select("id, label, created_by, storage_external_id, created_at")
+      .eq("document_id", docId).order("created_at", { ascending: false });
     if (error) throw error;
-    const text = await data.text();
-    return JSON.parse(text);
+    return data;
+  },
+
+  // Bir sürümü geri yükle: güvenlik için önce mevcut hali yeni sürüm olarak sakla,
+  // sonra sürüm byte'ını ana byte'ın üzerine yaz.
+  async restoreVersion(docId, version) {
+    this._assert();
+    if (!version.storage_external_id) throw new Error(XL.t("Sürüm içeriği yok.", "Version has no content."));
+    try { await this.createVersion(docId, XL.t("geri yükleme öncesi", "before restore")); } catch (e) { /* ana byte yoksa atla */ }
+    const { data, error } = await this.client().storage.from("documents").download(version.storage_external_id);
+    if (error) throw error;
+    const obj = JSON.parse(await data.text());
+    await this.putBytes(docId, obj);
+    return obj;
+  },
+
+  /* ---------- Çöp kutusu (soft delete: trashed_at) — Faz 4 ---------- */
+  async trash(id)        { this._assert(); const { error } = await this.client().from("documents").update({ trashed_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
+  async restoreTrash(id) { this._assert(); const { error } = await this.client().from("documents").update({ trashed_at: null }).eq("id", id); if (error) throw error; },
+  async listTrash() {
+    this._assert();
+    const { data, error } = await this.client().from("documents")
+      .select("id, owner_id, name, type, updated_at, trashed_at")
+      .not("trashed_at", "is", null).order("trashed_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  /* ---------- Çevrimdışı kuyruk (outbox) — Faz 4 ---------- */
+  // Bulut kaydını kuyruğa al (çevrimdışı ya da ağ hatası). Yeniden bağlanınca flush.
+  async _enqueue(doc) {
+    if (!XL.store || !XL.store.available) return;
+    try {
+      await XL.store.queueOutbox({
+        key: doc.cloudId || ("local:" + doc.id), cloudId: doc.cloudId || null,
+        localId: doc.id, type: doc.type, name: doc.name, data: doc.data, ts: Date.now(),
+      });
+    } catch (e) { console.warn("outbox kuyruğa alınamadı:", e); }
+  },
+  // Kuyruğu boşalt: her bekleyen kaydı buluta yaz, başarılıyı kuyruktan çıkar.
+  async flushOutbox() {
+    if (!this.enabled() || !XL.store || !XL.store.available()) return;
+    let items = [];
+    try { items = await XL.store.loadOutbox(); } catch (e) { return; }
+    if (!items.length) return;
+    let ok = 0;
+    for (const it of items) {
+      try {
+        const id = await this.saveFull({ cloudId: it.cloudId, type: it.type, name: it.name, data: it.data });
+        // Yerel belge hâlâ açıksa cloudId'yi eşle.
+        const d = XL.ws && XL.ws.docs && XL.ws.docs.find((x) => x.id === it.localId);
+        if (d && !d.cloudId) { d.cloudId = id; XL.ws._save(d); }
+        await XL.store.clearOutbox(it.key);
+        ok++;
+      } catch (e) { /* hâlâ başarısız → kuyrukta kalsın */ }
+    }
+    if (ok) XL.status(XL.t("☁ Çevrimdışı değişiklikler eşitlendi: ", "☁ Offline changes synced: ") + ok);
+  },
+
+  /* ---------- İçerik (Storage byte'ları) ---------- */
+
+  // Belgenin etkin byte sağlayıcısı (BYOS soyutlaması — varsayılan relay).
+  _provider(name) { return XL.byos.provider(name || "relay"); },
+
+  // doc.data → sağlayıcıya yaz ("<id>.json"). (BYOS: relay/gdrive/onedrive.)
+  async putBytes(id, dataObj, provider) {
+    this._assert();
+    await this._provider(provider).putBytes(XL.byos.mainRef(id), dataObj);
+  },
+
+  // Sağlayıcıdan "<id>.json" → doc.data nesnesi.
+  async getBytes(id, provider) {
+    this._assert();
+    return this._provider(provider).getBytes(XL.byos.mainRef(id));
   },
 
   /* ---------- Birleşik yardımcılar ---------- */
@@ -259,6 +345,12 @@ XL.cloud = {
     const doc = XL.ws.active();
     if (!doc) return;
     XL.ws.persistNow(); // doc.data güncel olsun
+    // Çevrimdışıysa doğrudan kuyruğa al (yeniden bağlanınca eşitlenir).
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      await this._enqueue(doc);
+      XL.status(XL.t("📴 Çevrimdışı — değişiklik kuyruğa alındı, bağlanınca eşitlenecek.", "📴 Offline — change queued, will sync when reconnected."));
+      return;
+    }
     XL.status(XL.t("Buluta kaydediliyor…", "Saving to cloud…"));
     try {
       const id = await this.saveFull({ cloudId: doc.cloudId, type: doc.type, name: doc.name, data: doc.data });
@@ -267,8 +359,14 @@ XL.cloud = {
       XL.status(XL.t("☁ Buluta kaydedildi: ", "☁ Saved to cloud: ") + doc.name);
     } catch (e) {
       console.error(e);
-      alert(XL.t("Buluta kaydedilemedi: ", "Could not save to cloud: ") + (e.message || e));
-      XL.status("");
+      // Ağ hatasıysa kuyruğa al; değilse gerçek hatayı göster.
+      if (/fetch|network|failed to fetch|load failed/i.test(e.message || "")) {
+        await this._enqueue(doc);
+        XL.status(XL.t("📴 Bağlantı yok — değişiklik kuyruğa alındı.", "📴 No connection — change queued."));
+      } else {
+        alert(XL.t("Buluta kaydedilemedi: ", "Could not save to cloud: ") + (e.message || e));
+        XL.status("");
+      }
     }
   },
 
@@ -277,28 +375,30 @@ XL.cloud = {
     if (!this.enabled()) return alert(XL.t("Önce giriş yapın (👤 Giriş).", "Sign in first (👤 Sign in)."));
     XL.showPanel(XL.t("Bulut Belgelerim", "My Cloud Documents"), `<p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p>`);
     const body = document.getElementById("panel-body");
+    const toolbar = `<div class="cloud-toolbar"><button id="cl-trash" class="oi-manage">🗑 ${XL.t("Çöp kutusu", "Trash")}</button></div>`;
     let rows;
     try { rows = await this.list(); }
     catch (e) { body.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}` + XL.esc(e.message || String(e)) + "</p>"; return; }
-    if (!rows.length) {
-      body.innerHTML = `<p class="muted">${XL.t("Henüz bulut belgen yok. Bir belgeyi “☁ Buluta kaydet” ile yükle.", "No cloud documents yet. Upload one via “☁ Save to cloud”.")}</p>`;
-      return;
-    }
     const icon = { xlsx: "📊", docx: "📄", pptx: "📙" };
     const me = XL.auth.user.id;
-    body.innerHTML = '<div class="cloud-list">' + rows.map((r) => {
-      const mine = r.owner_id === me;
-      return `<div class="cloud-item" data-id="${r.id}" data-name="${XL.esc(r.name)}" title="${XL.t("Aç", "Open")}">
-         <span class="ci-ic">${icon[r.type] || "📄"}</span>
-         <span class="ci-name">${XL.esc(r.name)}${mine ? "" : ` <small class="ci-shared">${XL.t("paylaşılan", "shared")}</small>`}</span>
-         ${mine ? `<button class="ci-share" data-share="${r.id}" title="${XL.t("Paylaş", "Share")}">👥</button>
-                   <button class="ci-del" data-del="${r.id}" title="${XL.t("Buluttan sil", "Delete from cloud")}">🗑</button>` : ""}
-       </div>`;
-    }).join("") + "</div>";
+    const listHtml = rows.length
+      ? '<div class="cloud-list">' + rows.map((r) => {
+          const mine = r.owner_id === me;
+          return `<div class="cloud-item" data-id="${r.id}" data-name="${XL.esc(r.name)}" title="${XL.t("Aç", "Open")}">
+             <span class="ci-ic">${icon[r.type] || "📄"}</span>
+             <span class="ci-name">${XL.esc(r.name)}${mine ? "" : ` <small class="ci-shared">${XL.t("paylaşılan", "shared")}</small>`}</span>
+             ${mine ? `<button class="ci-share" data-share="${r.id}" title="${XL.t("Paylaş", "Share")}">👥</button>
+                       <button class="ci-ver" data-ver="${r.id}" title="${XL.t("Sürümler", "Versions")}">🕘</button>
+                       <button class="ci-del" data-trash="${r.id}" title="${XL.t("Çöpe taşı", "Move to trash")}">🗑</button>` : ""}
+           </div>`;
+        }).join("") + "</div>"
+      : `<p class="muted">${XL.t("Henüz bulut belgen yok. Bir belgeyi “☁ Buluta kaydet” ile yükle.", "No cloud documents yet. Upload one via “☁ Save to cloud”.")}</p>`;
+    body.innerHTML = toolbar + listHtml;
 
+    document.getElementById("cl-trash").addEventListener("click", () => this.openTrash());
     body.querySelectorAll(".cloud-item").forEach((el) => {
       el.addEventListener("click", (e) => {
-        if (e.target.closest("[data-del]") || e.target.closest("[data-share]")) return;
+        if (e.target.closest("button")) return;
         this.openDoc(el.dataset.id);
       });
     });
@@ -309,14 +409,102 @@ XL.cloud = {
         this.openShare(b.dataset.share, item.dataset.name);
       });
     });
-    body.querySelectorAll("[data-del]").forEach((b) => {
-      b.addEventListener("click", async (e) => {
+    body.querySelectorAll("[data-ver]").forEach((b) => {
+      b.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (!confirm(XL.t("Bu belge BULUTTAN silinsin mi? (yereldeki kopya kalır)", "Delete this document FROM THE CLOUD? (local copy remains)"))) return;
-        try { await this.remove(b.dataset.del); this.openPicker(); }
-        catch (err) { alert(XL.t("Silinemedi: ", "Could not delete: ") + (err.message || err)); }
+        const item = b.closest(".cloud-item");
+        this.openVersions(b.dataset.ver, item.dataset.name);
       });
     });
+    body.querySelectorAll("[data-trash]").forEach((b) => {
+      b.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm(XL.t("Bu belge çöp kutusuna taşınsın mı? (geri alınabilir)", "Move this document to trash? (reversible)"))) return;
+        try { await this.trash(b.dataset.trash); this.openPicker(); }
+        catch (err) { alert(XL.t("Taşınamadı: ", "Could not move: ") + (err.message || err)); }
+      });
+    });
+  },
+
+  // Çöp kutusu paneli: geri yükle veya KALICI sil.
+  async openTrash() {
+    XL.showPanel(XL.t("🗑 Çöp Kutusu", "🗑 Trash"), `<p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p>`);
+    const body = document.getElementById("panel-body");
+    let rows;
+    try { rows = await this.listTrash(); }
+    catch (e) { body.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}${XL.esc(e.message || String(e))}</p>`; return; }
+    const back = `<button class="share-back" id="tr-back">← ${XL.t("Belgelerim", "My Documents")}</button>`;
+    const icon = { xlsx: "📊", docx: "📄", pptx: "📙" };
+    const list = rows.length
+      ? '<div class="cloud-list">' + rows.map((r) => `
+          <div class="cloud-item" data-id="${r.id}">
+            <span class="ci-ic">${icon[r.type] || "📄"}</span>
+            <span class="ci-name">${XL.esc(r.name)} <small class="oi-meta">${new Date(r.trashed_at).toLocaleString()}</small></span>
+            <button class="share-add" data-restore="${r.id}">${XL.t("Geri yükle", "Restore")}</button>
+            <button class="ci-del" data-purge="${r.id}" title="${XL.t("Kalıcı sil", "Delete permanently")}">✕</button>
+          </div>`).join("") + "</div>"
+      : `<p class="muted">${XL.t("Çöp kutusu boş.", "Trash is empty.")}</p>`;
+    body.innerHTML = `<div class="org-ui">${back}${list}</div>`;
+    document.getElementById("tr-back").addEventListener("click", () => this.openPicker());
+    body.querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", async () => {
+      try { await this.restoreTrash(b.dataset.restore); this.openTrash(); }
+      catch (e) { alert(e.message || String(e)); }
+    }));
+    body.querySelectorAll("[data-purge]").forEach((b) => b.addEventListener("click", async () => {
+      if (!confirm(XL.t("KALICI olarak silinsin mi? Bu geri alınamaz.", "Delete PERMANENTLY? This cannot be undone."))) return;
+      try { await this.remove(b.dataset.purge); this.openTrash(); }
+      catch (e) { alert(e.message || String(e)); }
+    }));
+  },
+
+  // Sürümler paneli: anlık görüntü oluştur / listele / geri yükle.
+  async openVersions(docId, docName) {
+    XL.showPanel(XL.t("🕘 Sürümler — ", "🕘 Versions — ") + (docName || ""), `<p class="muted">${XL.t("Yükleniyor…", "Loading…")}</p>`);
+    const body = document.getElementById("panel-body");
+    const render = async () => {
+      let rows;
+      try { rows = await this.listVersions(docId); }
+      catch (e) { body.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}${XL.esc(e.message || String(e))}</p>`; return; }
+      const list = rows.length
+        ? '<div class="cloud-list">' + rows.map((v) => `
+            <div class="cloud-item" data-id="${v.id}">
+              <span class="ci-ic">🕘</span>
+              <span class="ci-name">${XL.esc(v.label || XL.t("Sürüm", "Version"))} <small class="oi-meta">${new Date(v.created_at).toLocaleString()}</small></span>
+              <button class="share-add" data-restore="${v.id}">${XL.t("Geri yükle", "Restore")}</button>
+            </div>`).join("") + "</div>"
+        : `<p class="muted">${XL.t("Henüz sürüm yok.", "No versions yet.")}</p>`;
+      body.innerHTML = `
+        <div class="org-ui">
+          <button class="share-back" id="vr-back">← ${XL.t("Belgelerim", "My Documents")}</button>
+          <div class="share-form"><button id="vr-new" class="share-add">📸 ${XL.t("Şu anki hali sürüm olarak kaydet", "Save current state as version")}</button></div>
+          <div id="vr-msg" class="share-msg hidden"></div>
+          ${list}
+        </div>`;
+      const msg = (t, k) => { const e = document.getElementById("vr-msg"); if (e) { e.textContent = t || ""; e.className = "share-msg" + (t ? " " + (k || "error") : " hidden"); } };
+      document.getElementById("vr-back").addEventListener("click", () => this.openPicker());
+      document.getElementById("vr-new").addEventListener("click", async () => {
+        msg("");
+        try { await this.createVersion(docId, new Date().toLocaleString()); msg(XL.t("Sürüm kaydedildi.", "Version saved."), "ok"); render(); }
+        catch (e) { msg(this._versionError(e)); }
+      });
+      body.querySelectorAll("[data-restore]").forEach((b) => b.addEventListener("click", async () => {
+        if (!confirm(XL.t("Bu sürüm geri yüklensin mi? (mevcut hali önce sürüm olarak saklanır)", "Restore this version? (current state is first saved as a version)"))) return;
+        const v = rows.find((x) => x.id === b.dataset.restore);
+        try {
+          await this.restoreVersion(docId, v);
+          // Belge açıksa yeniden yükle.
+          const d = XL.ws.docs.find((x) => x.cloudId === docId);
+          if (d) { await this.openDoc(docId); } else { msg(XL.t("Geri yüklendi.", "Restored."), "ok"); }
+        } catch (e) { msg(this._versionError(e)); }
+      }));
+    };
+    render();
+  },
+
+  _versionError(e) {
+    const m = (e && e.message) || String(e);
+    if (/not found|bulunamadı|Object not found/i.test(m)) return XL.t("Önce belgeyi buluta kaydedin (☁).", "Save the document to the cloud first (☁).");
+    return m;
   },
 
   // Bir belgenin paylaşım panelini aç (e-posta ile paylaş + mevcut paylaşımlar).
@@ -470,3 +658,8 @@ XL.cloud = {
     }
   },
 };
+
+// Yeniden çevrimiçi olunca bekleyen bulut kayıtlarını otomatik eşitle (Faz 4).
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => { if (XL.cloud) XL.cloud.flushOutbox(); });
+}

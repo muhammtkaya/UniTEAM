@@ -5,8 +5,9 @@
  * sunar, eşzamansızdır ve belge başına kayıt tutar (yalnızca değişeni yazarız).
  *
  * Şema:  veritabanı "uniteam"
- *   - object store "docs"  (keyPath: "id")  -> { id, type, name, data }
- *   - object store "meta"  (anahtar "state") -> { order: [id...], activeId }
+ *   - object store "docs"   (keyPath: "id")  -> { id, type, name, data }
+ *   - object store "meta"   (anahtar "state") -> { order: [id...], activeId }
+ *   - object store "outbox" (keyPath: "key")  -> çevrimdışı bulut kayıt kuyruğu (Faz 4)
  *
  * Marka göçü: DB adı eski "weboffice"den "uniteam"e taşındı. İlk açılışta yeni DB
  * boşsa eski DB'den (varsa) belgeler/meta/tercihler otomatik kopyalanır → hiçbir
@@ -15,7 +16,7 @@
 XL.store = {
   NAME: "uniteam",
   OLD_NAMES: ["weboffice"],
-  VER: 1,
+  VER: 2,            // Faz 4: "outbox" store eklendi (1→2)
   _db: null,
 
   available() {
@@ -31,6 +32,7 @@ XL.store = {
         const db = req.result;
         if (!db.objectStoreNames.contains("docs")) db.createObjectStore("docs", { keyPath: "id" });
         if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta");
+        if (!db.objectStoreNames.contains("outbox")) db.createObjectStore("outbox", { keyPath: "key" });
       };
       req.onsuccess = async () => {
         this._db = req.result;
@@ -127,6 +129,25 @@ XL.store = {
       const rq = tx.objectStore("meta").get("prefs");
       tx.oncomplete = () => res(rq.result || null);
       tx.onerror = () => res(null);
+    });
+  },
+
+  /* --- Çevrimdışı bulut kayıt kuyruğu (outbox) — Faz 4 --- */
+  // entry: { key, cloudId, localId, type, name, data, ts }
+  queueOutbox(entry) {
+    return this._write("outbox", (os) => os.put(entry));
+  },
+  clearOutbox(key) {
+    return this._write("outbox", (os) => os.delete(key));
+  },
+  async loadOutbox() {
+    const db = await this._open();
+    return new Promise((res) => {
+      let tx;
+      try { tx = db.transaction("outbox", "readonly"); } catch (e) { return res([]); }
+      const rq = tx.objectStore("outbox").getAll();
+      tx.oncomplete = () => res(rq.result || []);
+      tx.onerror = () => res([]);
     });
   },
 

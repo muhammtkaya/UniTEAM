@@ -16,6 +16,7 @@ import "../js/core.js";
 import "../js/i18n.js";
 import "../js/config.js";
 import "../js/auth.js";
+import "../js/byos.js";
 import "../js/cloud.js";
 import "../js/org.js";
 import "../js/security.js";

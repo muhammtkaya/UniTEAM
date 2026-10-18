@@ -41,7 +41,7 @@ XL.auth = {
       this.user = data.session ? data.session.user : null;
       this._ready = true;
       this._renderButton();
-      if (XL.cloud) XL.cloud.handleUrlLink();  // ?link=<token> varsa aç
+      if (XL.cloud) { XL.cloud.handleUrlLink(); XL.cloud.flushOutbox(); }  // ?link + bekleyen kuyruk
       if (XL.org) XL.org.handleUrlInvite();    // ?invite=<token> varsa kabul et
     });
 

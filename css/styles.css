@@ -148,8 +148,13 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 #grid td.merged-cover { display: none; }
 #grid td.merged { text-align: center; vertical-align: middle; }
 /* Sütun / satır yeniden boyutlandırma tutamaçları (başlık kenarları) */
-#grid thead th .col-resizer { position: absolute; top: 0; right: 0; width: 5px; height: 100%; cursor: col-resize; z-index: 4; }
-#grid th.rowhead .row-resizer { position: absolute; left: 0; bottom: 0; width: 100%; height: 5px; cursor: row-resize; z-index: 4; }
+#grid thead th .col-resizer { position: absolute; top: 0; right: 0; width: 5px; height: 100%; cursor: col-resize; z-index: 4; touch-action: none; }
+#grid th.rowhead .row-resizer { position: absolute; left: 0; bottom: 0; width: 100%; height: 5px; cursor: row-resize; z-index: 4; touch-action: none; }
+/* Dokunmatik: kenar tutamaçlarını parmakla yakalamayı kolaylaştır (görünüm aynı). */
+@media (pointer: coarse) {
+  #grid thead th .col-resizer { width: 11px; }
+  #grid th.rowhead .row-resizer { height: 11px; }
+}
 #grid.freeze-row tbody tr:first-child td, #grid.freeze-row tbody tr:first-child th { position: sticky; top: 23px; z-index: 2; border-bottom: 2px solid #9a9a9a; }
 #grid.freeze-col td:nth-child(2) { position: sticky; left: 44px; z-index: 1; border-right: 2px solid #9a9a9a; }
 #grid.freeze-row.freeze-col tbody tr:first-child td:nth-child(2) { z-index: 4; }

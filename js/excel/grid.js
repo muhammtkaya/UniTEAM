@@ -94,8 +94,9 @@ XL.grid = {
   attachTableEvents() {
     const table = this.table;
 
-    // Sütun / satır kenarını sürükleyerek yeniden boyutlandırma
-    table.addEventListener("mousedown", (e) => {
+    // Sütun / satır kenarını sürükleyerek yeniden boyutlandırma (fare + dokunma + kalem:
+    // Pointer Events ile birleşik → mobilde de kenar tutamaçlarından boyutlandırma çalışır).
+    table.addEventListener("pointerdown", (e) => {
       const cr = e.target.closest(".col-resizer");
       if (cr) { e.preventDefault(); e.stopPropagation(); this.startColResize(+cr.parentElement.dataset.c, e.clientX); return; }
       const rr = e.target.closest(".row-resizer");
@@ -149,6 +150,62 @@ XL.grid = {
       }
       this.updateSelection(false);
     });
+
+    /* ---- Dokunmatik (mobil/tablet) ----
+     * Normal parmak sürüklemesi = sayfayı kaydır (default). Tek dokunuş = hücre
+     * seç (tarayıcının sentezlediği fare olayı mevcut mousedown'ı tetikler).
+     * UZUN BAS (350ms) → aralık seçim moduna gir, ardından sürükle = aralığı
+     * genişlet (kaydırma engellenir). Aynı hücreye ÇİFT DOKUNUŞ = düzenle. */
+    let lp = null;
+    const endTouch = (e) => {
+      if (!lp) return;
+      clearTimeout(lp.timer);
+      if (lp.sel) { if (e && e.cancelable) e.preventDefault(); }  // sentezlenen fareyle seçim sıfırlanmasın
+      else if (!lp.moved) {
+        const now = Date.now();
+        if (this._lastTap && this._lastTap.r === lp.r && this._lastTap.c === lp.c && now - this._lastTap.t < 300) {
+          if (e && e.cancelable) e.preventDefault();
+          this.startEdit(lp.r, lp.c);                 // çift dokunuş → düzenle
+          this._lastTap = null;
+        } else {
+          this._lastTap = { r: lp.r, c: lp.c, t: now }; // tek dokunuş: fare sentezi seçer
+        }
+      }
+      lp = null;
+    };
+    table.addEventListener("touchstart", (e) => {
+      if (e.target.closest(".col-resizer,.row-resizer") || e.target.tagName === "INPUT") return;
+      const td = e.target.closest("td");
+      if (!td || td.dataset.r === undefined) return;
+      const r = +td.dataset.r, c = +td.dataset.c;
+      const t = e.touches[0];
+      lp = {
+        r, c, x: t.clientX, y: t.clientY, sel: false, moved: false,
+        timer: setTimeout(() => {
+          if (!lp) return;
+          lp.sel = true;
+          if (this.editing) this.commitEdit();
+          XL.state.active = { r, c };
+          XL.state.sel = { r1: r, c1: c, r2: r, c2: c };
+          this.updateSelection();
+          this.focusSink();
+        }, 350),
+      };
+    }, { passive: true });
+    table.addEventListener("touchmove", (e) => {
+      if (!lp) return;
+      const t = e.touches[0];
+      if (!lp.sel) {
+        // Seçim moduna girmeden parmak kaydıysa = kaydırma; uzun-bas zamanlayıcısını iptal et.
+        if (Math.abs(t.clientX - lp.x) > 8 || Math.abs(t.clientY - lp.y) > 8) { lp.moved = true; clearTimeout(lp.timer); lp = null; }
+        return;
+      }
+      if (e.cancelable) e.preventDefault();  // seçim sürüklemesi kaydırmayı ezer
+      const cell = this._cellFromPoint(t.clientX, t.clientY);
+      if (cell) { XL.state.sel.r2 = cell.r; XL.state.sel.c2 = cell.c; this.updateSelection(); }
+    }, { passive: false });
+    table.addEventListener("touchend", endTouch, { passive: false });
+    table.addEventListener("touchcancel", endTouch, { passive: false });
   },
 
   /* ---- Sütun / satır yeniden boyutlandırma (sürükle) ---- */
@@ -162,13 +219,13 @@ XL.grid = {
       if (th) th.style.cssText += `;width:${w}px;min-width:${w}px;max-width:${w}px`;
     };
     const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
       this._justResized = true;
       XL.ws.changed();
     };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
   },
   startRowResize(r, startY) {
     if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;
@@ -180,13 +237,21 @@ XL.grid = {
       if (tr) tr.style.height = h + "px";
     };
     const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
       this._justResized = true;
       XL.ws.changed();
     };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  },
+
+  // Bir ekran noktasının altındaki hücreyi bul (dokunmatik aralık seçimi için).
+  _cellFromPoint(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const td = el && el.closest && el.closest("td");
+    if (!td || td.dataset.r === undefined) return null;
+    return { r: +td.dataset.r, c: +td.dataset.c };
   },
 
   // Belge düzeyindeki dinleyiciler yalnızca bir kez bağlanır

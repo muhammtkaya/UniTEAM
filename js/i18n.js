@@ -29,13 +29,33 @@ XL.i18n = {
 
   // Ek dil sözlükleri (anahtar = kanonik Türkçe dize). Artımlı doldurulur;
   // eksik dizeler İngilizce'ye düşer. Çekirdek kabuk terimleriyle başlar.
+  // Not: "Giriş" bilinçli yok — hem "Home" (şerit sekmesi) hem "Login" (hesap)
+  // anlamına geldiğinden ve sözlük yalnız TR-anahtarlı olduğundan tek çeviri yanlış
+  // anlam verirdi (en yedeği "Home" ribbon'da doğru; auth tek-arg → TR görünür).
   DICT: {
     de: {
+      // Hesap / bulut (mevcut)
       "👤 Giriş": "👤 Anmelden", "Kaydet": "Speichern", "Aç": "Öffnen", "Yeni": "Neu",
       "Çıkış yap": "Abmelden", "🔐 Güvenlik": "🔐 Sicherheit",
       "🏢 Organizasyonlarım": "🏢 Meine Organisationen", "Paylaş": "Teilen",
       "Bulut Belgelerim": "Meine Cloud-Dokumente", "Hazır": "Bereit", "Yükleniyor…": "Lädt…",
       "☁ Buluta kaydet": "☁ In Cloud speichern", "📥 Bulut belgelerim": "📥 Meine Cloud-Dokumente",
+      "💾 Kaydet": "💾 Speichern", "📂 Aç": "📂 Öffnen",
+      // Şerit sekmeleri
+      "Ekle": "Einfügen", "Düzen": "Layout", "Gözden Geçir": "Überprüfen", "Görünüm": "Ansicht",
+      "Formüller": "Formeln", "Veri": "Daten", "Tasarım": "Entwurf", "Geçişler": "Übergänge",
+      "Slayt Gösterisi": "Bildschirmpräsentation",
+      // Ortak eylem / düğme / terim
+      "Kapat": "Schließen", "Oluştur": "Erstellen", "Gönder": "Senden", "Vazgeç": "Abbrechen",
+      "Sil": "Löschen", "Yönet": "Verwalten", "Katıl": "Beitreten", "Doğrula": "Bestätigen",
+      "Kopyala": "Kopieren", "Hata: ": "Fehler: ", "Üye": "Mitglied", "Yönetici": "Administrator",
+      "Belgelerim": "Meine Dokumente", "Çöp kutusu": "Papierkorb", "Sürümler": "Versionen",
+      "Geri yükle": "Wiederherstellen", "Kalıcı sil": "Endgültig löschen",
+      "Giriş Yap": "Anmelden", "Kayıt Ol": "Registrieren", "E-posta": "E-Mail", "Parola": "Passwort",
+      "Hesabım": "Mein Konto", "Üyeler": "Mitglieder", "Belgeler": "Dokumente", "Denetim": "Prüfprotokoll",
+      "Erişimi kaldır": "Zugriff entfernen", "Bağlantıyı kopyala": "Link kopieren",
+      "Tümünü okundu işaretle": "Alle als gelesen markieren", "Bildirimler": "Benachrichtigungen",
+      "Gönderiliyor…": "Wird gesendet…",
     },
     es: {
       "👤 Giriş": "👤 Entrar", "Kaydet": "Guardar", "Aç": "Abrir", "Yeni": "Nuevo",
@@ -43,6 +63,20 @@ XL.i18n = {
       "🏢 Organizasyonlarım": "🏢 Mis organizaciones", "Paylaş": "Compartir",
       "Bulut Belgelerim": "Mis documentos en la nube", "Hazır": "Listo", "Yükleniyor…": "Cargando…",
       "☁ Buluta kaydet": "☁ Guardar en la nube", "📥 Bulut belgelerim": "📥 Mis documentos en la nube",
+      "💾 Kaydet": "💾 Guardar", "📂 Aç": "📂 Abrir",
+      "Ekle": "Insertar", "Düzen": "Disposición", "Gözden Geçir": "Revisar", "Görünüm": "Vista",
+      "Formüller": "Fórmulas", "Veri": "Datos", "Tasarım": "Diseño", "Geçişler": "Transiciones",
+      "Slayt Gösterisi": "Presentación con diapositivas",
+      "Kapat": "Cerrar", "Oluştur": "Crear", "Gönder": "Enviar", "Vazgeç": "Cancelar",
+      "Sil": "Eliminar", "Yönet": "Gestionar", "Katıl": "Unirse", "Doğrula": "Verificar",
+      "Kopyala": "Copiar", "Hata: ": "Error: ", "Üye": "Miembro", "Yönetici": "Administrador",
+      "Belgelerim": "Mis documentos", "Çöp kutusu": "Papelera", "Sürümler": "Versiones",
+      "Geri yükle": "Restaurar", "Kalıcı sil": "Eliminar permanentemente",
+      "Giriş Yap": "Iniciar sesión", "Kayıt Ol": "Registrarse", "E-posta": "Correo electrónico", "Parola": "Contraseña",
+      "Hesabım": "Mi cuenta", "Üyeler": "Miembros", "Belgeler": "Documentos", "Denetim": "Auditoría",
+      "Erişimi kaldır": "Quitar acceso", "Bağlantıyı kopyala": "Copiar enlace",
+      "Tümünü okundu işaretle": "Marcar todo como leído", "Bildirimler": "Notificaciones",
+      "Gönderiliyor…": "Enviando…",
     },
     ar: {
       "👤 Giriş": "👤 تسجيل الدخول", "Kaydet": "حفظ", "Aç": "فتح", "Yeni": "جديد",
@@ -50,6 +84,20 @@ XL.i18n = {
       "🏢 Organizasyonlarım": "🏢 مؤسساتي", "Paylaş": "مشاركة",
       "Bulut Belgelerim": "مستنداتي السحابية", "Hazır": "جاهز", "Yükleniyor…": "جار التحميل…",
       "☁ Buluta kaydet": "☁ حفظ في السحابة", "📥 Bulut belgelerim": "📥 مستنداتي السحابية",
+      "💾 Kaydet": "💾 حفظ", "📂 Aç": "📂 فتح",
+      "Ekle": "إدراج", "Düzen": "تخطيط", "Gözden Geçir": "مراجعة", "Görünüm": "عرض",
+      "Formüller": "الصيغ", "Veri": "البيانات", "Tasarım": "تصميم", "Geçişler": "الانتقالات",
+      "Slayt Gösterisi": "عرض الشرائح",
+      "Kapat": "إغلاق", "Oluştur": "إنشاء", "Gönder": "إرسال", "Vazgeç": "إلغاء",
+      "Sil": "حذف", "Yönet": "إدارة", "Katıl": "انضمام", "Doğrula": "تحقق",
+      "Kopyala": "نسخ", "Hata: ": "خطأ: ", "Üye": "عضو", "Yönetici": "مسؤول",
+      "Belgelerim": "مستنداتي", "Çöp kutusu": "سلة المحذوفات", "Sürümler": "الإصدارات",
+      "Geri yükle": "استعادة", "Kalıcı sil": "حذف نهائي",
+      "Giriş Yap": "تسجيل الدخول", "Kayıt Ol": "إنشاء حساب", "E-posta": "البريد الإلكتروني", "Parola": "كلمة المرور",
+      "Hesabım": "حسابي", "Üyeler": "الأعضاء", "Belgeler": "المستندات", "Denetim": "سجل التدقيق",
+      "Erişimi kaldır": "إزالة الوصول", "Bağlantıyı kopyala": "نسخ الرابط",
+      "Tümünü okundu işaretle": "تحديد الكل كمقروء", "Bildirimler": "الإشعارات",
+      "Gönderiliyor…": "جارٍ الإرسال…",
     },
   },
 

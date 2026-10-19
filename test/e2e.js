@@ -60,15 +60,21 @@ async function run({ baseURL }) {
       XL.i18n.set("en");
       const tabEN = document.querySelector('#ribbon .rtab[data-tab="0"]').textContent.trim();
       const saveEN = document.getElementById("btn-save").textContent.trim();
+      // Derin sözlük (DE): şerit sekmesi "Ekle"→"Einfügen" + statik düğme "Kaydet"→"Speichern"
+      XL.i18n.set("de");
+      const tab1DE = document.querySelector('#ribbon .rtab[data-tab="1"]').textContent.trim();
+      const saveDE = document.getElementById("btn-save").textContent.trim();
       XL.i18n.set("tr");
       const saveTR = document.getElementById("btn-save").textContent.trim();
-      return { tabTR, tabEN, saveEN, saveTR };
+      return { tabTR, tabEN, saveEN, saveTR, tab1DE, saveDE };
     });
     console.log("  i18n:", JSON.stringify(i18n));
     check("Şerit TR'de 'Giriş'", i18n.tabTR === "Giriş", i18n);
     check("Dil değişince şerit EN'e döndü ('Home')", i18n.tabEN === "Home", i18n);
     check("Statik düğme EN oldu (Save)", /Save/.test(i18n.saveEN), i18n);
     check("TR'ye dönünce düğme tekrar 'Kaydet'", /Kaydet/.test(i18n.saveTR), i18n);
+    check("DE derin sözlük: sekme 'Einfügen'", i18n.tab1DE === "Einfügen", i18n);
+    check("DE derin sözlük: düğme 'Speichern'", /Speichern/.test(i18n.saveDE), i18n);
 
     // --- i18n: Türkçe fonksiyon adı (=TOPLA) hesaplanır + İngilizce'ye kanonikleşir
     const fn = await page.evaluate(() => {

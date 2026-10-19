@@ -141,6 +141,12 @@ XL.engine = {
     return this.setCell(r, c, raw, id);
   },
 
+  // Bir sayfadaki formül hücrelerinin {r,c} listesi (artımlı render hedefli repaint).
+  formulaCells(id) {
+    const sheet = id ?? XL.state.activeSheetId;
+    return XL.state.hf.formulaCells ? XL.state.hf.formulaCells(sheet) : [];
+  },
+
   // Hesaplanmış değer — gösterim için
   getValue(r, c, id) {
     const sheet = id ?? XL.state.activeSheetId;

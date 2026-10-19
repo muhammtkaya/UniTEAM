@@ -750,9 +750,23 @@ XL.realtime = {
     }
   },
 
-  // Hızlı yol: değişen hücre/biçimleri motora uygula, tek repaint (DOM/engine yeniden kurulmaz).
+  // Hızlı yol: değişen hücre/biçimleri motora uygula, SADECE etkilenen hücreleri
+  // yeniden çiz (tüm grid DEĞİL). Büyük sayfada asıl kazanç buradadır: tam
+  // `grid.render()` ROWS×COLS hücreyi gezerken, biz yalnız (değişen + aktif
+  // sayfadaki formül) hücrelerini `renderCell` ile boyarız.
+  //   • Değişen hücre/biçimler: doğrudan repaint gerektirir.
+  //   • Formül hücreleri: motorun bağımlılık grafiği yok → her mutasyon tüm
+  //     formülleri tazeler; uzak değişiklik HERHANGİ bir formülün değerini
+  //     değiştirebilir, bu yüzden aktif sayfadaki tüm formüller repaint edilir.
+  //     (Formül olmayan hücrenin değeri ancak kendisi değişirse değişir → onlar
+  //      zaten `cells` kümesinde.)
+  // Repaint seti grid'in büyük bölümüne yaklaşırsa tam render daha ucuzdur → fallback.
   _xlApplyIncremental(d) {
     const p = this._xl, st = XL.state;
+    const activeId = st.activeSheetId;
+    const activeIdx = st.sheets.findIndex((s) => s.id === activeId);
+
+    // 1) Motor mutasyonları (hangi sayfada olursa olsun — durum tutarlı kalmalı).
     d.cells.forEach((k) => {
       const [idx, r, c] = k.split(":").map(Number);
       const sheet = st.sheets[idx]; if (!sheet) return;
@@ -767,7 +781,24 @@ XL.realtime = {
       if (fj == null) delete st.formats[key];
       else { try { st.formats[key] = JSON.parse(fj); } catch (e) {} }
     });
-    XL.grid.render();
+
+    // 2) Aktif sayfa görünmüyorsa (başka sayfadayız) hiç boyama yok — motor güncel.
+    if (activeIdx < 0) { XL.grid.updateSelection(false); return; }
+
+    // 3) Repaint setini topla (yalnız aktif sayfa).
+    const repaint = new Set();
+    const addActive = (idx, r, c) => { if (idx === activeIdx) repaint.add(r + ":" + c); };
+    d.cells.forEach((k) => { const [idx, r, c] = k.split(":").map(Number); addActive(idx, r, c); });
+    d.formats.forEach((k) => { const [idx, r, c] = k.split(":").map(Number); addActive(idx, r, c); });
+    XL.engine.formulaCells(activeId).forEach(({ r, c }) => repaint.add(r + ":" + c));
+
+    // 4) Çok büyük küme → tam render daha hızlı (DOM çağrı sayısı eşiği).
+    const FULL_THRESHOLD = 2000;
+    if (repaint.size >= FULL_THRESHOLD) {
+      XL.grid.render();
+    } else {
+      repaint.forEach((rc) => { const [r, c] = rc.split(":").map(Number); XL.grid.renderCell(r, c); });
+    }
     XL.grid.updateSelection(false);
   },
 

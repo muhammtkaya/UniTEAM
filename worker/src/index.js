@@ -11,6 +11,10 @@
  * ağında, kullanıcıya en yakın noktada çalışır.
  */
 import { createRemoteJWKSet, jwtVerify } from "jose";
+// Yjs'ten yalnız `mergeUpdates`: N güncellemeyi eşdeğer TEK güncellemeye birleştirir
+// (snapshot sıkıştırma). Sunucuda Y.Doc çalıştırmayız — bu saf/belge-gerektirmeyen
+// bir fonksiyondur, relay felsefesini bozmaz.
+import { mergeUpdates } from "yjs";
 
 // JWKS (Supabase'in public imza anahtarları) — modül düzeyinde bir kez kurulur,
 // jose bunu önbelleğe alır (her istekte yeniden indirmez).
@@ -183,23 +187,69 @@ export default {
  *     oturumlara yayınlar (gönderene geri yollamaz).
  *   - Yeni bağlanan istemciye saklı tüm güncellemeler gönderilir (geç gelen
  *     senkron olur). Yjs güncellemeleri birikimli/değişmeli olduğu için bu yeterli.
- * Not: Sunucuda Yjs çalıştırmıyoruz (DO sadece relay + depo). Awareness/imleç
- * (RT3) ve snapshot sıkıştırma (ölçek) sonraki adımlar.
+ * Not: Sunucuda Yjs çalıştırmıyoruz (DO sadece relay + depo).
+ *
+ * SNAPSHOT SIKIŞTIRMA (A6 — ölçek olgunlaştırma): Eskiden HER güncelleme bir
+ * diziye eklenip geç gelene hepsi tek tek replay ediliyordu → dizi SINIRSIZ
+ * büyüyordu (uzun yaşayan belgede binlerce küçük güncelleme = yavaş bağlanma +
+ * şişen storage). Artık klasik "SNAPSHOT + KUYRUK (append-only log)" modeli:
+ *   • snapshot : birleştirilmiş TEK güncelleme (geçmişin özeti).
+ *   • tail     : snapshot'tan beri gelen son güncellemeler.
+ * Kuyruk eşiği aşınca `mergeUpdates([snapshot, ...tail])` ile her şey yeni tek
+ * snapshot'a katlanır, kuyruk boşalır. Geç gelen: snapshot + kuyruk alır (Yjs
+ * güncellemeleri birikimli olduğundan sonuç aynıdır). Storage sınırlı kalır.
+ * (Snapshot'ı R2/object storage'a taşıma = Faz 9 ölçek işi.)
  * ========================================================================== */
 export class DocRoom {
   constructor(state, env) {
     this.state = state;
     this.env = env;
     this.sessions = new Set();
-    this.updates = null; // tembel yüklenir (DO storage'dan)
+    this.loaded = false;        // tembel yükleme bayrağı
+    this.snapshot = null;       // Uint8Array | null (birleştirilmiş geçmiş)
+    this.tail = [];             // Uint8Array[] (snapshot'tan beri gelenler)
   }
 
-  async _loadUpdates() {
-    if (this.updates) return this.updates;
-    const stored = (await this.state.storage.get("updates")) || [];
-    // storage'da sayı dizisi olarak tutulur → Uint8Array'e çevir
-    this.updates = stored.map((arr) => new Uint8Array(arr));
-    return this.updates;
+  // Kuyruk bu kadar güncelleme VEYA bu kadar bayt biriktiğinde sıkıştır.
+  static get COMPACT_COUNT() { return 100; }
+  static get COMPACT_BYTES() { return 512 * 1024; }
+
+  async _load() {
+    if (this.loaded) return;
+    const snap = await this.state.storage.get("snapshot");
+    const tail = (await this.state.storage.get("tail")) || [];
+    this.snapshot = snap ? new Uint8Array(snap) : null;
+    this.tail = tail.map((arr) => new Uint8Array(arr));
+    // Eski model göçü: tek "updates" dizisi varsa kuyruğa al, eski anahtarı sil.
+    const legacy = await this.state.storage.get("updates");
+    if (legacy && legacy.length) {
+      this.tail = legacy.map((arr) => new Uint8Array(arr)).concat(this.tail);
+      await this.state.storage.delete("updates");
+      await this._persistTail();
+    }
+    this.loaded = true;
+  }
+
+  async _persistTail() {
+    await this.state.storage.put("tail", this.tail.map((u) => Array.from(u)));
+  }
+
+  _tailBytes() { let n = 0; for (const u of this.tail) n += u.length; return n; }
+
+  // Kuyruğu snapshot'a katla (N güncelleme → 1). Başarısız olursa kuyruğu korur.
+  async _compact() {
+    const all = this.snapshot ? [this.snapshot, ...this.tail] : this.tail.slice();
+    if (all.length <= 1) return;
+    try {
+      const merged = mergeUpdates(all);
+      this.snapshot = merged;
+      this.tail = [];
+      await this.state.storage.put("snapshot", Array.from(merged));
+      await this.state.storage.put("tail", []);
+    } catch (e) {
+      // Birleştirme beklenmedik şekilde başarısızsa veri kaybetme — kuyrukta kalsın.
+      await this._persistTail();
+    }
   }
 
   _broadcast(exceptSession, msg) {
@@ -216,9 +266,11 @@ export class DocRoom {
     const session = { ws: server, aw: null, rlCount: 0, rlReset: Date.now() + 10000 };
     this.sessions.add(session);
 
-    // 1) Saklı doc güncellemelerini gönder ([0]=doc). 2) Diğerlerinin awareness'ı ([1]).
-    const updates = await this._loadUpdates();
-    for (const u of updates) { try { server.send(framed(0, u)); } catch (e) {} }
+    // 1) Saklı doc durumunu gönder: önce snapshot, sonra kuyruk ([0]=doc).
+    //    2) Diğerlerinin awareness'ı ([1]).
+    await this._load();
+    if (this.snapshot) { try { server.send(framed(0, this.snapshot)); } catch (e) {} }
+    for (const u of this.tail) { try { server.send(framed(0, u)); } catch (e) {} }
     for (const s of this.sessions) {
       if (s !== session && s.aw) { try { server.send(framed(1, s.aw)); } catch (e) {} }
     }
@@ -241,11 +293,15 @@ export class DocRoom {
       const type = bytes[0];
       const payload = bytes.subarray(1);
       if (type === 0) {
-        // Yjs doc güncellemesi → sakla + yayınla
+        // Yjs doc güncellemesi → kuyruğa ekle + yayınla; eşik aşılırsa sıkıştır.
         const copy = payload.slice();
-        const list = await this._loadUpdates();
-        list.push(copy);
-        await this.state.storage.put("updates", list.map((u) => Array.from(u)));
+        await this._load();
+        this.tail.push(copy);
+        if (this.tail.length >= DocRoom.COMPACT_COUNT || this._tailBytes() >= DocRoom.COMPACT_BYTES) {
+          await this._compact();
+        } else {
+          await this._persistTail();
+        }
         this._broadcast(session, framed(0, copy));
       } else if (type === 1) {
         // Awareness (presence/imleç) → saklanmaz, yalnız yayınlanır

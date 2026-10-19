@@ -197,6 +197,28 @@ async function run({ baseURL }) {
     check("Free fiyatı 'Ücretsiz/Free'", /crets|Free/i.test(bill.freePrice), bill);
     check("Depolama MB→GB biçimi (5 GB)", bill.gb === "5 GB", bill);
 
+    // --- A6 artımlı render primitifi: formulaCells yalnız formül hücrelerini döner
+    //     + renderCell hedefli repaint (büyük sayfada tam render yerine).
+    const inc = await page.evaluate(() => {
+      const id = XL.state.activeSheetId;
+      XL.engine.setCell(10, 0, "42", id);          // K11: düz değer
+      XL.engine.setCell(11, 0, "=K11*2", id);      // K12: formül
+      XL.engine.setCell(12, 0, "=K12+1", id);      // K13: formül
+      const fc = XL.engine.formulaCells(id).map((o) => o.r + ":" + o.c).sort();
+      const hasFormulas = fc.includes("11:0") && fc.includes("12:0");
+      const noLiteral = !fc.includes("10:0");      // düz değer formül sayılmamalı
+      // Hedefli repaint: K11'i değiştir, yalnız o hücreyi yeniden çiz.
+      XL.engine.setCell(10, 0, "100", id);
+      XL.grid.renderCell(10, 0);
+      const td = XL.grid.cells[10][0];
+      const painted = td && td.textContent === "100";
+      return { fcLen: fc.length, hasFormulas, noLiteral, painted };
+    });
+    console.log("  inc:", JSON.stringify(inc));
+    check("formulaCells formül hücrelerini buldu (K12,K13)", inc.hasFormulas === true, inc);
+    check("formulaCells düz değeri (K11) hariç tuttu", inc.noLiteral === true, inc);
+    check("renderCell hedefli repaint çalıştı (100)", inc.painted === true, inc);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

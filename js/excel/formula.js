@@ -496,6 +496,20 @@
       return { height: mr + 1, width: mc + 1 };
     }
 
+    // Bir sayfadaki FORMÜL hücrelerinin koordinatları. Motor bağımlılık grafiği
+    // tutmaz (her mutasyon `version`'ı artırır → tüm formüller tembel yeniden
+    // hesaplanır); dolayısıyla uzak bir hücre değişince DEĞERİ değişebilecek tek
+    // şey formül hücreleridir. Artımlı render bunu hedefli repaint için kullanır.
+    formulaCells(sheetId) {
+      const sh = this.sheets.get(sheetId);
+      const out = [];
+      if (!sh) return out;
+      for (const [key, cell] of sh.cells) {
+        if (cell.f) { const i = key.indexOf(","); out.push({ r: +key.slice(0, i), c: +key.slice(i + 1) }); }
+      }
+      return out;
+    }
+
     /* ---- hücre okuma/yazma ---- */
     getCellSerialized(addr) {
       const sh = this.sheets.get(addr.sheet);

@@ -7,13 +7,10 @@
  * TEK SATIR bile değişmeden çalışmaya devam eder. (İleride js/* kademeli olarak
  * import/export modüllerine geçince bu köprü kalkacak.)
  */
+/* --- Başlangıçta yüklenen (küçük/yaygın/erken gereken) --- */
 import * as XLSX from "xlsx";
-import ExcelJS from "exceljs";
 import Chart from "chart.js/auto";
-import mammoth from "mammoth/mammoth.browser.js";
-import * as docx from "docx";
 import JSZip from "jszip";
-import PptxGenJS from "pptxgenjs";
 import { createClient } from "@supabase/supabase-js";
 import * as Y from "yjs";
 
@@ -21,15 +18,35 @@ import * as Y from "yjs";
 // ise düz/yazılabilir bir nesneydi; bazı kodlar (ör. testler writeFile'ı geçici
 // override ediyor) buna güvenir. Yazılabilir sığ kopya ile eski davranışı koru.
 window.XLSX = { ...XLSX };     // okuma + CSV + korpus oracle (SheetJS)
-window.ExcelJS = ExcelJS;      // .xlsx YAZIMI (font/dolgu/hizalama stilleri — SheetJS yazamaz)
 window.Chart = Chart;
-window.mammoth = mammoth;
-window.docx = docx;
 window.JSZip = JSZip;
-window.PptxGenJS = PptxGenJS;
 // auth.js `supabase.createClient(...)` bekliyor → aynı şekle sok.
 window.supabase = { createClient };
 window.Y = Y;  // Yjs (gerçek zamanlı CRDT) — realtime.js kullanır
+
+/* --- TEMBEL yüklenen (A3 / code-splitting) ---
+ * exceljs/docx/pptxgenjs/mammoth paketin en ağır kısmıdır ve YALNIZ dosya
+ * kaydet/aç sırasında gerekir. Statik import'tan çıkarıldılar → Vite her birini
+ * ayrı bir async chunk'a böler. İlk çağrıda dinamik import edilir, eski global
+ * ada köprülenir ve söz önbelleğe alınır (ikinci çağrı anında döner). Böylece
+ * ilk açılış paketi belirgin küçülür; js/* çağrı yerleri yalnız `await ensure()`
+ * ekler, global kullanımları aynen kalır. */
+const _lazy = {};
+window.__lazyVendor = {
+  ensure(name) {
+    if (_lazy[name]) return _lazy[name];
+    let p;
+    switch (name) {
+      case "exceljs":   p = import("exceljs").then((m) => { window.ExcelJS = m.default || m; }); break;
+      case "docx":      p = import("docx").then((m) => { window.docx = m.default && m.default.Document ? m.default : m; }); break;
+      case "pptxgenjs": p = import("pptxgenjs").then((m) => { window.PptxGenJS = m.default || m; }); break;
+      case "mammoth":   p = import("mammoth/mammoth.browser.js").then((m) => { window.mammoth = m.default || m; }); break;
+      default:          p = Promise.reject(new Error("bilinmeyen kütüphane: " + name));
+    }
+    _lazy[name] = p;
+    return p;
+  },
+};
 
 // --- Ortam değişkenleri (.env → tarayıcı) ---
 // Vite, import.meta.env.VITE_* değerlerini derleme anında koda gömer.

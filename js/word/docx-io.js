@@ -26,6 +26,7 @@ XL.docxIO = {
    *  DIŞA AKTARMA: HTML (editör DOM'u) → .docx
    * ===================================================================== */
   async exportBlob(root, page) {
+    if (XL.vendor) await XL.vendor.ensure("docx");   // docx kütüphanesi tembel yüklenir (A3)
     const D = docx;
     this.D = D;
     this.listInstance = 0;
@@ -356,6 +357,7 @@ XL.docxIO = {
       return await this.readOOXML(buf);
     } catch (err) {
       console.warn("Yerel .docx okuyucu başarısız, mammoth'a geçiliyor:", err);
+      if (XL.vendor) await XL.vendor.ensure("mammoth");   // mammoth tembel yüklenir (A3)
       const res = await mammoth.convertToHtml({ arrayBuffer: buf }, {
         styleMap: ["u => u", "strike => s", "p[style-name='Quote'] => blockquote:fresh"],
       });

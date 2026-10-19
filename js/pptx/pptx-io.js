@@ -7,6 +7,7 @@ XL.pptxIO = {
    *  DIŞA AKTARMA
    * ===================================================================== */
   async exportBlob(data, mode) {
+    if (XL.vendor) await XL.vendor.ensure("pptxgenjs");   // PptxGenJS tembel yüklenir (A3)
     const pptx = new PptxGenJS();
     const aspect = (mode.ASPECTS && mode.ASPECTS[data.aspect]) || { w: 960, h: 540 };
     const slW = +(aspect.w / 96).toFixed(3), slH = +(aspect.h / 96).toFixed(3);

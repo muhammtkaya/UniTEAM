@@ -150,6 +150,18 @@ async function run({ baseURL }) {
     check("Breadcrumb halkası _max ile sınırlı", obs.capped === true, obs);
     check("Tanılama bağlamı release içerir, PII yok", obs.hasRelease && obs.noUid, obs);
 
+    // --- A3 code-splitting: ağır kütüphaneler başta yüklü DEĞİL, talepte tembel yüklenir
+    const lazy = await page.evaluate(async () => {
+      const before = { exceljs: typeof window.ExcelJS, pptx: typeof window.PptxGenJS, docx: typeof window.docx };
+      await XL.vendor.ensure("exceljs");
+      const afterExcel = typeof window.ExcelJS;
+      return { before, afterExcel };
+    });
+    console.log("  lazy:", JSON.stringify(lazy));
+    check("Başta ExcelJS yüklü değil (tembel)", lazy.before.exceljs === "undefined", lazy);
+    check("Başta PptxGenJS/docx yüklü değil (tembel)", lazy.before.pptx === "undefined" && lazy.before.docx === "undefined", lazy);
+    check("ensure() ile ExcelJS tembel yüklendi", lazy.afterExcel !== "undefined", lazy);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

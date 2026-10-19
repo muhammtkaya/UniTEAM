@@ -22,6 +22,7 @@ XL.io = {
    *  alanlar (bold/italic/underline/color/bg/align) yazılır.
    * ===================================================================== */
   async _readStyles(buf, data) {
+    if (XL.vendor) await XL.vendor.ensure("exceljs");
     if (typeof ExcelJS === "undefined" || !ExcelJS.Workbook) return;
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buf);
@@ -180,6 +181,7 @@ XL.io = {
 
   // Belge verisinden ExcelJS Workbook kur (saf; indirmez — test de kullanır)
   async buildWorkbook(data) {
+    if (XL.vendor) await XL.vendor.ensure("exceljs");   // ExcelJS tembel yüklenir (A3)
     const wb = new ExcelJS.Workbook();
     wb.creator = XL.APP_NAME || "UniTEAM";
     wb.created = new Date();

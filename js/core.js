@@ -23,6 +23,11 @@ const XL = {
 // (Vite/Rollup her dosyayı modül kapsamında derler; bu satır olmadan XL paylaşılmaz.)
 window.XL = XL;
 
+// Tembel kütüphane yükleyici (A3/code-splitting): vendor.js'te window.__lazyVendor
+// olarak tanımlı (vendor core'dan önce yüklenir). io/docx/pptx dışa aktarıcıları
+// `await XL.vendor.ensure("exceljs"|"docx"|"pptxgenjs"|"mammoth")` çağırır.
+XL.vendor = window.__lazyVendor || { ensure() { return Promise.resolve(); } };
+
 /* --- Koordinat yardımcıları (Excel) --- */
 XL.colLetter = function (c) {
   let s = "";

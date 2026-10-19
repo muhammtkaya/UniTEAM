@@ -4,7 +4,7 @@ Excel, Word ve PowerPoint'e muadil üç uygulamayı **tek bir tarayıcı arayüz
 
 Uygulama Excel arayüzüyle açılır. Alt soldaki **＋** düğmesiyle yeni bir belge eklenir ve türü seçilir: Excel çalışma kitabı (`.xlsx`), Word belgesi (`.docx`) ya da PowerPoint sunusu (`.pptx`). Alt çubuktaki her sekme bir belgedir; bir sekmeye geçildiğinde üstteki şerit ve çalışma alanı o uygulamanın arayüzüne dönüşür.
 
-Uygulama **testler kolaylaşsın diye önce tarayıda** geliştirilmiştir (hızlı yineleme, derleme/sertifika derdi yok). Bu geçici bir tercihtir: **uygulama bittiğinde masaüstü (Electron/Tauri) ve mobil sürümleri de üretilecektir.** İstemci (frontend) ile sunucu (backend) net ayrıldığı ve üçü de aynı API'ye bağlandığı için web, masaüstü ve mobil istemciler aynı çekirdeği paylaşır — platform paketlemesi en sona bırakılır.
+Uygulama **testler kolaylaşsın diye önce tarayıcıda** geliştirilmiştir (hızlı yineleme, derleme/sertifika derdi yok). Bu geçici bir tercihtir: **uygulama bittiğinde masaüstü (Electron/Tauri) ve mobil sürümleri de üretilecektir.** İstemci (frontend) ile sunucu (backend) net ayrıldığı ve üçü de aynı API'ye bağlandığı için web, masaüstü ve mobil istemciler aynı çekirdeği paylaşır — platform paketlemesi en sona bırakılır.
 
 ---
 
@@ -26,6 +26,10 @@ npm run preview    # dist/ çıktısını önizle
 - **PWA:** Uygulama yüklenebilir (tarayıcıda "Uygulamayı yükle") ve **çevrimdışı
   çalışır** (service worker uygulama kabuğunu önbelleğe alır). SW yalnız üretim
   derlemesinde (`build`/`preview`) etkindir; `dev`'de kapalıdır.
+- **Backend opsiyoneldir:** uygulama giriş yapmadan, backend olmadan tam çalışır
+  (yerel belgeler). Bulut/işbirliği özelliklerini yerelde denemek için Supabase
+  (`supabase start`) ve Worker (`cd worker && npx wrangler dev`) ayağa kaldırılır;
+  canlı hesaplar ve deploy → Faz 9 ([docs/accounts.md](docs/accounts.md)).
 
 > Not: ES modülleri kullanıldığı için `index.html` artık çift tıklanarak
 > (`file://`) açılamaz; `npm run dev` ya da derlenmiş `dist/` üzerinden sunulur.
@@ -39,7 +43,8 @@ npm run preview    # dist/ çıktısını önizle
 - Çift tıklayarak belgeyi yeniden adlandırma, **×** ile kapatma.
 - **Aç** (Ctrl+O): `.xlsx .xls .csv .docx .pptx` dosyaları türüne uygun yeni bir sekmede açılır. Dosyayı pencereye sürükleyip bırakmak da çalışır.
 - **Kaydet** (Ctrl+S): etkin belgeyi kendi biçiminde indirir.
-- **Otomatik kayıt:** tüm belgeler tarayıcı belleğine (localStorage) kaydedilir; sayfa yenilense de geri gelir.
+- **Otomatik kayıt:** tüm belgeler tarayıcıya (IndexedDB) kaydedilir; sayfa yenilense de geri gelir. Çevrimdışıyken yapılan bulut kayıtları kuyruğa alınır, yeniden bağlanınca eşitlenir.
+- **Çok dilli arayüz:** 🌐 menüsünden dil (TR/EN tam; DE/ES/AR çekirdek), RTL (Arapça), yerel sayı/tarih/para biçimleri, Türkçe formül adları (`=TOPLA`, `=EĞER`…).
 - Office'teki gibi sekmeli şerit (Giriş, Ekle, …).
 
 ### Excel
@@ -72,6 +77,20 @@ npm run preview    # dist/ çıktısını önizle
 | Tasarım | 6 tema, slayt arka planı (tek slayt veya tümü) |
 | Gösteri | Geçişler (solma, itme, yakınlaştırma, çevirme), tam ekran slayt gösterisi (F5 / Shift+F5) |
 | Diğer | Konuşmacı notları, geri al/ileri al (tema ve notlar dahil) |
+
+### İşbirliği, bulut ve hesaplar
+| Alan | Neler var |
+|---|---|
+| Hesap | E-posta+parola kayıt/giriş (Supabase Auth), 2FA/MFA (TOTP), giriş geçmişi + "diğer/her yerden çık", yeni cihaz bildirimi |
+| Bulut | Belgeyi buluta kaydet/aç, sürüm geçmişi (🕘), çöp kutusu (🗑), çevrimdışı kuyruk |
+| Paylaşım | E-posta+rol (owner/editor/commenter/viewer), token'lı bağlantı, herkese açık (anon) link, süreli link, gerçek salt-okunur mod |
+| Gerçek zamanlı | **Word + PowerPoint + Excel eş düzenleme** (Yjs CRDT), presence rozetleri, canlı uzak imleç + hücre/öğe seçim göstergeleri |
+| Yorumlar | Thread + @bahsetme + bildirimler (zil), canlı yenileme, editörde konuma iliştirilmiş (anchored) işaretçiler |
+| Organizasyon | Çok-kiracılık (org/takım), RBAC (admin/üye), üye davet/rol/askı, belge sahipliği devri, denetim kaydı |
+| Plan & kota | Plan kataloğu (Free/Pro/Team/Enterprise), koltuk/belge/depolama kotası + sunucu enforcement, "💳 Plan ve Faturalandırma" paneli *(gerçek ödeme → Faz 9)* |
+| Gizlilik | "Verilerimi indir" (yerel + hesap), hesap silme, KVKK/GDPR taslak yasal metinler |
+
+> Hesap/işbirliği özellikleri **eklemeli katmandır**: giriş yapmadan da yerel belge akışı tam çalışır. Bulut/gerçek zamanlı özellikler bir Supabase + Cloudflare Worker hesabına bağlanınca canlıya girer (bkz. [docs/accounts.md](docs/accounts.md)); yerelde geliştirilip Faz 9'da deploy edilir.
 
 ---
 
@@ -109,37 +128,51 @@ npm run preview    # dist/ çıktısını önizle
 ## Proje yapısı
 
 ```
-index.html            Kabuk: üst çubuk, şerit, çalışma alanı, belge çubuğu, CDN betikleri
-css/styles.css        Tüm stiller (mod renkleri, şerit, üç modun arayüzü, yazdırma kuralları)
+index.html            Kabuk: üst çubuk, şerit, çalışma alanı, belge çubuğu (tek giriş: src/main.js)
+src/
+  main.js             Vite giriş noktası — tüm modülleri doğru sırada import eder
+  vendor.js           Kütüphaneleri window global'lerine köprüler + .env → window.__ENV__
+css/styles.css        Tüm stiller (mod renkleri, şerit, üç modun arayüzü, panel/billing, yazdırma)
 js/
   core.js             Ortak ad alanı (XL), yardımcılar, paylaşılan panel
+  config.js           Ortam ayarları + XL.config.services HESAP/SERVİS kayıt defteri
+  i18n.js             Çoklu dil (N dil + sözlük + RTL) + Türkçe fonksiyon adları
+  observability.js    Gözlemlenebilirlik (XL.obs: log/breadcrumb/hata yakalama; DSN boşsa ağsız)
   workspace.js        Belgeler, ＋ menüsü, mod değiştirme, şerit, açma/kaydetme, otomatik kayıt
+  storage.js          IndexedDB kalıcılık (belgeler + çevrimdışı outbox kuyruğu)
   auth.js             Kimlik (Supabase Auth): kayıt/giriş/çıkış, hesap menüsü
-  cloud.js            Bulut belge katmanı + paylaşım (e-posta/link/herkese açık)
+  cloud.js            Bulut belge katmanı + paylaşım + sürüm/çöp kutusu
   org.js              Organizasyonlar & admin paneli (çok-kiracılık, RBAC, davet, denetim)
+  billing.js          Plan/koltuk/kota + faturalandırma paneli (XL.billing)
   security.js         Hesap güvenliği (2FA/MFA, giriş geçmişi, oturum yönetimi)
+  privacy.js          Veri hakları (indir/sil) + KVKK/GDPR taslak yasal metinler
   byos.js             Belge byte deposu sağlayıcı soyutlaması (relay + Drive/OneDrive iskeleti)
   onboarding.js       Karşılama + yardım paneli + şablon galerisi
   comments.js         Yorumlar + @bahsetmeler + bildirimler
-  realtime.js         Gerçek zamanlı eş düzenleme (Yjs CRDT + Durable Object)
-  i18n.js             Çoklu dil (N dil + sözlük + RTL) + Türkçe fonksiyon adları
+  realtime.js         Gerçek zamanlı eş düzenleme (Yjs CRDT + Durable Object; artımlı render)
   excel/
     mode.js           Excel modu: şerit, formül çubuğu, sayfa sekmeleri, komutlar
     formula.js        Kendi formül/hesap motorumuz (HyperFormula yerine, bağımlılıksız)
     engine.js         Hesap motoru sarmalayıcısı (formula.js'i kullanır)
     grid.js           Izgara: çizim, seçim, düzenleme, klavye, pano
     format.js         Hücre biçimi ve sayı gösterimi
-    io.js             .xlsx / .csv okuma-yazma (SheetJS)
+    layout.js         Sütun genişliği / satır yüksekliği / hücre birleştirme
+    io.js             .xlsx okuma (SheetJS+stil ExcelJS) / yazma (ExcelJS), .csv
     charts.js         Grafikler (Chart.js)
     pivot.js          Pivot tablo
     condfmt.js        Koşullu biçimlendirme (kural → dinamik hücre stili)
     validation.js     Veri doğrulama (açılır liste / sayı / metin uzunluğu)
   word/
-    mode.js           Word modu: sayfa düzenleyici, şerit, komutlar
+    mode.js           Word modu: sayfa düzenleyici, dipnot, değişiklik izleme, sayfalama
     docx-io.js        .docx okuma (kendi OOXML okuyucusu) ve yazma (docx)
   pptx/
-    mode.js           PowerPoint modu: slaytlar, öğe düzenleme, temalar, slayt gösterisi
+    mode.js           PowerPoint modu: slaytlar, öğe düzenleme, grafik, animasyon, gösteri
     pptx-io.js        .pptx okuma (kendi OOXML okuyucusu) ve yazma (PptxGenJS)
+worker/               Cloudflare Worker (ince backend): JWT doğrulama, WS/DocRoom relay,
+                      snapshot sıkıştırma (Yjs mergeUpdates), rate-limit
+supabase/             Postgres şeması + migration'lar (RLS, RPC'ler, çok-kiracılık, billing)
+docs/                 api-contract.md · database-schema.md · accounts.md (hesap yol haritası)
+test/                 Puppeteer e2e + dosya sadakati (fidelity) + gerçek Office korpusu
 ```
 
 ---
@@ -174,31 +207,50 @@ Yeni bir uygulama (ör. Outlook muadili) eklemek için bu arayüzü uygulayan bi
 
 Şerit düğmeleri `data-cmd` (ve isteğe bağlı `data-value`) öznitelikleriyle tanımlanır; tıklamalar `workspace.js` tarafından tek noktadan etkin modun `command()` yöntemine iletilir.
 
+### Backend & bulut mimarisi
+
+**İstemci (frontend) ile sunucu (backend) net ayrılmıştır** — istemci her zaman standart bir API/protokol üzerinden konuşur. Böylece web, masaüstü ve mobil istemciler **aynı backend'i** paylaşır (tek "mutfak", çok "salon"). İki backend katmanı (ölçek eğrileri farklı olduğu için ayrı seçildi):
+
+| Katman | Teknoloji | Görevi |
+|---|---|---|
+| **Durağan** | **Supabase** (Postgres + Auth + Storage, RLS) | Hesaplar, belge metadata'sı, paylaşım/izin, organizasyon, abonelik. Güvenlik satır-seviyesi (RLS) + SECURITY DEFINER RPC'lerindedir. |
+| **Gerçek zamanlı** | **Cloudflare Worker + Durable Objects** + **Yjs** CRDT | "Belge = oda" relay; JWT doğrulama, WS yetki (403), presence, snapshot sıkıştırma. Sunucuda Y.Doc çalışmaz (yalnız relay + depo). |
+
+**BYOS (Bring Your Own Storage):** belge byte'larını kalıcı olarak biz saklamayız — bugün geçici `relay` (Supabase Storage), ileride kullanıcının Drive/OneDrive'ı. Biz yalnız CRDT durumu + küçük meta veri tutarız.
+
+**Hesap/servis geçitleme:** her dış servis `js/config.js` içindeki `XL.config.services` kayıt defterinde tanımlıdır (`when: "now"|"future"`, `configured()`). Bir hesabın env anahtarı girilene kadar ilgili özellik **zarifçe devre dışı** kalır (ör. gözlemlenebilirlik DSN boşsa ağa çıkmaz; Drive hesabı yoksa seçenek görünmez). Hangi hesabın ne zaman açılacağı: [docs/accounts.md](docs/accounts.md). Gizli anahtarlar istemciye değil Worker secret'ına konur; güvenlik RLS + Worker'dadır.
+
 ---
 
 ## Kullanılan açık kaynak kütüphaneler
 
 | Kütüphane | Sürüm | Görevi | Lisans |
 |---|---|---|---|
-| [SheetJS](https://sheetjs.com/) | 0.20.3 | `.xlsx` / `.csv` okuma-yazma | Apache-2.0 |
+| [SheetJS](https://sheetjs.com/) | 0.20.3 | `.xlsx` okuma (değer/formül) + `.csv` | Apache-2.0 |
+| [ExcelJS](https://github.com/exceljs/exceljs) | 4.4.0 | `.xlsx` yazma + dış dosyadan stil okuma (font/dolgu/hizalama) | MIT |
 | [Chart.js](https://www.chartjs.org/) | 4.4.1 | Grafikler | MIT |
 | [docx](https://docx.js.org/) | 8.5.0 | `.docx` yazma | MIT |
-| [mammoth](https://github.com/mwilliamson/mammoth.js) | 1.8.0 | Yedek `.docx` okuma | BSD-2-Clause |
+| [mammoth](https://github.com/mwilliamson/mammoth.js) | 1.13.0 | Yedek `.docx` okuma | BSD-2-Clause |
 | [JSZip](https://stuk.github.io/jszip/) | 3.10.1 | `.docx` / `.pptx` paketlerini açma | MIT / GPL-3.0 |
 | [PptxGenJS](https://gitbrent.github.io/PptxGenJS/) | 3.12.0 | `.pptx` yazma | MIT |
+| [Yjs](https://github.com/yjs/yjs) | 13.6.20 | Gerçek zamanlı eş düzenleme (CRDT) + snapshot birleştirme | MIT |
+| [supabase-js](https://github.com/supabase/supabase-js) | 2.118.0 | Supabase istemcisi (Auth/DB/Storage/Realtime) | MIT |
 
-> **Lisans notu:** Excel formül motoru GPL-3.0 lisanslı HyperFormula'dan **kendi bağımsız, bağımlılıksız motorumuza** (`js/excel/formula.js`) taşındı; bu yüzden ürünü GPL'e zorlayan engel kalktı. Kalan kütüphaneler (SheetJS Apache-2.0, Chart.js/docx/JSZip/PptxGenJS MIT, mammoth BSD-2) ticari dağıtıma uygundur. JSZip'in MIT sürümü kullanılır. Projenin kendi lisansı `LICENSE` dosyasında tescilli (proprietary) olarak tanımlıdır; üçüncü taraf atıfları `THIRD-PARTY-NOTICES.md`'dedir.
+> Worker tarafı ayrıca [jose](https://github.com/panva/jose) (JWT doğrulama) ve Yjs `mergeUpdates` kullanır.
+>
+> **Lisans notu:** Excel formül motoru GPL-3.0 lisanslı HyperFormula'dan **kendi bağımsız, bağımlılıksız motorumuza** (`js/excel/formula.js`) taşındı; bu yüzden ürünü GPL'e zorlayan engel kalktı. Kalan kütüphaneler (SheetJS Apache-2.0; ExcelJS/Chart.js/docx/JSZip/PptxGenJS/Yjs/supabase-js MIT; mammoth BSD-2) ticari dağıtıma uygundur. JSZip'in MIT sürümü kullanılır. Projenin kendi lisansı `LICENSE` dosyasında tescilli (proprietary) olarak tanımlıdır; üçüncü taraf atıfları `THIRD-PARTY-NOTICES.md`'dedir.
 
 ---
 
 ## Bilinen sınırlamalar
 
-- **Otomatik kayıt kotası:** tarayıcı belleği yaklaşık 5 MB'tır. Çok resimli belgelerde otomatik kayıt başarısız olabilir; durum çubuğunda uyarı çıkar. Bu durumda **Kaydet** ile dosyayı indirin.
-- **Belgeler tarayıcıya özeldir:** otomatik kaydedilen veriler yalnızca o tarayıcıda durur; başka bir cihaza veya tarayıcıya taşınmaz.
-- **Excel:** koşullu biçimlendirme ve veri doğrulama **uygulama içinde** çalışır ancak SheetJS kısıtı nedeniyle `.xlsx`'e yazılmaz (font/dolgu stili yazımı da öyle). Türkçe fonksiyon adları (`=TOPLA`) yazılabilir; kayıtta İngilizce'ye çevrilir.
-- **Word:** üst/alt bilgi ve sayfa numarası var; dipnot ve değişiklik izleme henüz yok. Sayfa sınırları çizgiyle gösterilir; metin henüz gerçek sayfalara bölünmez.
-- **PowerPoint:** öğe döndürme (`.pptx` içe/dışa aktarımlı) ve giriş animasyonları (uygulama içi) var; slayta grafik ekleme henüz yok. Animasyon/geçişler `.pptx` dosyasına aktarılmaz.
-- **Dokunmatik / dar ekran:** temel responsive düzen ve dokunma hedefleri eklendi; ızgarada tam dokunmatik sürükle-seçim henüz sınırlı.
+- **Yerel vs bulut:** otomatik kayıt yerel IndexedDB'dedir (o tarayıcıya özel). Başka cihaza taşımak/paylaşmak/eş düzenlemek için **buluta kaydet** gerekir — bu da canlı bir Supabase + Worker hesabı ister (şu an yerelde geliştiriliyor; canlı → Faz 9, bkz. [docs/accounts.md](docs/accounts.md)).
+- **Faturalandırma simülasyonu:** plan/koltuk/kota modeli ve enforcement hazırdır; ancak plan değişimi **gerçek ödeme almaz** (Stripe entegrasyonu Faz 9).
+- **Excel:** koşullu biçimlendirme ve veri doğrulama **uygulama içinde** çalışır (kütüphane kısıtı nedeniyle `.xlsx`'e yazılmaz). Font/dolgu/hizalama stili artık `.xlsx`'e **yazılır** ve dış dosyadan **okunur** (ExcelJS; tema/indexed renkler v1'de atlanır). Türkçe fonksiyon adları (`=TOPLA`) kayıtta İngilizce'ye çevrilir.
+- **Word:** üst/alt bilgi, sayfa numarası, **dipnot**, **değişiklik izleme (track changes)** ve **gerçek sayfalama (sayfa görünümü)** vardır. Değişiklik izleme v1'de yalnız metin ekleme/silmeyi kapsar (paragraf/biçim değişimi hariç).
+- **PowerPoint:** öğe döndürme (`.pptx` round-trip), giriş animasyonları (uygulama içi) ve **slayta grafik** (`.pptx`'e aktarımlı) vardır. Animasyon/geçişler ve grafiğin `.pptx`'ten geri okunması aktarılmaz (PptxGenJS kısıtı).
+- **Dokunmatik / dar ekran:** responsive düzen + Pointer Events ile birleşik dokunmatik ızgara (uzun-bas aralık seçimi, çift-dokunuş düzenleme) eklendi.
+- **Ölçek/altyapı (Faz 9):** OAuth/SSO, BYOS (Drive/OneDrive), Redis cache, çok bölge, gerçek dağıtık rate-limit, PITR yedekleme canlı deploy ve ilgili hesaplara bağlıdır.
 
 ---
 

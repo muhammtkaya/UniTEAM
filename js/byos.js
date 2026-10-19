@@ -62,9 +62,12 @@ XL.byos = {
     gdrive: {
       id: "gdrive",
       label: "Google Drive",
-      available() { return false; }, // OAuth + domain gerektirir → Faz 9
-      async putBytes() { throw new Error(XL.t("Google Drive henüz yapılandırılmadı (Faz 9).", "Google Drive not configured yet (Phase 9).")); },
-      async getBytes() { throw new Error(XL.t("Google Drive henüz yapılandırılmadı (Faz 9).", "Google Drive not configured yet (Phase 9).")); },
+      _live: false, // canlı adaptör Faz 9'da yazılacak (akış hazır değil)
+      // Önkoşul: Google Cloud hesabı + OAuth client id (VITE_GOOGLE_OAUTH_CLIENT_ID).
+      // Hesap yoksa hiç görünmez; hesap girilse bile canlı akış Faz 9. Bkz. docs/accounts.md.
+      available() { return XL.config.serviceConfigured("googleCloud") && this._live; },
+      async putBytes() { throw new Error(XL.t("Google Drive henüz yapılandırılmadı (Google Cloud hesabı + Faz 9).", "Google Drive not configured yet (Google Cloud account + Phase 9).")); },
+      async getBytes() { throw new Error(XL.t("Google Drive henüz yapılandırılmadı (Google Cloud hesabı + Faz 9).", "Google Drive not configured yet (Google Cloud account + Phase 9).")); },
       async copy() { throw new Error("gdrive: Faz 9"); },
       async remove() { throw new Error("gdrive: Faz 9"); },
     },
@@ -77,9 +80,11 @@ XL.byos = {
     onedrive: {
       id: "onedrive",
       label: "OneDrive",
-      available() { return false; }, // OAuth + domain gerektirir → Faz 9
-      async putBytes() { throw new Error(XL.t("OneDrive henüz yapılandırılmadı (Faz 9).", "OneDrive not configured yet (Phase 9).")); },
-      async getBytes() { throw new Error(XL.t("OneDrive henüz yapılandırılmadı (Faz 9).", "OneDrive not configured yet (Phase 9).")); },
+      _live: false, // canlı adaptör Faz 9'da yazılacak (akış hazır değil)
+      // Önkoşul: Microsoft Entra/Azure hesabı + OAuth client id (VITE_MS_OAUTH_CLIENT_ID).
+      available() { return XL.config.serviceConfigured("microsoft") && this._live; },
+      async putBytes() { throw new Error(XL.t("OneDrive henüz yapılandırılmadı (Microsoft hesabı + Faz 9).", "OneDrive not configured yet (Microsoft account + Phase 9).")); },
+      async getBytes() { throw new Error(XL.t("OneDrive henüz yapılandırılmadı (Microsoft hesabı + Faz 9).", "OneDrive not configured yet (Microsoft account + Phase 9).")); },
       async copy() { throw new Error("onedrive: Faz 9"); },
       async remove() { throw new Error("onedrive: Faz 9"); },
     },

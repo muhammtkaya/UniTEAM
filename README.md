@@ -216,6 +216,28 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 
 **Öncelik ilkesi:** önce **kod içinde** yapılabilen işler; **deploy, URL/domain edinimi ve canlıya alma en sona** bırakılır. İşaretli (✅) maddeler yerelde tamamlanmıştır.
 
+### 🔑 Açılması gereken hesaplar / servisler
+
+Yol haritasının bir de **dış hesap** boyutu var: hangi servislere kaydolmak gerekiyor, ne zaman? Tam liste + maliyet + env anahtarları → **[docs/accounts.md](docs/accounts.md)**. Kod karşılığı: [js/config.js](js/config.js) içindeki `XL.config.services` kayıt defteri (her hesap env ile yapılandırılana kadar ilgili özellik **zarifçe devre dışı** kalır).
+
+**A) ŞU AN açılması gerekenler (ilk canlı sürüm — hepsi Faz 9 ile devreye girer):**
+- [ ] **Supabase** bulut projesi — Postgres + Auth + Storage (ücretsiz → $25/ay Pro)
+- [ ] **Cloudflare** — Workers + Durable Objects (gerçek zamanlı; DO için ~$5/ay ücretli Workers planı şart)
+- [ ] **Statik hosting/CDN** — Cloudflare Pages / Vercel / Netlify (ücretsiz)
+- [ ] **Alan adı (domain)** — ~$10-15/yıl (OAuth + güvenli çerez gerçek origin ister)
+- [x] **GitHub** — repo + CI/CD (zaten kullanılıyor)
+
+**B) GELECEKTE (uygulama büyüyünce / şirketlere satılınca) açılacak veya upgrade edilecek:**
+- [ ] **Stripe** — gerçek ödeme/abonelik (Faz 3 modeli hazır; `change_plan` şimdilik SİMÜLE)
+- [ ] **Google Cloud Console** — "Google ile giriş" + Google Drive BYOS (OAuth client id)
+- [ ] **Microsoft Entra/Azure** — "Microsoft ile giriş" + OneDrive BYOS + kurumsal **SAML/SCIM**
+- [ ] **Apple Developer** — "Apple ile giriş" + iOS App Store ($99/yıl; Faz 10 mobil)
+- [ ] **Sentry** (vb.) — canlı hata/metrik toplayıcı (Faz 7 katmanı hazır, DSN boşken ağ yok)
+- [ ] **İşlemsel e-posta** (Resend/Postmark/SES) — davet/bildirim/sıfırlama hacim yapınca
+- [ ] **Redis/KV** (Upstash vb.) — cache + gerçek dağıtık rate-limit (ölçek)
+- [ ] **Upgrade'ler:** Supabase Pro, Cloudflare üst plan, çok bölge/edge/DDoS
+- [ ] **SOC 2 / ISO 27001 denetçisi** + imzalı DPA — kurumsal satış ön koşulu (Faz 8; erken başlat)
+
 ### ✅ Tamamlanan çekirdek (yerelde)
 - [x] Vite build/bundle, npm, CDN'siz, çevrimdışı, `.env` → `dist/`
 - [x] PWA (yüklenebilir + çevrimdışı service worker)
@@ -308,9 +330,10 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [ ] SOC 2 / ISO 27001 sürecini erken başlat (kurumsal satış ön koşulu)
 
 ### Faz 9 — Deploy & altyapı (EN SON — bilinçli olarak sona bırakıldı)
-- [ ] Supabase bulut projesi + Cloudflare Worker deploy + statik hosting/CDN
-- [ ] **URL / domain edinimi**
-- [ ] OAuth/SSO canlıya alma (Google/Microsoft/Apple)
+> Bu faz büyük ölçüde **dış hesap** işidir — hangi hesabın ne zaman açılacağı: **[docs/accounts.md](docs/accounts.md)** ("A) şu an" + "B) gelecekte").
+- [ ] Supabase bulut projesi + Cloudflare Worker deploy + statik hosting/CDN *(hesaplar A1-A3)*
+- [ ] **URL / domain edinimi** *(hesap A4)*
+- [ ] OAuth/SSO canlıya alma (Google/Microsoft/Apple) *(hesaplar B2)*
 - [ ] CI/CD (otomatik deploy) + staging/production ortam ayrımı
 - [ ] Ölçek altyapısı: Redis cache, connection pool/read replica, çok bölge (multi-region)/edge, DDoS koruması
 - [ ] Monitoring/uptime/alerting canlıya alma + durum sayfası

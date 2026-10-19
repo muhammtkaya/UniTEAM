@@ -59,4 +59,11 @@ window.__ENV__ = {
   OBSERVABILITY_DSN: import.meta.env.VITE_OBSERVABILITY_DSN || "",
   APP_ENV: import.meta.env.VITE_APP_ENV || "",
   OBS_SAMPLE_RATE: import.meta.env.VITE_OBS_SAMPLE_RATE || "",
+  // --- Gelecek hesaplar (uygulama büyüyünce/satılınca açılır) — hepsi OPSİYONEL.
+  //     Boşsa ilgili özellik "yapılandırılmamış" sayılır; davranış değişmez.
+  //     Hepsi PUBLIC tanımlayıcılardır (yayımlanabilir anahtar / OAuth client id);
+  //     GİZLİ anahtarlar (Stripe secret, service_role) ASLA istemciye konmaz → Worker secret.
+  STRIPE_PUBLISHABLE_KEY: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "",
+  GOOGLE_OAUTH_CLIENT_ID: import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || "",
+  MS_OAUTH_CLIENT_ID: import.meta.env.VITE_MS_OAUTH_CLIENT_ID || "",
 };

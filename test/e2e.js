@@ -219,6 +219,27 @@ async function run({ baseURL }) {
     check("formulaCells düz değeri (K11) hariç tuttu", inc.noLiteral === true, inc);
     check("renderCell hedefli repaint çalıştı (100)", inc.painted === true, inc);
 
+    // --- Hesaplar/servisler kayıt defteri (XL.config.services) — offline, env'siz
+    const svc = await page.evaluate(() => {
+      const nowIds = XL.config.servicesWhen("now").map((s) => s.id);
+      const futureIds = XL.config.servicesWhen("future").map((s) => s.id);
+      return {
+        nowHasCore: nowIds.includes("supabase") && nowIds.includes("cloudflare") && nowIds.includes("domain"),
+        futureHasStripe: futureIds.includes("stripe") && futureIds.includes("googleCloud"),
+        // Yerelde (localhost) bulut hesapları yapılandırılmamış sayılır:
+        supaLocal: XL.config.serviceConfigured("supabase") === false,
+        stripeOff: XL.config.serviceConfigured("stripe") === false,
+        githubOn: XL.config.serviceConfigured("github") === true,
+        gdriveUnavailable: XL.byos.provider("gdrive").available() === false,
+      };
+    });
+    console.log("  svc:", JSON.stringify(svc));
+    check("Kayıt defteri 'now' çekirdek hesapları içeriyor", svc.nowHasCore === true, svc);
+    check("Kayıt defteri 'future' hesapları içeriyor (stripe/google)", svc.futureHasStripe === true, svc);
+    check("Yerelde Supabase bulut hesabı 'yapılandırılmamış'", svc.supaLocal === true, svc);
+    check("Stripe env'siz devre dışı; GitHub hazır", svc.stripeOff === true && svc.githubOn === true, svc);
+    check("gdrive hesap yokken kullanılamaz (available=false)", svc.gdriveUnavailable === true, svc);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

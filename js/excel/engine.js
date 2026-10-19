@@ -124,6 +124,23 @@ XL.engine = {
     return v === null || v === undefined ? "" : String(v);
   },
 
+  // Ham içerik, YEREL ayraç/ondalıkla — kullanıcıya gösterim/düzenleme için.
+  // (Depolama kanonik kalır; yalnız formül çubuğu/hücre düzenleme/formül gösterimi.)
+  getRawLocalized(r, c, id) {
+    const raw = this.getRaw(r, c, id);
+    return (XL.formula && XL.formula.localizeFormula && XL.i18n)
+      ? XL.formula.localizeFormula(raw, XL.i18n.formulaSep(), XL.i18n.formulaDec())
+      : raw;
+  },
+
+  // Kullanıcı girişini (yerel ayraç/ondalık) kanoniğe çevirip kaydet.
+  setCellLocalized(r, c, raw, id) {
+    if (typeof raw === "string" && raw[0] === "=" && XL.formula && XL.formula.delocalizeFormula && XL.i18n) {
+      raw = XL.formula.delocalizeFormula(raw, XL.i18n.formulaSep(), XL.i18n.formulaDec());
+    }
+    return this.setCell(r, c, raw, id);
+  },
+
   // Hesaplanmış değer — gösterim için
   getValue(r, c, id) {
     const sheet = id ?? XL.state.activeSheetId;

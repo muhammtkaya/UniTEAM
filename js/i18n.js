@@ -17,6 +17,16 @@ XL.i18n = {
   KEY: "uniteam-locale",
   _listeners: [],
 
+  // Bölgesel formül biçimi: ondalık ayracı virgül olan dillerde argüman ayracı ";".
+  // Gerçek Excel'in davranışı (Türkçe/Almanca/İspanyolca Excel =TOPLA(A1;A2) kullanır).
+  // ar v1'de kanonik (nokta/virgül) bırakıldı — RTL+ondalık ileride.
+  FORMULA_FMT: {
+    tr: { sep: ";", dec: "," }, de: { sep: ";", dec: "," }, es: { sep: ";", dec: "," },
+    en: { sep: ",", dec: "." }, ar: { sep: ",", dec: "." },
+  },
+  formulaSep() { return (this.FORMULA_FMT[this.locale] || this.FORMULA_FMT.en).sep; },
+  formulaDec() { return (this.FORMULA_FMT[this.locale] || this.FORMULA_FMT.en).dec; },
+
   // Ek dil sözlükleri (anahtar = kanonik Türkçe dize). Artımlı doldurulur;
   // eksik dizeler İngilizce'ye düşer. Çekirdek kabuk terimleriyle başlar.
   DICT: {

@@ -35,6 +35,11 @@ XL.ws = {
     this.renderRibbon(this.modeOf(doc).ribbon(), doc.type);
     this.syncRibbonState();
     this.renderDocTabs();
+    // Excel: görünen formüller + formül çubuğu yeni bölgesel ayraçla yeniden çizilsin.
+    if (doc.type === "xlsx" && XL.grid && XL.grid.table) {
+      XL.grid.render();
+      if (XL.modes.xlsx.syncFormulaBar) XL.modes.xlsx.syncFormulaBar();
+    }
   },
 
   active() { return this.docs.find((d) => d.id === this.activeId); },

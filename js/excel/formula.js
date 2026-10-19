@@ -1127,11 +1127,60 @@
     return out;
   }
 
+  /* ================= Bölgesel formül ayracı / ondalık (i18n) =================
+   * Motor HER ZAMAN kanonik saklar/hesaplar: argüman ayracı ",", ondalık ".".
+   * Gerçek Excel gibi: yerelleştirilmiş GÖSTERİR (ör. Türkçe'de =TOPLA(A1;A2)),
+   * İngilizce/kanonik SAKLAR. Dönüşüm yalnızca kullanıcı giriş/gösterim sınırında
+   * yapılır (depolama/serialize'a hiç dokunmaz) → .xlsx birlikte çalışabilirliği
+   * ve mevcut belgeler bozulmaz. Her iki fonksiyon da tırnaklı metni atlar.
+   *
+   * localizeFormula: kanonik → yerel. Belirsizlik yok — kanonikte tırnak dışı her
+   *   "." ondalık, her "," argüman ayracıdır.
+   * delocalizeFormula: yerel → kanonik. sep → ","; ondalık virgül yalnızca İKİ
+   *   RAKAM ARASINDAysa "." olur (hücre başvurusundaki/ayraç virgülüyle karışmaz).
+   *   Nokta-ondalıklı yerelde (en) her ikisi de no-op.
+   */
+  function _skipString(src, i, out) {
+    // src[i] === '"' varsayımıyla çağrılır; kapanan tırnağa kadar ("" kaçışı) kopyalar.
+    let s = src[i]; i++;
+    const n = src.length;
+    while (i < n) { s += src[i]; if (src[i] === '"') { if (src[i + 1] === '"') { s += '"'; i += 2; continue; } i++; break; } i++; }
+    return { s, i };
+  }
+  function localizeFormula(src, sep, dec) {
+    if (typeof src !== "string" || src[0] !== "=") return src;
+    if (sep === "," && dec === ".") return src;
+    let out = "", i = 0; const n = src.length;
+    while (i < n) {
+      const ch = src[i];
+      if (ch === '"') { const r = _skipString(src, i, out); out += r.s; i = r.i; continue; }
+      out += ch === "," ? sep : ch === "." ? dec : ch;
+      i++;
+    }
+    return out;
+  }
+  function delocalizeFormula(src, sep, dec) {
+    if (typeof src !== "string" || src[0] !== "=") return src;
+    if (sep === "," && dec === ".") return src;
+    const isD = (c) => c >= "0" && c <= "9";
+    let out = "", i = 0; const n = src.length;
+    while (i < n) {
+      const ch = src[i];
+      if (ch === '"') { const r = _skipString(src, i, out); out += r.s; i = r.i; continue; }
+      if (ch === sep) { out += ","; i++; continue; }
+      if (dec === "," && ch === "," && isD(src[i - 1]) && isD(src[i + 1])) { out += "."; i++; continue; }
+      out += ch; i++;
+    }
+    return out;
+  }
+
   /* ============================ Dışa aktarım ============================ */
   const HyperFormula = {
     buildEmpty() { return new Engine(); },
     getRegisteredFunctionNames() { return Object.keys(FUNCTIONS).sort(); },
     canonicalize,
+    localizeFormula,
+    delocalizeFormula,
     FN_ALIASES,
     _Engine: Engine,
   };

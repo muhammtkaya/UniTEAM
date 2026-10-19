@@ -401,7 +401,7 @@ XL.modes.xlsx = {
       if (e.key === "Enter") {
         e.preventDefault();
         const a = XL.state.active;
-        XL.engine.setCell(a.r, a.c, inp.value);
+        XL.engine.setCellLocalized(a.r, a.c, inp.value);
         XL.grid.render(); XL.grid.move(1, 0); XL.ws.changed();
         XL.grid.focusSink();
       } else if (e.key === "Escape") {
@@ -410,8 +410,8 @@ XL.modes.xlsx = {
     });
     inp.addEventListener("change", () => {
       const a = XL.state.active;
-      if (inp.value !== XL.engine.getRaw(a.r, a.c)) {
-        XL.engine.setCell(a.r, a.c, inp.value);
+      if (inp.value !== XL.engine.getRawLocalized(a.r, a.c)) {
+        XL.engine.setCellLocalized(a.r, a.c, inp.value);
         XL.grid.render(); XL.grid.updateSelection(); XL.ws.changed();
       }
     });
@@ -445,7 +445,7 @@ XL.modes.xlsx = {
     nb.textContent = multi
       ? XL.addrLabel(Math.min(s.r1, s.r2), Math.min(s.c1, s.c2)) + ":" + XL.addrLabel(Math.max(s.r1, s.r2), Math.max(s.c1, s.c2))
       : XL.addrLabel(a.r, a.c);
-    this.setFormulaBar(XL.engine.getRaw(a.r, a.c));
+    this.setFormulaBar(XL.engine.getRawLocalized(a.r, a.c));
 
     const nf = document.getElementById("numfmt");
     if (nf) nf.value = XL.getFormat(a.r, a.c).numfmt || "general";

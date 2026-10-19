@@ -78,7 +78,7 @@ XL.grid = {
     if (!td || (this.editing && this.editing.r === r && this.editing.c === c)) return;
     const val = XL.engine.getValue(r, c);
     const showFormulas = XL.modes.xlsx.view.showFormulas;
-    const raw = showFormulas ? XL.engine.getRaw(r, c) : "";
+    const raw = showFormulas ? XL.engine.getRawLocalized(r, c) : "";
     td.textContent = showFormulas && raw.startsWith("=") ? raw : XL.format.display(val, r, c);
     td.classList.toggle("err", XL.isError(val));
     td.style.cssText = "";
@@ -264,7 +264,7 @@ XL.grid = {
     if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;  // salt görüntüleme
     this.editing = { r, c };
     const td = this.cells[r][c];
-    const raw = initial !== undefined ? initial : XL.engine.getRaw(r, c);
+    const raw = initial !== undefined ? initial : XL.engine.getRawLocalized(r, c);
     td.textContent = "";
     const inp = document.createElement("input");
     inp.type = "text";
@@ -312,7 +312,7 @@ XL.grid = {
     }
     this.editing = null;
     this.editInput = null;
-    XL.engine.setCell(r, c, val);
+    XL.engine.setCellLocalized(r, c, val);
     this.render();
     this.updateSelection();
     XL.ws.changed();

@@ -81,6 +81,36 @@ async function run({ baseURL }) {
     check("Türkçe =TOPLA hesaplandı (7)", fn.val === 7, fn);
     check("=TOPLA kayıtta İngilizce'ye çevrildi (=SUM)", /=SUM\(/i.test(fn.raw), fn);
 
+    // --- i18n: bölgesel formül ayracı/ondalık (TR ";"/"," ↔ kanonik ","/".")
+    const sep = await page.evaluate(() => {
+      XL.i18n.set("tr");
+      // Kullanıcı girişi yerel: =TOPLA(1,5;2,5) → 4.0 (virgül ondalık, ; argüman ayracı)
+      XL.engine.setCellLocalized(20, 5, "=TOPLA(1,5;2,5)");   // F21
+      const trVal = XL.engine.getValue(20, 5);
+      const trCanon = XL.engine.getRaw(20, 5);               // kanonik saklanmalı
+      const trShown = XL.engine.getRawLocalized(20, 5);      // yerel gösterilmeli
+      // Argüman ayracı (hücre başvurusu, ondalık yok): =TOPLA(G1;G2)
+      XL.engine.setCell(0, 6, "10"); XL.engine.setCell(1, 6, "5"); // G1,G2
+      XL.engine.setCellLocalized(21, 5, "=TOPLA(G1;G2)");    // F22
+      const refVal = XL.engine.getValue(21, 5);
+      const refCanon = XL.engine.getRaw(21, 5);
+      // EN'de aynı mantık kanonik: =SUM(1.5,2.5)
+      XL.i18n.set("en");
+      XL.engine.setCellLocalized(22, 5, "=SUM(1.5,2.5)");    // F23
+      const enVal = XL.engine.getValue(22, 5);
+      const enShown = XL.engine.getRawLocalized(22, 5);
+      XL.i18n.set("tr");
+      return { trVal, trCanon, trShown, refVal, refCanon, enVal, enShown };
+    });
+    console.log("  sep:", JSON.stringify(sep));
+    check("TR ondalık virgül + ; ayracı hesaplandı (=4)", sep.trVal === 4, sep);
+    check("Kanonik saklandı (=SUM(1.5,2.5))", /=SUM\(1\.5,2\.5\)/.test(sep.trCanon), sep);
+    check("TR'de yerel gösterildi (=SUM(1,5;2,5))", /=SUM\(1,5;2,5\)/.test(sep.trShown), sep);
+    check("TR ; argüman ayracı başvuruyla (=15)", sep.refVal === 15, sep);
+    check("Başvuru ayracı kanonik virgül (G1,G2)", /=SUM\(G1,G2\)/.test(sep.refCanon), sep);
+    check("EN nokta/virgül kanonik hesaplandı (=4)", sep.enVal === 4, sep);
+    check("EN'de gösterim kanonik kaldı (=SUM(1.5,2.5))", /=SUM\(1\.5,2\.5\)/.test(sep.enShown), sep);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

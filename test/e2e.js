@@ -162,6 +162,22 @@ async function run({ baseURL }) {
     check("Başta PptxGenJS/docx yüklü değil (tembel)", lazy.before.pptx === "undefined" && lazy.before.docx === "undefined", lazy);
     check("ensure() ile ExcelJS tembel yüklendi", lazy.afterExcel !== "undefined", lazy);
 
+    // --- A4 veri hakları: yerel "verilerimi indir" (hesapsız) + gizlilik paneli
+    const priv = await page.evaluate(async () => {
+      const d = await XL.privacy.collectLocal();
+      XL.privacy.openPanel();
+      const hasLocalBtn = !!document.getElementById("pv-export-local");
+      const hasCloudBtn = !!document.getElementById("pv-export-cloud");   // giriş yok → olmamalı
+      const legalCount = document.querySelectorAll(".pv-legal").length;
+      XL.hidePanel && XL.hidePanel();
+      return { app: d.app, kind: d.kind, isArr: Array.isArray(d.docs), hasLocalBtn, hasCloudBtn, legalCount };
+    });
+    console.log("  priv:", JSON.stringify(priv));
+    check("Yerel veri toplandı (app+docs dizisi)", priv.app === "UniTEAM" && priv.kind === "local" && priv.isArr, priv);
+    check("Gizlilik panelinde yerel indir düğmesi var", priv.hasLocalBtn === true, priv);
+    check("Giriş yokken hesap-verisi düğmesi yok", priv.hasCloudBtn === false, priv);
+    check("Yasal metin iskeletleri render edildi (3)", priv.legalCount === 3, priv);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

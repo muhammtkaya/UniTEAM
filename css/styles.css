@@ -728,3 +728,13 @@ button, select, .doctab, .tmpl-card { touch-action: manipulation; }
 @keyframes ppFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ppFly { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ppZoom { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+
+/* Gizlilik & veri hakları paneli (Faz 8 / A4) */
+.pv-ui .pv-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.pv-btn { padding: 7px 12px; border: 1px solid var(--border, #d0d0d0); border-radius: 6px; background: var(--btn-bg, #f5f5f5); cursor: pointer; font: inherit; }
+.pv-btn:hover { background: var(--btn-hover, #ececec); }
+.pv-btn.pv-danger { border-color: #c0392b; color: #c0392b; }
+.pv-btn.pv-danger:hover { background: #c0392b; color: #fff; }
+.pv-legal { margin: 8px 0; border: 1px solid var(--border, #e0e0e0); border-radius: 6px; padding: 6px 10px; }
+.pv-legal summary { cursor: pointer; font-weight: 600; }
+.pv-legal p { margin: 8px 0; line-height: 1.5; }

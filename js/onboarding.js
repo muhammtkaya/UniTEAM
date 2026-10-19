@@ -65,7 +65,14 @@ XL.onboarding = {
           <h4>${XL.t("Diller", "Languages")}</h4>
           <p class="muted">${XL.t("Üstteki 🌐 düğmesinden dil seçin. Türkçe formül adları da desteklenir: =TOPLA, =EĞER, =DÜŞEYARA…", "Pick a language from 🌐 at the top. Turkish formula names also work: =TOPLA, =EĞER, =DÜŞEYARA…")}</p>
         </div>
+        <div class="help-sec">
+          <h4>${XL.t("Gizlilik ve verileriniz", "Privacy & your data")}</h4>
+          <p class="muted">${XL.t("Verilerinizi indirin, hesabınızı silin, gizlilik/koşul metinlerini görün.", "Download your data, delete your account, view privacy/terms texts.")}</p>
+          <button id="help-privacy" class="pv-btn">${XL.t("🔏 Gizlilik ve Verileriniz", "🔏 Privacy & Your Data")}</button>
+        </div>
       </div>`);
+    const hp = document.getElementById("help-privacy");
+    if (hp) hp.addEventListener("click", () => { XL.privacy.openPanel(); });
     this._renderTemplates();
   },
 

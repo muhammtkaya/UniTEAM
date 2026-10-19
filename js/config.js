@@ -29,4 +29,13 @@ XL.config = {
   worker: {
     url: ENV.WORKER_URL || "http://127.0.0.1:8787",
   },
+  // Gözlemlenebilirlik (Faz 7). dsn BOŞSA hiçbir ağ isteği yapılmaz — olaylar
+  // yalnız konsola/yerel tampona gider (hesap/servis gerekmez). Buluta geçince
+  // (Faz 9) .env'ye bir toplayıcı DSN'i konur; kod aynı kalır.
+  observability: {
+    dsn: ENV.OBSERVABILITY_DSN || ENV.SENTRY_DSN || "",
+    env: ENV.APP_ENV || "local",
+    release: (typeof XL !== "undefined" && XL.APP_VERSION) || "0.0.0",
+    sampleRate: ENV.OBS_SAMPLE_RATE != null ? Number(ENV.OBS_SAMPLE_RATE) : 1,
+  },
 };

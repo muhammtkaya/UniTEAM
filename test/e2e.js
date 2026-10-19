@@ -117,6 +117,39 @@ async function run({ baseURL }) {
     check("EN nokta/virgül kanonik hesaplandı (=4)", sep.enVal === 4, sep);
     check("EN'de gösterim kanonik kaldı (=SUM(1.5,2.5))", /=SUM\(1\.5,2\.5\)/.test(sep.enShown), sep);
 
+    // --- Gözlemlenebilirlik (Faz 7): yerel-yalnız (DSN yok → ağ isteği yok)
+    const obs = await page.evaluate(() => {
+      const booted = !!(XL.obs && XL.obs._booted);
+      const dsn = XL.config.observability.dsn;        // yerelde boş olmalı
+      XL.obs._crumbs.length = 0;                       // temiz başla
+      XL.status("Test durumu");                        // XL.status köprüsü breadcrumb eklemeli
+      XL.obs.info("merhaba", { x: 1 });
+      // captureException kasıtlı olarak console.error'a yazar (doğru davranış); test
+      // harness'ı console.error'ı hata saydığından yakalama sırasında geçici sustur.
+      const _ce = console.error; console.error = () => {};
+      const ev = XL.obs.captureException(new Error("sentetik-hata"), { op: "test" });
+      console.error = _ce;
+      const m = XL.obs.metric("test.sayac", 3, { unit: "adet" });
+      // Halka tamponu _max'te sınırlanmalı
+      for (let i = 0; i < 80; i++) XL.obs.breadcrumb("spam", "b" + i);
+      const diag = XL.obs.diagnostics();
+      return {
+        booted, dsn,
+        evName: ev && ev.name, evMsg: ev && ev.message, evHasCtx: !!(ev && ev.context && ev.context.release),
+        metricVal: m && m.value,
+        capped: XL.obs._crumbs.length <= XL.obs._max,
+        hasRelease: !!(diag.context && diag.context.release),
+        noUid: diag.context.authed === false,          // giriş yapılmadı → PII yok
+      };
+    });
+    console.log("  obs:", JSON.stringify(obs));
+    check("Gözlemlenebilirlik başlatıldı", obs.booted === true, obs);
+    check("Yerelde DSN boş (ağ isteği yok)", obs.dsn === "", obs);
+    check("İstisna yakalandı (name+message+bağlam)", obs.evName === "Error" && /sentetik-hata/.test(obs.evMsg) && obs.evHasCtx, obs);
+    check("Metrik kaydedildi (=3)", obs.metricVal === 3, obs);
+    check("Breadcrumb halkası _max ile sınırlı", obs.capped === true, obs);
+    check("Tanılama bağlamı release içerir, PII yok", obs.hasRelease && obs.noUid, obs);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

@@ -1,6 +1,7 @@
 /* core.js — ortak ad alanı, mod kaydı ve yardımcılar */
 const XL = {
-  APP_NAME: "UniTEAM",   // ürün adı — tek kaynak; başlık/çıktı meta verisinde kullanılır
+  APP_NAME: "UniTEAM",     // ürün adı — tek kaynak; başlık/çıktı meta verisinde kullanılır
+  APP_VERSION: "0.6.0",    // sürüm (gözlemlenebilirlik "release" etiketi; faz ilerledikçe artar)
   modes: {},     // "xlsx" | "docx" | "pptx" -> mod nesnesi (her mod kendini kaydeder)
 
   // --- Excel modunun çalışma durumu (yalnızca Excel belgesi açıkken anlamlı) ---

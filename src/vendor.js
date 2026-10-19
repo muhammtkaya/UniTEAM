@@ -38,4 +38,8 @@ window.__ENV__ = {
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || "",
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || "",
   WORKER_URL: import.meta.env.VITE_WORKER_URL || "",
+  // Gözlemlenebilirlik (Faz 7). Boşsa yerel-yalnız (ağ isteği yok).
+  OBSERVABILITY_DSN: import.meta.env.VITE_OBSERVABILITY_DSN || "",
+  APP_ENV: import.meta.env.VITE_APP_ENV || "",
+  OBS_SAMPLE_RATE: import.meta.env.VITE_OBS_SAMPLE_RATE || "",
 };

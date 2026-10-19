@@ -15,6 +15,7 @@ import "./vendor.js";
 import "../js/core.js";
 import "../js/i18n.js";
 import "../js/config.js";
+import "../js/observability.js";   // config'den hemen sonra: global hataları baştan yakalar (Faz 7)
 import "../js/auth.js";
 import "../js/byos.js";
 import "../js/cloud.js";

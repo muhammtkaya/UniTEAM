@@ -554,6 +554,7 @@ XL.ws = {
       XL.status(XL.t("Açıldı: ", "Opened: ") + file.name);
     } catch (err) {
       console.error(err);
+      if (XL.obs) XL.obs.captureException(err, { op: "openFile", ext: (file.name.match(/\.[^.]+$/) || [""])[0] });
       // Bozuk/beklenmedik dosyada çökme yerine zarif, anlaşılır hata (Faz 6).
       const msg = String(err && err.message || err);
       const friendly = /zip|end of central|corrupt|invalid|unexpected|not a|format/i.test(msg)

@@ -58,6 +58,30 @@ async function run({ baseURL }) {
     check("Hizalama yazıldı (center)", xlsx.align === "center", xlsx);
     check("İtalik stili (A2) yazıldı", xlsx.italic2 === true, xlsx);
 
+    // --- XLSX stil OKUMA (ExcelJS): yaz→dosya→içe-aktar→stiller geri geldi mi? [Faz 6]
+    // (Okuyucu artık font/dolgu/hizalamayı ExcelJS ile çıkarır; değer okuması SheetJS'te.)
+    const xlsxRead = await page.evaluate(async () => {
+      const data = { rows: 100, cols: 26, activeSheet: 0, sheets: [{ name: "S1",
+        cells: { "0,0": "Ad", "1,0": "Ali" }, formats: {} }] };
+      XL.engine.load(data);
+      const sid = XL.state.sheets[0].id;
+      XL.state.formats[sid + ":0:0"] = { bold: true, color: "#ff0000", bg: "#ffff00", align: "center" };
+      XL.state.formats[sid + ":1:0"] = { italic: true, underline: true };
+      const blob = await XL.io.buildBlob(XL.engine.serialize());
+      // Tam içe-aktarma yolu (SheetJS değer + ExcelJS stil birleşimi)
+      const file = new File([blob], "t.xlsx", { type: blob.type });
+      const back = await XL.io.readFile(file);
+      const fmt = back.sheets[0].formats || {};
+      return { a1: fmt["0:0"] || null, a2: fmt["1:0"] || null, a2val: back.sheets[0].cells["1,0"] };
+    });
+    console.log("  XLSX-read:", JSON.stringify(xlsxRead));
+    check("Okuma: değer korundu (A2=Ali)", xlsxRead.a2val === "Ali", xlsxRead);
+    check("Okuma: kalın geri geldi", !!(xlsxRead.a1 && xlsxRead.a1.bold), xlsxRead);
+    check("Okuma: yazı rengi geri geldi (#ff0000)", !!(xlsxRead.a1 && xlsxRead.a1.color === "#ff0000"), xlsxRead);
+    check("Okuma: dolgu geri geldi (#ffff00)", !!(xlsxRead.a1 && xlsxRead.a1.bg === "#ffff00"), xlsxRead);
+    check("Okuma: hizalama geri geldi (center)", !!(xlsxRead.a1 && xlsxRead.a1.align === "center"), xlsxRead);
+    check("Okuma: italik+altı çizili geri geldi (A2)", !!(xlsxRead.a2 && xlsxRead.a2.italic && xlsxRead.a2.underline), xlsxRead);
+
     // --- Koşullu biçim + veri doğrulama: uygulama-içi round-trip (serialize→load) [Faz 6]
     const rules = await page.evaluate(() => {
       const data = { rows: 50, cols: 10, activeSheet: 0, sheets: [{ name: "R1",

@@ -1,11 +1,74 @@
 /* excel/io.js — .xlsx / .csv içe-dışa aktarma
- * OKUMA + CSV: SheetJS (XLSX). YAZMA: ExcelJS (font/dolgu/hizalama stilleri — SheetJS yazamaz). */
+ * OKUMA: değer/formül/düzen = SheetJS; font/dolgu/hizalama STİLİ = ExcelJS katmanı.
+ *   (SheetJS community bu stilleri okumuyordu → içe aktarımda sessizce kaybolurdu.
+ *    Değer okuması SheetJS'te bırakıldı → corpus/fidelity sadakati aynen korunur;
+ *    ExcelJS yalnız metni ETKİLEMEYEN görsel stilleri ekler = sıfır metin riski.)
+ * CSV: SheetJS. YAZMA: ExcelJS. */
 XL.io = {
   // Dosyayı oku → Excel belge verisi döndür
   async readFile(file) {
     const buf = await XL.readAsArrayBuffer(file);
     const wb = XLSX.read(new Uint8Array(buf), { type: "array", cellFormula: true, cellStyles: true });
-    return this.workbookToData(wb);
+    const data = this.workbookToData(wb);
+    // Aynı buffer'ı ExcelJS ile de aç → font/dolgu/hizalama stillerini formats'a birleştir.
+    try { await this._readStyles(buf, data); } catch (e) { /* stil okunamazsa değerler yine gelir */ }
+    return data;
+  },
+
+  /* =====================================================================
+   *  STİL OKUMA (ExcelJS) — font / dolgu / hizalama
+   *  SheetJS'in kurduğu `formats` haritasının ÜSTÜNE eklenir; mevcut anahtarlar
+   *  (örn. SheetJS'ten gelen numfmt) korunur. Yalnız metni etkilemeyen görsel
+   *  alanlar (bold/italic/underline/color/bg/align) yazılır.
+   * ===================================================================== */
+  async _readStyles(buf, data) {
+    if (typeof ExcelJS === "undefined" || !ExcelJS.Workbook) return;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    wb.worksheets.forEach((ws, idx) => {
+      const sheet = data.sheets[idx];
+      if (!sheet) return;
+      const formats = sheet.formats || (sheet.formats = {});
+      ws.eachRow({ includeEmpty: false }, (row, rn) => {
+        row.eachCell({ includeEmpty: false }, (cell, cn) => {
+          const f = this._styleFromCell(cell);
+          if (!f) return;
+          const key = (rn - 1) + ":" + (cn - 1);
+          // f'yi önce koy, mevcut (SheetJS) alanları üstüne yaz → numfmt vb. korunur.
+          formats[key] = Object.assign({}, f, formats[key]);
+        });
+      });
+    });
+  },
+
+  // ExcelJS renk nesnesi → #rrggbb. Yalnız açık ARGB desteklenir (theme/indexed v1'de atlanır).
+  _hexFromColor(color) {
+    if (!color || typeof color.argb !== "string") return null;
+    const h = color.argb;
+    if (/^[0-9a-fA-F]{8}$/.test(h)) return "#" + h.slice(2).toLowerCase();
+    if (/^[0-9a-fA-F]{6}$/.test(h)) return "#" + h.toLowerCase();
+    return null;
+  },
+
+  // ExcelJS hücresinden görsel biçim nesnesi ({bold,italic,underline,color,bg,align}) çıkar
+  _styleFromCell(cell) {
+    const f = {};
+    const font = cell.font;
+    if (font) {
+      if (font.bold) f.bold = true;
+      if (font.italic) f.italic = true;
+      if (font.underline) f.underline = true;      // string ('single') veya true olabilir
+      const col = this._hexFromColor(font.color);
+      if (col && col !== "#000000") f.color = col;  // varsayılan siyah metni gürültü yapmamak için atla
+    }
+    const fill = cell.fill;
+    if (fill && fill.type === "pattern" && fill.pattern === "solid") {
+      const bg = this._hexFromColor(fill.fgColor);
+      if (bg) f.bg = bg;
+    }
+    const al = cell.alignment;
+    if (al && /^(left|center|right)$/.test(al.horizontal || "")) f.align = al.horizontal;
+    return Object.keys(f).length ? f : null;
   },
 
   workbookToData(wb) {

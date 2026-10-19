@@ -102,6 +102,7 @@ XL.auth = {
       <button id="ap-cloud-save" class="ap-item ap-action">${XL.t("☁ Buluta kaydet", "☁ Save to cloud")}</button>
       <button id="ap-cloud-list" class="ap-item ap-action">${XL.t("📥 Bulut belgelerim", "📥 My cloud documents")}</button>
       <button id="ap-orgs" class="ap-item ap-action">${XL.t("🏢 Organizasyonlarım", "🏢 My organizations")}</button>
+      <button id="ap-billing" class="ap-item ap-action">${XL.t("💳 Plan ve Faturalandırma", "💳 Plan & Billing")}</button>
       <button id="ap-security" class="ap-item ap-action">${XL.t("🔐 Güvenlik", "🔐 Security")}</button>
       <button id="ap-privacy" class="ap-item ap-action">${XL.t("🔏 Gizlilik ve Verilerim", "🔏 Privacy & My Data")}</button>
       <hr>
@@ -114,6 +115,7 @@ XL.auth = {
     document.getElementById("ap-cloud-save").addEventListener("click", () => { this._closePopover(); XL.cloud.saveActive(); });
     document.getElementById("ap-cloud-list").addEventListener("click", () => { this._closePopover(); XL.cloud.openPicker(); });
     document.getElementById("ap-orgs").addEventListener("click", () => { this._closePopover(); XL.org.openPanel(); });
+    document.getElementById("ap-billing").addEventListener("click", () => { this._closePopover(); XL.billing.openPanel(); });
     document.getElementById("ap-security").addEventListener("click", () => { this._closePopover(); XL.security.openPanel(); });
     document.getElementById("ap-privacy").addEventListener("click", () => { this._closePopover(); XL.privacy.openPanel(); });
     document.getElementById("ap-signout").addEventListener("click", () => this.signOut());

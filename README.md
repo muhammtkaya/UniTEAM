@@ -250,10 +250,12 @@ Hedef: tek tarayıcıda çalışan bir demoyu, **dünya çapında kullanılabile
 - [ ] **SSO/SAML + SCIM:** ertelendi — Supabase SSO (SAML) bir **canlı/proje ayarıdır** (yerel kod tarafı anlamlı değil); OAuth (Google/Microsoft/Apple) ile birlikte Faz 9 (deploy) kapsamında.
 - ⏳ **Kalan (canlı):** MFA + giriş akışlarının canlı Supabase yığınıyla doğrulanması; gerçek rate-limit için Worker deploy.
 
-### Faz 3 — Faturalandırma & plan/kota (kod)
-- [ ] Stripe entegrasyonu (abonelik/seat)
-- [ ] Plan / seat / depolama kotası modeli + enforcement
-- [ ] İş modeli: freemium / abonelik / kurumsal fiyatlandırma
+### Faz 3 — Faturalandırma & plan/kota (kod) ✅ (yerelde; gerçek ödeme → Faz 9)
+- [x] **Plan / koltuk / kota veri modeli:** `plans` KATALOĞU (free/pro/team/enterprise — fiyat, koltuk, depolama, belge kotaları; kurallar kodda değil VERİDE) + `subscriptions` (**çift özneli**: bir organizasyon **veya** bir kişisel hesap; "tam olarak biri dolu" kuralı `CHECK` + kısmi `UNIQUE` indekslerle zorlanır). Migration `20261019130000_billing.sql`. `-1` = sınırsız.
+- [x] **Kota ENFORCEMENT (sunucuda, hangi istemci olursa olsun):** belge sayısı → `documents` üzerinde **BEFORE INSERT trigger** (`_enforce_document_quota`); koltuk sayısı → `invite_to_org` / `accept_org_invite` RPC'lerinde `_assert_seat_available`; org'a belge taşımada `move_document_to_org` kota kontrolü; **downgrade bütünlüğü** → mevcut kullanım yeni kotayı aşıyorsa plan düşürme reddedilir. Depolama byte'ı `get_subscription`'da raporlanır (sert yükleme reddi → Faz 9 Storage kancası).
+- [x] **İş modeli (freemium / abonelik / kurumsal):** katalog 4 basamak — Free (ücretsiz), Pro ($9/ay), Team ($12/koltuk/ay), Enterprise (özel fiyat). RPC'ler: `list_plans`, `get_subscription` (plan + limit + güncel kullanım tek JSON), `change_plan` (**ödeme sonrası durumu SİMÜLE eder** — kart alınmaz).
+- [x] **Faturalandırma UI (`js/billing.js` = `XL.billing`):** hesap menüsünde "💳 Plan ve Faturalandırma" (kişisel) + org yönetim panelinde "Plan" sekmesi. Mevcut plan + durum, kullanım ölçerleri (belge/üye/depolama, kota aşımında kırmızı), plan karşılaştırma kartları + tek tıkla plan değişimi. Kartlar girişsiz/çevrimdışı da çizilir (katalog aynası). `cloud.js` belge kota hatasını anlaşılır "planı yükseltin" mesajına çevirir. 90/90 test (e2e +5).
+- [ ] **Gerçek ödeme (Stripe checkout + webhook) → Faz 9:** `stripe_customer_id`/`stripe_subscription_id` alanları hazır; canlı checkout, fatura ve `past_due`/`canceled` durum geçişleri deploy ile takılır (model değişmeden).
 
 ### Faz 4 — Güvenilirlik & veri sahipliği (kod) ✅ (yerelde; BYOS canlı kısmı Faz 9)
 - [x] **Sürüm geçmişi + çöp kutusu:** `js/cloud.js` — bulut belgelerinde "🕘 Sürümler" (anlık görüntü oluştur/listele/geri yükle; sunucu-içi kopya, mevcut `document_versions` tablosu) ve "🗑 Çöp kutusu" (soft-delete `trashed_at` → çöpe taşı / geri yükle / kalıcı sil). **Yeni şema/migration gerekmedi** (tablolar/sütunlar zaten vardı).

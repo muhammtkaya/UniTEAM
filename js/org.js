@@ -124,6 +124,7 @@ XL.org = {
         <div class="org-tabs">
           <button class="org-tab active" data-tab="members">${XL.t("Üyeler", "Members")}</button>
           <button class="org-tab" data-tab="docs">${XL.t("Belgeler", "Documents")}</button>
+          <button class="org-tab" data-tab="billing">${XL.t("Plan", "Plan")}</button>
           <button class="org-tab" data-tab="audit">${XL.t("Denetim", "Audit")}</button>
         </div>
         <div id="org-msg" class="share-msg hidden"></div>
@@ -147,6 +148,7 @@ XL.org = {
     try {
       if (tab === "members") return this._renderMembers(orgId, pane);
       if (tab === "docs")    return this._renderDocs(orgId, pane);
+      if (tab === "billing") return XL.billing.renderInto(pane, orgId);
       if (tab === "audit")   return this._renderAudit(orgId, pane);
     } catch (e) { pane.innerHTML = `<p class="muted">${XL.t("Hata: ", "Error: ")}${XL.esc(e.message || String(e))}</p>`; }
   },
@@ -257,6 +259,7 @@ XL.org = {
       "invite.accept": XL.t("davet kabul edildi", "invite accepted"),
       "doc.transfer": XL.t("belge devredildi", "document transferred"),
       "doc.move": XL.t("belge taşındı", "document moved"),
+      "billing.change_plan": XL.t("plan değişti", "plan changed"),
     };
     pane.innerHTML = '<div class="org-audit">' + rows.map((a) => {
       const when = new Date(a.created_at).toLocaleString();

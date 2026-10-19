@@ -363,6 +363,11 @@ XL.cloud = {
       if (/fetch|network|failed to fetch|load failed/i.test(e.message || "")) {
         await this._enqueue(doc);
         XL.status(XL.t("📴 Bağlantı yok — değişiklik kuyruğa alındı.", "📴 No connection — change queued."));
+      } else if (/kota doldu|kota sunar|belge sunar/i.test(e.message || "")) {
+        // Faz 3: plan belge kotası sunucuda zorlandı (trigger). Yükseltmeye yönlendir.
+        alert(XL.t("Belge kotanız doldu. Planınızı yükseltin (💳 Plan ve Faturalandırma) veya bir belge silin.",
+                   "You've hit your document quota. Upgrade your plan (💳 Plan & Billing) or delete a document."));
+        XL.status("");
       } else {
         alert(XL.t("Buluta kaydedilemedi: ", "Could not save to cloud: ") + (e.message || e));
         XL.status("");

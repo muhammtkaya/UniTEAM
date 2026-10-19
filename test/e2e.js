@@ -178,6 +178,25 @@ async function run({ baseURL }) {
     check("Giriş yokken hesap-verisi düğmesi yok", priv.hasCloudBtn === false, priv);
     check("Yasal metin iskeletleri render edildi (3)", priv.legalCount === 3, priv);
 
+    // --- A5 faturalandırma: plan kartları girişsiz çizilir (katalog aynası, ağsız)
+    const bill = await page.evaluate(() => {
+      XL.billing.openPanel();                       // giriş yok → yalnız kartlar
+      const cards = document.querySelectorAll(".bill-card").length;
+      const curBadge = !!document.querySelector(".bill-card.current .bc-badge");  // free = mevcut
+      const proPrice = XL.billing._price(XL.billing.PLAN_META.pro);
+      const freePrice = XL.billing._price(XL.billing.PLAN_META.free);
+      const gb = XL.billing._mb(5120);
+      const tiers = XL.billing.TIERS.length;
+      XL.hidePanel && XL.hidePanel();
+      return { cards, curBadge, proPrice, freePrice, gb, tiers };
+    });
+    console.log("  bill:", JSON.stringify(bill));
+    check("Plan kartları render edildi (4)", bill.cards === 4 && bill.tiers === 4, bill);
+    check("Mevcut plan (free) girişsiz işaretli", bill.curBadge === true, bill);
+    check("Pro fiyatı biçimlendi ($9 / ay)", /\$9/.test(bill.proPrice), bill);
+    check("Free fiyatı 'Ücretsiz/Free'", /crets|Free/i.test(bill.freePrice), bill);
+    check("Depolama MB→GB biçimi (5 GB)", bill.gb === "5 GB", bill);
+
     check("Konsol/sayfa hatası yok", errors.length === 0, errors.slice(0, 5));
   } finally {
     await browser.close();

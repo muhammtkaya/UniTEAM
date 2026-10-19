@@ -20,6 +20,7 @@ import "../js/auth.js";
 import "../js/byos.js";
 import "../js/cloud.js";
 import "../js/org.js";
+import "../js/billing.js";
 import "../js/security.js";
 import "../js/comments.js";
 import "../js/realtime.js";

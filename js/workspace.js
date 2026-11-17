@@ -23,9 +23,32 @@ XL.ws = {
     }
     this.wireShell();
     this.wireRibbon();
+    this.wireFileHandler();   // OS'ten gelen dosyalar (çift tıklama → PWA)
     if (XL.i18n) XL.i18n.onChange(() => this.onLocaleChange());
     this.activate(this.activeId, true);
     this._saveAll();   // açılıştaki durumu (ve göçü) kalıcılaştır
+  },
+
+  // Kurulu PWA bir dosya ile başlatıldığında (ör. .xlsx çift tıklama) işletim
+  // sistemi dosyayı File Handling API üzerinden launchQueue'ya iletir. Burada
+  // alıp mevcut openFile() akışına veriyoruz. Manifest tarafı: vite.config.js.
+  wireFileHandler() {
+    try {
+      if (!("launchQueue" in window)) return;
+      window.launchQueue.setConsumer(async (params) => {
+        if (!params || !params.files || !params.files.length) return;
+        for (const handle of params.files) {
+          try {
+            const file = await handle.getFile();
+            await this.openFile(file);
+          } catch (e) {
+            console.error("Dosya işleyici hatası:", e);
+          }
+        }
+      });
+    } catch (e) {
+      console.error("launchQueue kurulamadı:", e);
+    }
   },
 
   // Dil değişince kalıcı arayüzü (şerit + sekmeler) yeniden çiz. Belge içeriği/mod korunur.

@@ -1,5 +1,7 @@
-// Kalıcılık (IndexedDB) uçtan uca testi.
-// Veri gir → kaydet → sayfayı yeniden yükle → veri hâlâ duruyor mu?
+// Oturum davranışı (IndexedDB) uçtan uca testi.
+// Masaüstü (Office) davranışı: veri gir + kaydet → sayfayı yeniden yükle →
+// önceki oturum GERİ YÜKLENMEZ, uygulama temiz (tek boş Excel) başlar.
+// (Kullanıcı isteği: açılışta eski açık belgeler otomatik açılmasın.)
 const puppeteer = require("puppeteer-core");
 const os = require("os");
 const fs = require("fs");
@@ -36,12 +38,13 @@ async function run({ baseURL }) {
       };
     });
 
-    // --- 2. tur: yeniden yükle, veri kalıcı mı?
+    // --- 2. tur: yeniden yükle → önceki oturum GERİ YÜKLENMEMELİ (temiz başlar)
     await page.reload({ waitUntil: "networkidle0" });
     await waitReady(page);
     const after = await page.evaluate(() => ({
       docCount: XL.ws.docs.length, a3: XL.engine.getValue(2, 0),
       a4: XL.engine.getValue(3, 0), rawA3: XL.engine.getRaw(2, 0),
+      type: XL.ws.active().type,
     }));
 
     console.log("  1. tur:", JSON.stringify(info));
@@ -49,9 +52,11 @@ async function run({ baseURL }) {
     check("IndexedDB kullanılıyor (localStorage değil)", info.usesIDB && info.lsEmpty, info);
     check("A3 = 12 (formül)", info.a3 === 12, info);
     check("A4 = 24 (SUM)", info.a4 === 24, info);
-    check("Yeniden yükleme sonrası A3 hâlâ 12 (kalıcılık)", after.a3 === 12, after);
-    check("Yeniden yükleme sonrası A4 hâlâ 24", after.a4 === 24, after);
-    check("Formül metni korunmuş (=A1+A2)", after.rawA3 === "=A1+A2", after);
+    // Masaüstü davranışı: yeniden yükleme önceki oturumu geri YÜKLEMEZ.
+    check("Yeniden yükleme sonrası temiz başladı (tek belge)", after.docCount === 1, after);
+    check("Temiz başlangıç boş Excel (xlsx)", after.type === "xlsx", after);
+    check("Önceki oturum geri yüklenmedi (A3 artık 12 değil)", after.a3 !== 12, after);
+    check("Önceki formül korunmadı (temiz sayfa)", after.rawA3 !== "=A1+A2", after);
 
     // --- i18n: dil değişince kalıcı arayüz (şerit + statik düğme) güncelleniyor mu?
     const i18n = await page.evaluate(() => {

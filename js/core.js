@@ -91,6 +91,33 @@ XL.uid = function () {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 };
 
+/* --- Dosya Sistemi Erişimi (File System Access API) ---
+ * Destekleyen tarayıcılarda (Chrome/Edge, HTTPS/localhost) dosyayı YERİNDE
+ * kaydetmeyi (üzerine yazma) sağlar. Desteklenmiyorsa çağıran indirmeye düşer. */
+XL.fsa = {
+  // Yerinde kaydetme ("Farklı Kaydet" konum seçici) destekleniyor mu?
+  canSave() { try { return typeof window !== "undefined" && "showSaveFilePicker" in window; } catch (e) { return false; } },
+  // Tutamaçlı açma (kaydederken aynı dosyaya yazabilmek için) destekleniyor mu?
+  canOpen() { try { return typeof window !== "undefined" && "showOpenFilePicker" in window; } catch (e) { return false; } },
+
+  // Tutamaca yazma izni var mı? Yoksa (kullanıcı hareketiyle) iste.
+  async ensureWritable(handle) {
+    if (!handle || !handle.queryPermission) return false;
+    const opts = { mode: "readwrite" };
+    try {
+      if ((await handle.queryPermission(opts)) === "granted") return true;
+      return (await handle.requestPermission(opts)) === "granted";
+    } catch (e) { return false; }
+  },
+
+  // Blob'u tutamaca yaz (dosyanın üstüne).
+  async write(handle, blob) {
+    const w = await handle.createWritable();
+    await w.write(blob);
+    await w.close();
+  },
+};
+
 // Blob'u dosya olarak indir
 XL.download = function (blob, filename) {
   const a = document.createElement("a");

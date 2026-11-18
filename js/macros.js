@@ -69,8 +69,9 @@ XL.macros = {
     const now = new Date();
     switch (m.kind) {
       case "date": return now.toLocaleDateString(loc);
-      case "time": return now.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
-      case "datetime": return now.toLocaleDateString(loc) + " " + now.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit" });
+      // Türkiye standardı: 24 saat biçimi (AM/PM yok) — hour12:false her dilde 24h verir.
+      case "time": return now.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit", hour12: false });
+      case "datetime": return now.toLocaleDateString(loc) + " " + now.toLocaleTimeString(loc, { hour: "2-digit", minute: "2-digit", hour12: false });
       case "formula": {
         const v = (m.value || "").trim();
         return v.startsWith("=") ? v : "=" + v;

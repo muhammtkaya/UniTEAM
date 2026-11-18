@@ -302,11 +302,15 @@ XL.modes.docx = {
   },
 
   async save(doc) {
+    XL.download(await this.buildBlob(doc), doc.name + ".docx");
+  },
+
+  // İndirmeden Blob üret (yerinde kaydetme için).
+  async buildBlob(doc) {
     const data = this.serialize();
     // Dönüştürücü gerçek DOM ölçülerine (resim boyutları) ihtiyaç duyar: canlı gövdeyi kullan
     const root = this.body || Object.assign(document.createElement("div"), { innerHTML: data.html });
-    const blob = await XL.docxIO.exportBlob(root, data.page);
-    XL.download(blob, doc.name + ".docx");
+    return XL.docxIO.exportBlob(root, data.page);
   },
 
   bindGlobals() {

@@ -264,9 +264,13 @@ XL.modes.pptx = {
   },
 
   async save(doc) {
+    XL.download(await this.buildBlob(doc), doc.name + ".pptx");
+  },
+
+  // İndirmeden Blob üret (yerinde kaydetme için).
+  async buildBlob(doc) {
     this.stopEditing();
-    const blob = await XL.pptxIO.exportBlob(this.data, this);
-    XL.download(blob, doc.name + ".pptx");
+    return XL.pptxIO.exportBlob(this.data, this);
   },
 
   slide() { return this.data.slides[this.cur]; },

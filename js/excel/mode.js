@@ -222,6 +222,11 @@ XL.modes.xlsx = {
     await XL.io.save(this.serialize(), doc.name + ".xlsx");
   },
 
+  // İndirmeden Blob üret (yerinde kaydetme için).
+  async buildBlob(doc) {
+    return XL.io.buildBlob(this.serialize());
+  },
+
   /* ---------- Komutlar (şerit) ---------- */
   command(cmd, value) {
     const r = this.runCommand(cmd, value);

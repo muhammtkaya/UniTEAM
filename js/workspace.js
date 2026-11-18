@@ -398,12 +398,14 @@ XL.ws = {
       const choice = await this._confirmClose(doc.name);
       if (choice === "cancel" || choice == null) return;   // İptal → açık kalır
       if (choice === "save") {
-        // "Kaydet": belgeyi indir. Kaydetme canlı moda ihtiyaç duyduğundan
-        // (serialize etkin belgeyi okur) belgeyi önce etkinleştiririz.
+        // "Kaydet": serialize etkin belgeyi okuduğundan belgeyi önce etkinleştir.
         if (id !== this.activeId) this.activate(id);
         try { await this.save(); } catch (e) { console.error(e); }
+        // Kaydetme iptal edildi/başarısızsa (ör. Farklı Kaydet penceresi kapatıldı)
+        // belge hâlâ "değişmiş" kalır → veri kaybını önlemek için kapatma.
+        if (doc.dirty) return;
       }
-      // "save" ve "discard": her ikisi de kapatır.
+      // "save" (başarılı) ve "discard": her ikisi de kapatır.
     }
     this._removeDoc(id);
   },
@@ -480,9 +482,9 @@ XL.ws = {
     });
 
     const fileInput = document.getElementById("fileInput");
-    document.getElementById("btn-open").addEventListener("click", () => fileInput.click());
+    document.getElementById("btn-open").addEventListener("click", () => this.openPicker(fileInput));
     fileInput.addEventListener("change", () => {
-      if (fileInput.files[0]) this.openFile(fileInput.files[0]);
+      if (fileInput.files[0]) this.openFile(fileInput.files[0]);   // yedek yol: tutamaç yok
       fileInput.value = "";
     });
     document.getElementById("btn-save").addEventListener("click", () => this.save());
@@ -504,8 +506,8 @@ XL.ws = {
 
     document.addEventListener("keydown", (e) => {
       const ctrl = e.ctrlKey || e.metaKey;
-      if (ctrl && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
-      if (ctrl && e.key.toLowerCase() === "o") { e.preventDefault(); fileInput.click(); }
+      if (ctrl && e.key.toLowerCase() === "s") { e.preventDefault(); e.shiftKey ? this.saveAs() : this.save(); }
+      if (ctrl && e.key.toLowerCase() === "o") { e.preventDefault(); this.openPicker(fileInput); }
       if (e.key === "Escape") { menu.classList.add("hidden"); }
     });
     // Uygulamayı/sekmeyi kapatırken: yalnızca kaydedilmemiş (değişmiş) belge varsa
@@ -534,7 +536,7 @@ XL.ws = {
       for (const handle of params.files) {
         try {
           const file = await handle.getFile();
-          await this.openFile(file);   // boş varsayılanı düşürme openFile içinde
+          await this.openFile(file, handle);   // tutamaç → Kaydet üstüne yazar; boş varsayılan openFile içinde düşer
         } catch (e) {
           console.error("launchQueue: dosya açılamadı", e);
           if (XL.obs) XL.obs.captureException(e, { op: "launchQueue" });
@@ -639,14 +641,40 @@ XL.ws = {
     return Object.values(XL.modes).find((m) => m.accept.includes(ext));
   },
 
-  async openFile(file) {
+  // Aç düğmesi: destekleyen tarayıcıda dosya TUTAMACIYLA aç (Kaydet üstüne yazsın);
+  // yoksa klasik dosya seçiciye (input) düş.
+  async openPicker(fileInput) {
+    if (!XL.fsa.canOpen()) return fileInput.click();
+    let handles;
+    try {
+      handles = await window.showOpenFilePicker({
+        multiple: true,
+        types: [{
+          description: XL.t("Office belgeleri", "Office documents"),
+          accept: { "application/octet-stream": [".xlsx", ".xlsm", ".xls", ".csv", ".docx", ".pptx"] },
+        }],
+      });
+    } catch (e) {
+      if (e && e.name === "AbortError") return;   // kullanıcı iptal etti
+      console.error(e); return fileInput.click();
+    }
+    for (const handle of handles) {
+      try { await this.openFile(await handle.getFile(), handle); }
+      catch (e) { console.error(e); }
+    }
+  },
+
+  // file: açılacak File; handle (varsa): aynı dosyaya Kaydet'te üstüne yazmak için tutamaç.
+  async openFile(file, handle) {
     const m = this.typeForFile(file.name);
     if (!m) return alert(XL.t("Desteklenmeyen dosya türü: ", "Unsupported file type: ") + file.name + "\n" + XL.t("Desteklenenler: ", "Supported: ") + ".xlsx .xlsm .xls .csv .docx .pptx");
     XL.status(XL.t("Açılıyor: ", "Opening: ") + file.name + " …");
     const pristineId = this._pristineDefaultId;   // açmadan önceki dokunulmamış boş varsayılan
     try {
       const data = await m.importFile(file);
-      this.create(m.type, data, file.name.replace(/\.[^.]+$/, ""));
+      const doc = this.create(m.type, data, file.name.replace(/\.[^.]+$/, ""));
+      // CSV tutamacını saklamayız: Kaydet .xlsx üretir, .csv üstüne yazamaz.
+      if (handle && !/\.csv$/i.test(file.name)) doc.handle = handle;
       // "Dosya açtıysa o dosya açılsın": açılan dosya geldiğinde, hiç dokunulmamış
       // boş varsayılan Excel sekmesini kaldır (yalnız açılan dosya kalsın).
       this._dropPristineDefaultById(pristineId);
@@ -665,19 +693,84 @@ XL.ws = {
     }
   },
 
+  // Office biçim MIME türleri (yerinde kaydetme konum seçicisi için)
+  MIME: {
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  },
+
+  /* Kaydet:
+   *  1) Belgenin bir dosya tutamacı varsa (açılan dosya) → ÜSTÜNE YAZ (yerinde kaydet).
+   *  2) Yoksa ve tarayıcı destekliyorsa → konum sor (Farklı Kaydet), tutamacı sakla.
+   *  3) Hiçbiri yoksa → indir (eski davranış, yedek). */
   async save() {
     const doc = this.active();
     if (!doc) return;
+    const m = this.modeOf(doc);
     if (XL.grid && XL.grid.editing && doc.type === "xlsx") XL.grid.commitEdit();
+
+    let blob;
     try {
-      await this.modeOf(doc).save(doc);
-      doc.dirty = false;              // kaydedildi → değişiklik işareti kalkar
-      this._syncTabDirty(doc.id);
-      XL.status(XL.t("İndirildi: ", "Downloaded: ") + doc.name + this.modeOf(doc).ext);
+      blob = await m.buildBlob(doc);
     } catch (err) {
       console.error(err);
-      alert(XL.t("Kaydedilemedi: ", "Could not save: ") + err.message);
+      return alert(XL.t("Kaydedilemedi: ", "Could not save: ") + (err && err.message || err));
     }
+
+    const ext = m.ext;                 // ".xlsx" / ".docx" / ".pptx"
+    const fname = doc.name + ext;
+    const mime = this.MIME[doc.type] || "application/octet-stream";
+
+    try {
+      // 1) Tutamaç varsa üstüne yaz
+      if (doc.handle && XL.fsa.canSave()) {
+        if (await XL.fsa.ensureWritable(doc.handle)) {
+          await XL.fsa.write(doc.handle, blob);
+          doc.dirty = false; this._syncTabDirty(doc.id);
+          XL.status(XL.t("Kaydedildi: ", "Saved: ") + (doc.handle.name || fname));
+          return;
+        }
+        // izin verilmediyse Farklı Kaydet'e düş
+      }
+
+      // 2) Tutamaç yok → konum sor (Farklı Kaydet)
+      if (XL.fsa.canSave()) {
+        let handle;
+        try {
+          handle = await window.showSaveFilePicker({
+            suggestedName: fname,
+            types: [{ description: m.label, accept: { [mime]: [ext] } }],
+          });
+        } catch (e) {
+          if (e && e.name === "AbortError") return;   // kullanıcı iptal etti
+          throw e;
+        }
+        await XL.fsa.write(handle, blob);
+        doc.handle = handle;
+        doc.name = (handle.name || fname).replace(/\.[^.]+$/, "");
+        doc.dirty = false;
+        this.renderDocTabs();
+        if (doc.id === this.activeId) document.getElementById("doc-title").textContent = doc.name + ext;
+        XL.status(XL.t("Kaydedildi: ", "Saved: ") + (handle.name || fname));
+        return;
+      }
+
+      // 3) Yedek: indir
+      XL.download(blob, fname);
+      doc.dirty = false; this._syncTabDirty(doc.id);
+      XL.status(XL.t("İndirildi: ", "Downloaded: ") + fname);
+    } catch (err) {
+      console.error(err);
+      alert(XL.t("Kaydedilemedi: ", "Could not save: ") + (err && err.message || err));
+    }
+  },
+
+  // "Farklı Kaydet": tutamacı yok sayıp her zaman yeni konum sor (varsa).
+  async saveAs() {
+    const doc = this.active();
+    if (doc) doc.handle = null;
+    return this.save();
   },
 
   /* ---------- Kalıcılık (tarayıcı belleği) ---------- */

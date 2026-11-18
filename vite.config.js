@@ -31,6 +31,29 @@ export default defineConfig({
           { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
           { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // Windows'ta "Birlikte aç → UniTEAM" (varsayılan dosya açıcı). PWA yüklendikten
+        // sonra bu uzantılar UniTEAM'e bağlanır; açılan dosya launchQueue ile gelir.
+        // Not: .xlsm makroları tarayıcıda ÇALIŞTIRILMAZ, yalnız içerik okunur.
+        file_handlers: [
+          {
+            action: "./",
+            icons: [
+              { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+            ],
+            accept: {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+              "application/vnd.ms-excel.sheet.macroEnabled.12": [".xlsm"],
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.template": [".xltx"],
+              "application/vnd.ms-excel.template.macroEnabled.12": [".xltm"],
+              "application/vnd.ms-excel": [".xls"],
+              "text/csv": [".csv"],
+            },
+          },
+        ],
+        // Yeni dosya açıldığında mevcut pencereyi öne getir (yeniden yükleme yok).
+        launch_handler: { client_mode: "focus-existing" },
       },
       workbox: {
         // Uygulama kabuğunu (JS/CSS/HTML) çevrimdışı için önbelleğe al.

@@ -15,17 +15,23 @@ XL.ws = {
 
   async init() {
     try { await XL.prefs.load(); this.migrateAccent(); } catch (e) { console.error("Tercih yükleme hatası:", e); }
-    let restored = false;
-    try { restored = await this.restore(); } catch (e) { console.error("Geri yükleme hatası:", e); }
-    if (!restored) {
-      this.docs = [this.makeDoc("xlsx")];   // uygulama Excel ile açılır
-      this.activeId = this.docs[0].id;
-    }
+
+    // Masaüstü (Office) davranışı: önceki oturumun açık belgeleri GERİ YÜKLENMEZ.
+    // Uygulama normal açıldığında boş bir Excel ile başlar. İşletim sisteminden bir
+    // dosya "Birlikte aç" ile gelirse (launchQueue), o dosya açılır ve bu boş
+    // varsayılan sekme otomatik kapanır (bkz. setupFileLaunch / _dropPristineDefault).
+    // Eski oturum verisi birikmesin diye kalıcı belge deposu bir kez temizlenir.
+    try { if (XL.store.available() && XL.store.clearDocs) await XL.store.clearDocs(); } catch (e) { console.error("Depo temizleme hatası:", e); }
+
+    this.docs = [this.makeDoc("xlsx")];   // uygulama Excel ile açılır
+    this.activeId = this.docs[0].id;
+    this._pristineDefaultId = this.docs[0].id;   // dosya açılırsa bırakılacak dokunulmamış varsayılan
+
     this.wireShell();
     this.wireRibbon();
     if (XL.i18n) XL.i18n.onChange(() => this.onLocaleChange());
     this.activate(this.activeId, true);
-    this._saveAll();   // açılıştaki durumu (ve göçü) kalıcılaştır
+    if (XL.macros && XL.macros.init) XL.macros.init();   // makro kısayolları
   },
 
   // Dil değişince kalıcı arayüzü (şerit + sekmeler) yeniden çiz. Belge içeriği/mod korunur.
@@ -47,7 +53,8 @@ XL.ws = {
 
   makeDoc(type, data, name) {
     const m = XL.modes[type];
-    return { id: XL.uid(), type, name: name || this.nextName(type), data: data || m.createData() };
+    // dirty: kaydedilmemiş değişiklik var mı? Yeni/açılan belge temizdir (false).
+    return { id: XL.uid(), type, name: name || this.nextName(type), data: data || m.createData(), dirty: false };
   },
 
   nextName(type) {
@@ -58,6 +65,7 @@ XL.ws = {
   },
 
   create(type, data, name) {
+    this._pristineDefaultId = null;   // kullanıcı belge ekledi; varsayılan artık otomatik kapanmaz
     const doc = this.makeDoc(type, data, name);
     // Etkin belgenin hemen sağına ekle
     const i = this.docs.findIndex((d) => d.id === this.activeId);
@@ -357,9 +365,10 @@ XL.ws = {
     this.docs.forEach((d) => {
       const m = this.modeOf(d);
       const tab = document.createElement("div");
-      tab.className = `doctab t-${d.type}` + (d.id === this.activeId ? " active" : "");
-      tab.title = `${d.name}${m.ext} — ${XL.t("çift tık: yeniden adlandır", "double-click: rename")}`;
-      tab.innerHTML = `<span class="ic">${m.icon}</span><span class="nm"></span><button class="x" title="${XL.t("Kapat", "Close")}">×</button>`;
+      tab.className = `doctab t-${d.type}` + (d.id === this.activeId ? " active" : "") + (d.dirty ? " dirty" : "");
+      tab.dataset.id = d.id;
+      tab.title = `${d.name}${m.ext}${d.dirty ? " • " + XL.t("kaydedilmedi", "unsaved") : ""} — ${XL.t("çift tık: yeniden adlandır", "double-click: rename")}`;
+      tab.innerHTML = `<span class="ic">${m.icon}</span><span class="nm"></span><span class="dot" title="${XL.t("Kaydedilmemiş değişiklik", "Unsaved changes")}">●</span><button class="x" title="${XL.t("Kapat", "Close")}">×</button>`;
       tab.querySelector(".nm").textContent = d.name;
       tab.addEventListener("click", (e) => {
         if (e.target.closest(".x")) return this.close(d.id);
@@ -379,17 +388,63 @@ XL.ws = {
     });
   },
 
-  close(id) {
+  // Kullanıcı bir belgeyi kapatmak istedi (sekmedeki ×). Değişiklik varsa
+  // Kaydet / Kaydetme / İptal sorulur; yoksa doğrudan kapatılır.
+  async close(id) {
     const doc = this.docs.find((d) => d.id === id);
-    if (!confirm(XL.t(`"${doc.name}" kapatılsın mı? Kaydetmediyseniz (💾) içeriği kaybolur.`, `Close "${doc.name}"? Unsaved content (💾) will be lost.`))) return;
+    if (!doc) return;
+
+    if (doc.dirty) {
+      const choice = await this._confirmClose(doc.name);
+      if (choice === "cancel" || choice == null) return;   // İptal → açık kalır
+      if (choice === "save") {
+        // "Kaydet": belgeyi indir. Kaydetme canlı moda ihtiyaç duyduğundan
+        // (serialize etkin belgeyi okur) belgeyi önce etkinleştiririz.
+        if (id !== this.activeId) this.activate(id);
+        try { await this.save(); } catch (e) { console.error(e); }
+      }
+      // "save" ve "discard": her ikisi de kapatır.
+    }
+    this._removeDoc(id);
+  },
+
+  // Değişmiş belge için 3 seçenekli kapatma diyaloğu → "save" | "discard" | "cancel"
+  _confirmClose(name) {
+    const msg = XL.t(
+      `<b>${XL.esc(name)}</b> belgesinde kaydedilmemiş değişiklikler var.<br>Değişiklikleri kaydetmek istiyor musunuz?`,
+      `<b>${XL.esc(name)}</b> has unsaved changes.<br>Do you want to save your changes?`);
+    return XL.modal(XL.t("Kapatmadan önce", "Before closing"), `<p style="margin:0">${msg}</p>`, [
+      { value: "save", label: XL.t("💾 Kaydet", "💾 Save"), kind: "primary", default: true },
+      { value: "discard", label: XL.t("Kaydetme", "Don't save") },
+      { value: "cancel", label: XL.t("İptal", "Cancel") },
+    ]).then((v) => v || "cancel");
+  },
+
+  // Belgeyi fiilen kaldır (soru sormadan). Boş varsayılanı düşürmek için de kullanılır.
+  _removeDoc(id) {
+    const doc = this.docs.find((d) => d.id === id);
+    if (!doc) return;
     const idx = this.docs.indexOf(doc);
+    if (id === this._pristineDefaultId) this._pristineDefaultId = null;
     if (id === this.activeId) {
       try { this.modeOf(doc).unmount(doc); } catch (e) {}
       this.mounted = false;
     }
     this.docs.splice(idx, 1);
     if (XL.store.available()) XL.store.deleteDoc(id).catch((e) => console.error(e));
-    if (!this.docs.length) this.docs.push(this.makeDoc("xlsx"));
+
+    // Son belge de kapatıldı → uygulamayı kapatmayı dene. Kurulu PWA penceresinde
+    // window.close() pencereyi kapatır. Sıradan bir tarayıcı sekmesi buna izin
+    // vermezse (güvenlik), boş bir Excel ile devam ederiz (kullanıcı boşta kalmasın).
+    if (!this.docs.length) {
+      try { window.close(); } catch (e) {}
+      this.docs.push(this.makeDoc("xlsx"));
+      this._pristineDefaultId = this.docs[0].id;
+      this.activeId = null;
+      this.activate(this.docs[0].id, true);
+      return;
+    }
+
     if (id === this.activeId) {
       this.activeId = null;
       this.activate(this.docs[Math.max(0, idx - 1)].id, true);
@@ -397,6 +452,14 @@ XL.ws = {
       this.renderDocTabs();
       this.persistNow();
     }
+  },
+
+  // Bir dosya açıldığında, açılıştan beri DOKUNULMAMIŞ boş varsayılan Excel'i
+  // kaldır (yalnız açılan dosya kalsın). id açmadan ÖNCEki varsayılanın kimliğidir.
+  _dropPristineDefaultById(id) {
+    if (!id) return;
+    const d = this.docs.find((x) => x.id === id);
+    if (d && !d.dirty && d.id !== this.activeId && this.docs.length > 1) this._removeDoc(id);
   },
 
   /* ---------- Kabuk: ＋ menüsü, aç, kaydet ---------- */
@@ -445,7 +508,39 @@ XL.ws = {
       if (ctrl && e.key.toLowerCase() === "o") { e.preventDefault(); fileInput.click(); }
       if (e.key === "Escape") { menu.classList.add("hidden"); }
     });
-    window.addEventListener("beforeunload", () => this.persistNow());
+    // Uygulamayı/sekmeyi kapatırken: yalnızca kaydedilmemiş (değişmiş) belge varsa
+    // tarayıcının standart "ayrılmak istediğinize emin misiniz?" uyarısını tetikle.
+    // (Tarayıcı güvenliği gereği buraya özel Kaydet/Kaydetme düğmeleri konamaz.)
+    window.addEventListener("beforeunload", (e) => {
+      this.persistNow();
+      if (this.docs.some((d) => d.dirty)) {
+        e.preventDefault();
+        e.returnValue = "";   // Chrome/Edge: standart onay iletişimini gösterir
+        return "";
+      }
+    });
+
+    // PWA dosya açıcı: Windows "Birlikte aç → UniTEAM" veya çift tıkla açılan
+    // .docx/.pptx/.xlsx/.xlsm dosyaları buradan gelir (File Handling API).
+    this.setupFileLaunch();
+  },
+
+  /* PWA olarak kurulduğunda işletim sisteminden gönderilen dosyaları yakalar.
+     launchQueue yalnız yüklü PWA'da ve güvenli bağlamda (HTTPS/localhost) vardır. */
+  setupFileLaunch() {
+    if (!("launchQueue" in window) || !window.launchQueue) return;
+    window.launchQueue.setConsumer(async (params) => {
+      if (!params || !params.files || !params.files.length) return;
+      for (const handle of params.files) {
+        try {
+          const file = await handle.getFile();
+          await this.openFile(file);   // boş varsayılanı düşürme openFile içinde
+        } catch (e) {
+          console.error("launchQueue: dosya açılamadı", e);
+          if (XL.obs) XL.obs.captureException(e, { op: "launchQueue" });
+        }
+      }
+    });
   },
 
   /* ---------- Görünüm / kişiselleştirme (uygulamaya özel) ---------- */
@@ -477,9 +572,9 @@ XL.ws = {
     const presets = ["#185abd", "#107c41", "#c43e1c", "#5b2d91", "#0f6cbd", "#d83b01", "#117865", "#b14d00", "#8a3b8f", "#2b2b2b"];
     const accentCur = /^#([0-9a-f]{6})$/i.test(st.accent || "") ? st.accent
       : (getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#185abd");
-    const boxColor = (st.box && st.box.color) || "#fafbfc";
+    const boxColor = (st.box && st.box.color) || "#faf6ef";
     const boxAlpha = st.box && st.box.alpha != null ? st.box.alpha : 1;
-    const ctrlColor = (st.ctrl && st.ctrl.color) || "#ffffff";
+    const ctrlColor = (st.ctrl && st.ctrl.color) || "#fffdf9";
     const ctrlAlpha = st.ctrl && st.ctrl.alpha != null ? st.ctrl.alpha : 1;
     const pct = (a) => Math.round(a * 100);
 
@@ -531,12 +626,12 @@ XL.ws = {
     const setBox = () => { draft.box = { color: $("box-color").value, alpha: +$("box-alpha").value / 100 }; $("box-alpha-v").textContent = "%" + $("box-alpha").value; commit(); };
     $("box-color").addEventListener("input", setBox);
     $("box-alpha").addEventListener("input", setBox);
-    $("box-reset").addEventListener("click", () => { draft.box = null; $("box-color").value = "#fafbfc"; $("box-alpha").value = 100; $("box-alpha-v").textContent = "%100"; commit(); });
+    $("box-reset").addEventListener("click", () => { draft.box = null; $("box-color").value = "#faf6ef"; $("box-alpha").value = 100; $("box-alpha-v").textContent = "%100"; commit(); });
     // Araç stili
     const setCtrl = () => { draft.ctrl = { color: $("ctrl-color").value, alpha: +$("ctrl-alpha").value / 100 }; $("ctrl-alpha-v").textContent = "%" + $("ctrl-alpha").value; commit(); };
     $("ctrl-color").addEventListener("input", setCtrl);
     $("ctrl-alpha").addEventListener("input", setCtrl);
-    $("ctrl-reset").addEventListener("click", () => { draft.ctrl = null; $("ctrl-color").value = "#ffffff"; $("ctrl-alpha").value = 100; $("ctrl-alpha-v").textContent = "%100"; commit(); });
+    $("ctrl-reset").addEventListener("click", () => { draft.ctrl = null; $("ctrl-color").value = "#fffdf9"; $("ctrl-alpha").value = 100; $("ctrl-alpha-v").textContent = "%100"; commit(); });
   },
 
   typeForFile(name) {
@@ -546,11 +641,15 @@ XL.ws = {
 
   async openFile(file) {
     const m = this.typeForFile(file.name);
-    if (!m) return alert(XL.t("Desteklenmeyen dosya türü: ", "Unsupported file type: ") + file.name + "\n" + XL.t("Desteklenenler: ", "Supported: ") + ".xlsx .xls .csv .docx .pptx");
+    if (!m) return alert(XL.t("Desteklenmeyen dosya türü: ", "Unsupported file type: ") + file.name + "\n" + XL.t("Desteklenenler: ", "Supported: ") + ".xlsx .xlsm .xls .csv .docx .pptx");
     XL.status(XL.t("Açılıyor: ", "Opening: ") + file.name + " …");
+    const pristineId = this._pristineDefaultId;   // açmadan önceki dokunulmamış boş varsayılan
     try {
       const data = await m.importFile(file);
       this.create(m.type, data, file.name.replace(/\.[^.]+$/, ""));
+      // "Dosya açtıysa o dosya açılsın": açılan dosya geldiğinde, hiç dokunulmamış
+      // boş varsayılan Excel sekmesini kaldır (yalnız açılan dosya kalsın).
+      this._dropPristineDefaultById(pristineId);
       XL.status(XL.t("Açıldı: ", "Opened: ") + file.name);
     } catch (err) {
       console.error(err);
@@ -572,6 +671,8 @@ XL.ws = {
     if (XL.grid && XL.grid.editing && doc.type === "xlsx") XL.grid.commitEdit();
     try {
       await this.modeOf(doc).save(doc);
+      doc.dirty = false;              // kaydedildi → değişiklik işareti kalkar
+      this._syncTabDirty(doc.id);
       XL.status(XL.t("İndirildi: ", "Downloaded: ") + doc.name + this.modeOf(doc).ext);
     } catch (err) {
       console.error(err);
@@ -581,8 +682,18 @@ XL.ws = {
 
   /* ---------- Kalıcılık (tarayıcı belleği) ---------- */
   changed() {
+    const d = this.active();
+    if (d && !d.dirty) { d.dirty = true; this._syncTabDirty(d.id); }
+    if (d && d.id === this._pristineDefaultId) this._pristineDefaultId = null; // düzenlendi
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => this.persistNow(), 500);
+  },
+
+  // Tek bir sekmenin "değişti" göstergesini (nokta) güncelle (tümünü yeniden çizmeden).
+  _syncTabDirty(id) {
+    const doc = this.docs.find((d) => d.id === id);
+    const tab = document.querySelector(`#doctabs .doctab[data-id="${id}"]`);
+    if (doc && tab) tab.classList.toggle("dirty", !!doc.dirty);
   },
 
   persistNow() {

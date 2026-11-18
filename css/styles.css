@@ -3,9 +3,23 @@
   --accent: #107c41;          /* moda göre değişir */
   --accent-dark: #0b5a2f;
   --accent-soft: #e2efda;
-  --line: #d4d4d4;
-  --head-bg: #f3f3f3;
-  --bar-bg: #f8f8f8;
+
+  /* ---- Tasarım jetonları: "Sıcak Kağıt" açık teması ----
+     Tek kaynak: tüm nötr yüzeyler/çizgiler buradan türer. Kullanıcı
+     tema rengini/kutu/araç arka planını ayarlardan değiştirebilir;
+     aşağıdakiler yalnız VARSAYILAN değerlerdir. */
+  --app-bg: #f2ede4;          /* uygulama zemini (çalışma alanı arkası) */
+  --surface: #fffdf9;         /* şerit, paneller, aktif sekme — "kağıt" */
+  --surface-2: #faf6ef;       /* araç grubu kutuları */
+  --surface-hover: #f4eee3;   /* hafif vurgulu zemin */
+  --text: #2a2621;            /* ana metin */
+  --text-muted: #817868;      /* ikincil metin/etiket */
+  --radius: 7px;
+  --radius-lg: 11px;
+
+  --line: #e3dccd;            /* sıcak kenar çizgisi */
+  --head-bg: #f3ede3;         /* ızgara başlığı / tablo başlığı */
+  --bar-bg: #f5f0e7;          /* formül çubuğu / sayfa çubuğu */
   --sel-fill: rgba(16, 124, 65, 0.12);
   /* CJK/Arapça/Kiril kapsamı için yedek yazı tipleri (Faz 5 i18n) */
   font-family: "Segoe UI", system-ui, Arial, "Noto Sans", "Segoe UI Emoji",
@@ -13,14 +27,15 @@
     "Noto Naskh Arabic", "Segoe UI Historic", sans-serif;
 }
 body[data-mode="xlsx"] { --accent: #107c41; --accent-dark: #0b5a2f; --accent-soft: #e2efda; }
-body[data-mode="docx"] { --accent: #185abd; --accent-dark: #103f91; --accent-soft: #dde6f6; }
+/* Word: daha açık, okunur bir mavi (eski #185abd fazla koyuydu) */
+body[data-mode="docx"] { --accent: #2b6fd6; --accent-dark: #215aa8; --accent-soft: #e5eefb; }
 body[data-mode="pptx"] { --accent: #c43e1c; --accent-dark: #8f2b12; --accent-soft: #fbe3dc; }
 
 * { box-sizing: border-box; }
 html, body {
   margin: 0; height: 100%; overflow: hidden;
   display: flex; flex-direction: column;
-  background: #fff; color: #222; font-size: 13px;
+  background: var(--app-bg); color: var(--text); font-size: 13px;
 }
 button, select, input { font-family: inherit; }
 .hidden { display: none !important; }
@@ -40,29 +55,29 @@ button, select, input { font-family: inherit; }
 .top-actions button:hover { background: rgba(255,255,255,.3); }
 
 /* ===================== Şerit ===================== */
-#ribbon { background: #fff; border-bottom: 1px solid var(--line); }
-.rtabs { display: flex; gap: 2px; padding: 0 8px; background: var(--accent); overflow-x: auto; scrollbar-width: thin; }
+#ribbon { background: var(--surface); border-bottom: 1px solid var(--line); }
+.rtabs { display: flex; gap: 2px; padding: 0 8px; background: var(--accent-dark); overflow-x: auto; scrollbar-width: thin; }
 .rtab {
   background: none; border: none; color: rgba(255,255,255,.85); padding: 6px 14px;
   cursor: pointer; border-radius: 4px 4px 0 0; font-size: 13px;
 }
 .rtab:hover { background: rgba(255,255,255,.15); color: #fff; }
-.rtab.active { background: #fff; color: var(--accent-dark); font-weight: 600; }
+.rtab.active { background: var(--surface); color: var(--accent-dark); font-weight: 600; }
 .rpanel { display: none; align-items: stretch; gap: 0; padding: 6px 8px 4px; overflow-x: auto; min-height: 88px; scrollbar-width: thin; }
 .rpanel.active { display: flex; }
 /* Her araç grubu bir kutu/kart içinde */
 .rgroup {
   display: flex; flex-direction: column; justify-content: space-between; align-items: center;
   padding: 5px 10px 3px; margin: 1px 3px; flex-shrink: 0;
-  border: 1px solid #e6e6e6; border-radius: 7px; background: var(--rgroup-bg, #fafbfc);
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--rgroup-bg, var(--surface-2));
 }
-.rgroup:hover { border-color: #d7dde6; background: var(--rgroup-bg-hover, #f5f8fc); }
-.rgroup > label { font-size: 11px; color: #777; margin-top: 5px; white-space: nowrap; }
+.rgroup:hover { border-color: var(--accent-soft); background: var(--rgroup-bg-hover, var(--surface-hover)); }
+.rgroup > label { font-size: 11px; color: var(--text-muted); margin-top: 5px; white-space: nowrap; }
 .rrow { display: flex; align-items: center; gap: 3px; flex-wrap: nowrap; }
 .rrow + .rrow { margin-top: 3px; }
 .rcol { display: flex; flex-direction: column; gap: 3px; }
 #ribbon button[data-cmd], #ribbon select, .swatch {
-  background: var(--rctrl-bg, #fff); border: 1px solid transparent; border-radius: 4px; padding: 3px 7px;
+  background: var(--rctrl-bg, var(--surface)); border: 1px solid transparent; border-radius: 4px; padding: 3px 7px;
   cursor: pointer; font-size: 13px; line-height: 1.2; color: #222; white-space: nowrap;
 }
 #ribbon select { border-color: #cfcfcf; padding: 3px 4px; max-width: 170px; }
@@ -160,14 +175,14 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 #grid.freeze-row.freeze-col tbody tr:first-child td:nth-child(2) { z-index: 4; }
 
 #sheetbar { display: flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--bar-bg); border-top: 1px solid var(--line); }
-#add-sheet { border: 1px solid var(--line); background: #fff; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; line-height: 1; }
+#add-sheet { border: 1px solid var(--line); background: var(--surface); border-radius: 50%; width: 22px; height: 22px; cursor: pointer; line-height: 1; }
 #sheettabs { display: flex; gap: 2px; overflow-x: auto; }
 .sheettab { padding: 3px 14px; cursor: pointer; border-radius: 0 0 4px 4px; color: #444; white-space: nowrap; }
-.sheettab:hover { background: #ececec; }
-.sheettab.active { background: #fff; color: var(--accent-dark); font-weight: 600; border-bottom: 3px solid var(--accent); }
+.sheettab:hover { background: var(--surface-hover); }
+.sheettab.active { background: var(--surface); color: var(--accent-dark); font-weight: 600; border-bottom: 3px solid var(--accent); }
 
 /* ---------- Word ---------- */
-#wd-scroll { flex: 1; overflow: auto; background: #e9e9e9; padding: 24px 0 60px; }
+#wd-scroll { flex: 1; overflow: auto; background: #e8e1d6; padding: 24px 0 60px; }
 #wd-page {
   margin: 0 auto; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.25);
   font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.15;
@@ -246,7 +261,7 @@ del.tc-del { color: #c62828; text-decoration: line-through; background: rgba(198
 
 /* ---------- PowerPoint ---------- */
 #pp-wrap { flex: 1; display: flex; min-height: 0; }
-#pp-thumbs { width: 210px; overflow-y: auto; background: #f3f3f3; border-right: 1px solid var(--line); padding: 10px 8px; }
+#pp-thumbs { width: 210px; overflow-y: auto; background: var(--head-bg); border-right: 1px solid var(--line); padding: 10px 8px; }
 .pp-thumb { display: flex; gap: 6px; margin-bottom: 10px; cursor: pointer; align-items: flex-start; }
 .pp-num { width: 18px; text-align: right; color: #666; font-size: 12px; padding-top: 2px; }
 .pp-thumb-frame {
@@ -259,7 +274,7 @@ del.tc-del { color: #c62828; text-decoration: line-through; background: rgba(198
 .pp-thumb.dragging { opacity: .4; }
 .pp-thumb-frame .pp-slide { pointer-events: none; }
 
-#pp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #e6e6e6; }
+#pp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #e8e1d6; }
 #pp-stage-wrap { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
 #pp-stage { position: relative; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
 #pp-notes {
@@ -343,10 +358,10 @@ del.tc-del { color: #c62828; text-decoration: line-through; background: rgba(198
 #doctabs { display: flex; gap: 4px; overflow-x: auto; flex: 1; }
 .doctab {
   display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; cursor: pointer;
-  background: #fff; border: 1px solid #ccc; border-radius: 4px; white-space: nowrap; border-bottom: 3px solid #ccc;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); white-space: nowrap; border-bottom: 3px solid var(--line);
 }
 .doctab.t-xlsx { border-bottom-color: #107c41; }
-.doctab.t-docx { border-bottom-color: #185abd; }
+.doctab.t-docx { border-bottom-color: #2b6fd6; }
 .doctab.t-pptx { border-bottom-color: #c43e1c; }
 .doctab.active { font-weight: 600; box-shadow: 0 0 0 1px var(--accent); }
 .doctab .x { border: none; background: none; cursor: pointer; color: #999; font-size: 15px; padding: 0 3px; border-radius: 3px; }
@@ -356,7 +371,7 @@ del.tc-del { color: #c62828; text-decoration: line-through; background: rgba(198
 /* ===================== Panel ===================== */
 #panel {
   position: fixed; right: 16px; bottom: 50px; width: 520px; max-width: 92vw;
-  max-height: 70vh; background: #fff; border: 1px solid #bbb; border-radius: 8px;
+  max-height: 70vh; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
   box-shadow: 0 10px 30px rgba(0,0,0,.25); display: flex; flex-direction: column; z-index: 50;
 }
 .panel-head {
@@ -379,8 +394,8 @@ del.tc-del { color: #c62828; text-decoration: line-through; background: rgba(198
 .theme-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .theme-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ccc; cursor: pointer; padding: 0; }
 .theme-dot:hover { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.08); }
-.btn-secondary { background: #eee; border: 1px solid #ccc; border-radius: 4px; padding: 5px 10px; cursor: pointer; }
-.btn-secondary:hover { background: #e3e3e3; }
+.btn-secondary { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 5px 10px; cursor: pointer; }
+.btn-secondary:hover { background: var(--surface-hover); }
 
 /* ===================== Yazdırma (Word) ===================== */
 @media print {
@@ -765,3 +780,75 @@ button, select, .doctab, .tmpl-card { touch-action: manipulation; }
 .bill-card .bc-pick:hover { background: var(--accent-dark); }
 .bill-card .bc-pick:disabled { opacity: .6; cursor: default; }
 .bill-card .bc-badge { margin-top: auto; text-align: center; font-size: 12px; color: var(--accent-dark); font-weight: 600; padding: 6px 0; }
+
+/* ============================================================
+   Ortak modal (XL.modal) — özel düğmeli iletişim kutusu
+   ============================================================ */
+.xl-modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(17, 24, 39, .5); backdrop-filter: blur(2px);
+  padding: 16px;
+}
+.xl-modal {
+  background: #fff; color: #1f2328; border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .35);
+  width: min(440px, 100%); max-height: calc(100vh - 32px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.xl-modal-head { padding: 14px 18px; font-weight: 700; font-size: 15px; border-bottom: 1px solid #eee; }
+.xl-modal-body { padding: 16px 18px; font-size: 14px; line-height: 1.5; overflow: auto; }
+.xl-modal-foot { padding: 12px 18px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #eee; flex-wrap: wrap; }
+.xl-mbtn {
+  padding: 7px 14px; border-radius: 6px; border: 1px solid #d0d0d0;
+  background: #f6f6f6; cursor: pointer; font-size: 13px; color: #1f2328;
+}
+.xl-mbtn:hover { background: #ececec; }
+.xl-mbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.xl-mbtn.primary:hover { background: var(--accent-dark); }
+.xl-mbtn.danger { background: #fff; border-color: #d9534f; color: #c0392b; }
+.xl-mbtn.danger:hover { background: #fdecea; }
+
+/* Belge sekmesinde kaydedilmemiş değişiklik göstergesi */
+.doctab .dot { color: var(--accent); font-size: 10px; margin-left: 2px; opacity: 0; }
+.doctab.dirty .dot { opacity: 1; }
+
+/* ============================================================
+   Makro Yöneticisi (XL.macros) — yan panel içeriği
+   ============================================================ */
+.macro-mgr { font-size: 13px; }
+.macro-mgr h4 { margin: 10px 0 6px; }
+.macro-mgr .mm-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.macro-mgr .mm-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border: 1px solid #e6e6e6; border-radius: 7px; margin-bottom: 6px; background: #fafafa;
+}
+.macro-mgr .mm-item .mm-nm { font-weight: 600; }
+.macro-mgr .mm-item .mm-meta { color: #666; font-size: 12px; }
+.macro-mgr .mm-item .mm-sc {
+  font-family: ui-monospace, Consolas, monospace; font-size: 11px;
+  background: #eef2f7; border: 1px solid #d7dee8; border-radius: 4px; padding: 1px 6px; white-space: nowrap;
+}
+.macro-mgr .mm-spacer { flex: 1; }
+.macro-mgr .mm-item button { border: none; background: transparent; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; }
+.macro-mgr .mm-item button:hover { background: #e7e7e7; }
+.macro-mgr .mm-empty { color: #888; font-style: italic; margin-bottom: 12px; }
+.macro-mgr .mm-form { border-top: 1px solid #e6e6e6; padding-top: 12px; }
+.macro-mgr .mm-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.macro-mgr .mm-row label { font-weight: 600; font-size: 12px; }
+.macro-mgr .mm-row input, .macro-mgr .mm-row select {
+  padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 13px; width: 100%;
+}
+.macro-mgr .mm-sc-capture {
+  display: flex; align-items: center; gap: 8px;
+}
+.macro-mgr .mm-sc-capture .mm-sc-btn {
+  padding: 6px 10px; border: 1px dashed #bbb; border-radius: 6px; background: #fff; cursor: pointer;
+  font-family: ui-monospace, Consolas, monospace; font-size: 12px; min-width: 120px; text-align: center;
+}
+.macro-mgr .mm-sc-capture .mm-sc-btn.capturing { border-style: solid; border-color: var(--accent); color: var(--accent); }
+.macro-mgr .mm-actions { display: flex; gap: 8px; margin-top: 4px; }
+.macro-mgr .mm-actions .mm-save { background: var(--accent); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.macro-mgr .mm-actions .mm-save:hover { background: var(--accent-dark); }
+.macro-mgr .mm-actions .mm-cancel { background: #f0f0f0; border: 1px solid #d0d0d0; padding: 7px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.macro-mgr .mm-hint { color: #777; font-size: 12px; margin: 2px 0 10px; }

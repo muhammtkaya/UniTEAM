@@ -113,6 +113,12 @@ XL.store = {
   deleteDoc(id) {
     return this._write("docs", (os) => os.delete(id));
   },
+  // Tüm belgeleri + oturum durumunu (meta "state") temizle. Kullanıcı tercihleri
+  // (meta "prefs") KORUNUR. Masaüstü davranışı: açılışta eski oturumu geri yükleme.
+  async clearDocs() {
+    await this._write("docs", (os) => os.clear());
+    try { await this._write("meta", (os) => os.delete("state")); } catch (e) {}
+  },
   saveMeta(meta) {
     return this._write("meta", (os) => os.put(meta, "state"));
   },

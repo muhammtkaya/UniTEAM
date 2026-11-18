@@ -26,6 +26,7 @@ import "../js/comments.js";
 import "../js/realtime.js";
 import "../js/storage.js";
 import "../js/privacy.js";
+import "../js/macros.js";
 
 // --- Excel modu (formula, HyperFormula'yı yayımladığı için ÖNCE) ---
 import "../js/excel/formula.js";

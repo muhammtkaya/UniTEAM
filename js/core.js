@@ -213,3 +213,45 @@ XL.hidePanel = function () {
   if (XL.charts && XL.charts.current) { XL.charts.current.destroy(); XL.charts.current = null; }
   document.getElementById("panel").classList.add("hidden");
 };
+
+/* --- Ortak modal (özel düğmeli iletişim kutusu) ---
+ * buttons: [{ value, label, kind?: "primary"|"danger", default?: true }]
+ * Promise döner: tıklanan düğmenin value'su, veya ESC/arka plan ile kapatılırsa null.
+ * bodyHtml GÜVENİLİR kabul edilir (çağıran kurar); kullanıcı metnini XL.esc'le. */
+XL.modal = function (title, bodyHtml, buttons) {
+  return new Promise((resolve) => {
+    const ov = document.createElement("div");
+    ov.className = "xl-modal-overlay";
+    ov.innerHTML = `
+      <div class="xl-modal" role="dialog" aria-modal="true" aria-label="${XL.esc(title)}">
+        <div class="xl-modal-head">${XL.esc(title)}</div>
+        <div class="xl-modal-body">${bodyHtml}</div>
+        <div class="xl-modal-foot"></div>
+      </div>`;
+    const foot = ov.querySelector(".xl-modal-foot");
+    const done = (val) => {
+      document.removeEventListener("keydown", onKey, true);
+      ov.remove();
+      resolve(val);
+    };
+    (buttons || [{ value: null, label: "Tamam", kind: "primary", default: true }]).forEach((b) => {
+      const btn = document.createElement("button");
+      btn.className = "xl-mbtn" + (b.kind ? " " + b.kind : "");
+      btn.textContent = b.label;
+      btn.addEventListener("click", () => done(b.value));
+      foot.appendChild(btn);
+    });
+    const onKey = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); done(null); }
+      else if (e.key === "Enter") {
+        const d = (buttons || []).find((b) => b.default);
+        if (d) { e.preventDefault(); e.stopPropagation(); done(d.value); }
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    ov.addEventListener("mousedown", (e) => { if (e.target === ov) done(null); });
+    document.body.appendChild(ov);
+    const first = foot.querySelector(".primary") || foot.querySelector("button");
+    if (first) first.focus();
+  });
+};

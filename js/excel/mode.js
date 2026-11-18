@@ -5,7 +5,7 @@ XL.modes.xlsx = {
   icon: "📊",
   ext: ".xlsx",
   docPrefix: "Kitap",
-  accept: [".xlsx", ".xls", ".csv"],
+  accept: [".xlsx", ".xlsm", ".xltx", ".xltm", ".xls", ".csv"],
   hiddenRows: new Set(),
 
   createData() {
@@ -138,7 +138,10 @@ XL.modes.xlsx = {
             <option value="1" selected>%100</option><option value="1.25">%125</option>
             <option value="1.5">%150</option>
           </select>
-        </div><label>${t("Yakınlaştır", "Zoom")}</label></div>` },
+        </div><label>${t("Yakınlaştır", "Zoom")}</label></div>
+        <div class="rgroup"><div class="rrow">
+          <button data-cmd="macros" class="big" title="${t("Makroları yönet (kısayolla hücreye yaz)", "Manage macros (write to cell via shortcut)")}">⚡<span>${t("Makrolar", "Macros")}</span></button>
+        </div><label>${t("Makrolar", "Macros")}</label></div>` },
 
       { name: t("Düzen", "Layout"), html: `
         <div class="rgroup"><div class="rrow">
@@ -278,6 +281,7 @@ XL.modes.xlsx = {
       case "print-margin": return this.setPrintMargin(value);
       case "print-hf": return this.printHFDialog();
       case "merge-center": return XL.sheetLayout.toggleMerge();
+      case "macros": return XL.macros.openManager();
     }
   },
 

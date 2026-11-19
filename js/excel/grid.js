@@ -315,6 +315,7 @@ XL.grid = {
     if (rowH) rowH.classList.add("active-head");
 
     XL.modes.xlsx.syncFormulaBar();
+    this.updateFillHandle();
     if (scroll) this.ensureVisible();
     if (XL.realtime && XL.realtime.onLocalSelection) XL.realtime.onLocalSelection();  // canlı seçim göstergesi (Faz 6-B)
   },
@@ -522,4 +523,154 @@ XL.grid = {
     this.updateSelection();
     XL.ws.changed();
   },
+
+  /* ============================ Dolgu tutamacı ============================
+   * Seçimin sağ-alt köşesindeki küçük kareyi sürükleyerek, kaynağı komşu
+   * hücrelere doldur (Excel "doldurma tutamacı"). Davranış:
+   *   • Tek hücre / metin / formül  → kaynağı KOPYALA (formüller göreli uyarlanır).
+   *   • ≥2 hücrelik sabit adımlı sayı dizisi → DİZİYİ SÜRDÜR (1,2,3… / 5,10,15…).
+   * Doldurma tek eksende olur (baskın sürükleme yönü). */
+
+  // Tutamacı güncel seçimin sağ-alt hücresine yerleştir (ya da gizle).
+  updateFillHandle() {
+    if (!this.table) return;
+    if (!this.fillHandle) {
+      const h = document.createElement("div");
+      h.className = "fill-handle";
+      h.title = XL.t("Doldurmak için sürükle", "Drag to fill");
+      // Tutamaca basış hücre seçimini başlatmasın (tabloya ulaşmadan durdur).
+      h.addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); });
+      h.addEventListener("pointerdown", (e) => { e.preventDefault(); e.stopPropagation(); this.startFill(e); });
+      this.fillHandle = h;
+    }
+    if (this._fillHost) { this._fillHost.classList.remove("fill-host"); this._fillHost = null; }
+    const h = this.fillHandle;
+    if (h.parentNode) h.parentNode.removeChild(h);
+    const ro = XL.ws && XL.ws.isReadonly && XL.ws.isReadonly();
+    if (ro || this.editing || this.filling) return;
+    const s = XL.state.sel;
+    const r2 = Math.max(s.r1, s.r2), c2 = Math.max(s.c1, s.c2);
+    const td = this.cells[r2] && this.cells[r2][c2];
+    if (!td || td.classList.contains("merged-cover")) return;
+    td.classList.add("fill-host");
+    td.appendChild(h);
+    this._fillHost = td;
+  },
+
+  startFill(e) {
+    if (XL.ws && XL.ws.isReadonly && XL.ws.isReadonly()) return;
+    if (this.editing) this.commitEdit();
+    const s = XL.state.sel;
+    const src = {
+      r1: Math.min(s.r1, s.r2), c1: Math.min(s.c1, s.c2),
+      r2: Math.max(s.r1, s.r2), c2: Math.max(s.c1, s.c2),
+    };
+    this.filling = { src, target: null };
+    this.updateFillHandle();   // sürüklerken tutamacı gizle
+    const move = (ev) => this.fillMove(ev);
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      this.endFill();
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  },
+
+  fillMove(ev) {
+    const f = this.filling;
+    if (!f) return;
+    const cell = this._cellFromPoint(ev.clientX, ev.clientY);
+    if (!cell) return;
+    const src = f.src;
+    const below = cell.r - src.r2, above = src.r1 - cell.r;
+    const right = cell.c - src.c2, left = src.c1 - cell.c;
+    const vMag = Math.max(below, above, 0), hMag = Math.max(right, left, 0);
+    let target = null;
+    if (vMag === 0 && hMag === 0) { f.target = null; this.renderFillPreview(); return; }
+    if (vMag >= hMag) {
+      target = below >= above
+        ? { axis: "v", r1: src.r1, c1: src.c1, r2: cell.r, c2: src.c2 }
+        : { axis: "v", r1: cell.r, c1: src.c1, r2: src.r2, c2: src.c2 };
+    } else {
+      target = right >= left
+        ? { axis: "h", r1: src.r1, c1: src.c1, r2: src.r2, c2: cell.c }
+        : { axis: "h", r1: src.r1, c1: cell.c, r2: src.r2, c2: src.c2 };
+    }
+    f.target = target;
+    this.renderFillPreview();
+  },
+
+  renderFillPreview() {
+    this.table.querySelectorAll("td.fill-target").forEach((td) => td.classList.remove("fill-target"));
+    const f = this.filling;
+    if (!f || !f.target) return;
+    const t = f.target, s = f.src;
+    for (let r = t.r1; r <= t.r2; r++)
+      for (let c = t.c1; c <= t.c2; c++) {
+        if (r >= s.r1 && r <= s.r2 && c >= s.c1 && c <= s.c2) continue;  // kaynak hariç
+        const td = this.cells[r] && this.cells[r][c];
+        if (td) td.classList.add("fill-target");
+      }
+  },
+
+  endFill() {
+    const f = this.filling;
+    this.filling = null;
+    this.table.querySelectorAll("td.fill-target").forEach((td) => td.classList.remove("fill-target"));
+    if (!f || !f.target) { this.updateSelection(); return; }
+    this.applyFill(f.src, f.target);
+    const t = f.target;
+    XL.state.active = { r: f.src.r1, c: f.src.c1 };
+    XL.state.sel = { r1: t.r1, c1: t.c1, r2: t.r2, c2: t.c2 };
+    this.render();
+    this.updateSelection();
+    XL.ws.changed();
+  },
+
+  applyFill(src, t) {
+    const h = src.r2 - src.r1 + 1, w = src.c2 - src.c1 + 1;
+    const mod = (n, m) => ((n % m) + m) % m;
+    for (let r = t.r1; r <= t.r2; r++) {
+      for (let c = t.c1; c <= t.c2; c++) {
+        if (r >= src.r1 && r <= src.r2 && c >= src.c1 && c <= src.c2) continue;  // kaynağa dokunma
+        let value;
+        if (t.axis === "v") {
+          const ser = this._fillSeries(src.r1, src.r2, (i) => XL.engine.getRaw(i, c));
+          if (ser) value = this._numStr(ser.first + ser.step * (r - src.r1));
+          else { const sr = src.r1 + mod(r - src.r1, h); value = this._fillCopy(XL.engine.getRaw(sr, c), r - sr, 0); }
+        } else {
+          const ser = this._fillSeries(src.c1, src.c2, (i) => XL.engine.getRaw(r, i));
+          if (ser) value = this._numStr(ser.first + ser.step * (c - src.c1));
+          else { const sc = src.c1 + mod(c - src.c1, w); value = this._fillCopy(XL.engine.getRaw(r, sc), 0, c - sc); }
+        }
+        XL.engine.setCell(r, c, value);
+      }
+    }
+  },
+
+  // Sabit adımlı sayı dizisi mi? (≥2 hücre, formülsüz, sayısal) → {first, step} / null
+  _fillSeries(a, b, rawAt) {
+    if (b <= a) return null;
+    const nums = [];
+    for (let i = a; i <= b; i++) {
+      const raw = rawAt(i);
+      if (raw === "" || raw[0] === "=" || raw.trim() === "" || isNaN(raw) || !isFinite(+raw)) return null;
+      nums.push(+raw);
+    }
+    const step = nums[1] - nums[0];
+    for (let i = 2; i < nums.length; i++)
+      if (Math.abs((nums[i] - nums[i - 1]) - step) > 1e-9) return null;
+    return { first: nums[0], step };
+  },
+
+  // Dizi değilse kaynağı kopyala; formülse (dr,dc) kadar göreli uyarla.
+  _fillCopy(raw, dr, dc) {
+    if (typeof raw === "string" && raw[0] === "=" && XL.formula && XL.formula.translateFormula)
+      return XL.formula.translateFormula(raw, dr, dc);
+    return raw;
+  },
+
+  // Kayan nokta gürültüsünü (0.1+0.2…) temizleyerek sayıyı metne çevir.
+  _numStr(n) { return String(Math.round(n * 1e10) / 1e10); },
 };

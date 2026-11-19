@@ -29,6 +29,19 @@ XL.io = {
     wb.worksheets.forEach((ws, idx) => {
       const sheet = data.sheets[idx];
       if (!sheet) return;
+
+      // Sütun genişliği: ExcelJS ile TUTARLI oku (SheetJS'in MDW tahmini bizim
+      // yazdığımız dosyalarda genişliği HER AÇILIŞTA ~2 KATINA çıkarıyordu →
+      // daralttığınız sütun kayıttan sonra yine geniş dönüyordu). ExcelJS'in
+      // width değeri, yazarken kullandığımız "px/7" modeliyle birebir eşleşir.
+      try {
+        const cw = {};
+        (ws.columns || []).forEach((col, i) => {
+          if (col && col.width != null) cw[i] = Math.round(col.width * 7);
+        });
+        if (Object.keys(cw).length) sheet.colWidths = cw;
+      } catch (e) { /* ExcelJS sütun okunamazsa SheetJS değerleri kalır */ }
+
       const formats = sheet.formats || (sheet.formats = {});
       ws.eachRow({ includeEmpty: false }, (row, rn) => {
         row.eachCell({ includeEmpty: false }, (cell, cn) => {

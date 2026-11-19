@@ -67,12 +67,16 @@ async function run({ baseURL }) {
       const sid = XL.state.sheets[0].id;
       XL.state.formats[sid + ":0:0"] = { bold: true, color: "#ff0000", bg: "#ffff00", align: "center" };
       XL.state.formats[sid + ":1:0"] = { italic: true, underline: true };
+      // Sütun genişliği round-trip: B=120px (daralt→kaydet→aç yine 120 olmalı,
+      // eskiden SheetJS MDW tahmini her açılışta ~2 KATINA çıkarıyordu).
+      XL.state.layout[sid] = { colWidths: { 1: 120 }, rowHeights: {}, merges: [] };
       const blob = await XL.io.buildBlob(XL.engine.serialize());
       // Tam içe-aktarma yolu (SheetJS değer + ExcelJS stil birleşimi)
       const file = new File([blob], "t.xlsx", { type: blob.type });
       const back = await XL.io.readFile(file);
       const fmt = back.sheets[0].formats || {};
-      return { a1: fmt["0:0"] || null, a2: fmt["1:0"] || null, a2val: back.sheets[0].cells["1,0"] };
+      return { a1: fmt["0:0"] || null, a2: fmt["1:0"] || null, a2val: back.sheets[0].cells["1,0"],
+        colWB: back.sheets[0].colWidths && back.sheets[0].colWidths[1] };
     });
     console.log("  XLSX-read:", JSON.stringify(xlsxRead));
     check("Okuma: değer korundu (A2=Ali)", xlsxRead.a2val === "Ali", xlsxRead);
@@ -81,6 +85,7 @@ async function run({ baseURL }) {
     check("Okuma: dolgu geri geldi (#ffff00)", !!(xlsxRead.a1 && xlsxRead.a1.bg === "#ffff00"), xlsxRead);
     check("Okuma: hizalama geri geldi (center)", !!(xlsxRead.a1 && xlsxRead.a1.align === "center"), xlsxRead);
     check("Okuma: italik+altı çizili geri geldi (A2)", !!(xlsxRead.a2 && xlsxRead.a2.italic && xlsxRead.a2.underline), xlsxRead);
+    check("Okuma: sütun genişliği round-trip kararlı (120px±8, 2x değil)", Math.abs((xlsxRead.colWB || 0) - 120) <= 8, xlsxRead);
 
     // --- Koşullu biçim + veri doğrulama: uygulama-içi round-trip (serialize→load) [Faz 6]
     const rules = await page.evaluate(() => {

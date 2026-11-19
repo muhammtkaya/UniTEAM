@@ -487,6 +487,7 @@ XL.ws = {
       if (fileInput.files[0]) this.openFile(fileInput.files[0]);   // yedek yol: tutamaç yok
       fileInput.value = "";
     });
+    document.getElementById("btn-download").addEventListener("click", () => this.download());
     document.getElementById("btn-save").addEventListener("click", () => this.save());
     document.getElementById("btn-theme").addEventListener("click", () => this.settingsPanel());
     document.getElementById("panel-close").addEventListener("click", () => XL.hidePanel());
@@ -698,6 +699,26 @@ XL.ws = {
     xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  },
+
+  /* İndir: her zaman bir KOPYA indirir (tarayıcının indirme klasörüne).
+   * "Kaydet"ten farkı: dosya tutamacının üstüne yazmaz, konum sormaz; yalnız
+   * bir .xlsx/.docx/.pptx kopyası üretip indirir. "Değişti" durumunu bozmaz. */
+  async download() {
+    const doc = this.active();
+    if (!doc) return;
+    const m = this.modeOf(doc);
+    if (XL.grid && XL.grid.editing && doc.type === "xlsx") XL.grid.commitEdit();
+    let blob;
+    try {
+      blob = await m.buildBlob(doc);
+    } catch (err) {
+      console.error(err);
+      return alert(XL.t("İndirilemedi: ", "Could not download: ") + (err && err.message || err));
+    }
+    const fname = doc.name + m.ext;
+    XL.download(blob, fname);
+    XL.status(XL.t("İndirildi: ", "Downloaded: ") + fname);
   },
 
   /* Kaydet:

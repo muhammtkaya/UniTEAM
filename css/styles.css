@@ -21,6 +21,7 @@
   --head-bg: #f3ede3;         /* ızgara başlığı / tablo başlığı */
   --bar-bg: #f5f0e7;          /* formül çubuğu / sayfa çubuğu */
   --sel-fill: rgba(16, 124, 65, 0.12);
+  --sel-line: #9cbf93;        /* seçim içi ızgara çizgisi: dolgudan ayrışsın */
   /* CJK/Arapça/Kiril kapsamı için yedek yazı tipleri (Faz 5 i18n) */
   font-family: "Segoe UI", system-ui, Arial, "Noto Sans", "Segoe UI Emoji",
     "Microsoft YaHei", "Malgun Gothic", "Hiragino Kaku Gothic Pro", "Noto Sans CJK SC",
@@ -153,8 +154,19 @@ table#grid { border-collapse: collapse; table-layout: fixed; }
 #grid th.rowhead { left: 0; z-index: 3; width: 44px; min-width: 44px; max-width: 44px; }
 #grid thead th.corner { left: 0; top: 0; z-index: 5; }
 #grid th.active-head { background: #c6e0b4; color: #222; }
-#grid td.selected { background-color: var(--sel-fill) !important; }
+/* Seçim dolgusu + seçim içindeki ızgara çizgisini belirginleştir (yoksa dolguyla
+   aynı parlaklıkta kalıp kayboluyordu). */
+#grid td.selected { background-color: var(--sel-fill) !important; border-color: var(--sel-line); }
 #grid td.active { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Dolgu tutamacı (seçimin sağ-alt köşesindeki küçük kare — sürükleyerek doldur) */
+#grid td.fill-host { position: relative; }
+#grid .fill-handle {
+  position: absolute; right: 0; bottom: 0; width: 7px; height: 7px;
+  background: var(--accent); border: 1px solid #fff; cursor: crosshair; z-index: 3;
+}
+@media (pointer: coarse) { #grid .fill-handle { width: 12px; height: 12px; } }
+/* Dolgu önizlemesi: sürüklerken hedef aralığı kesik çerçeveyle göster */
+#grid td.fill-target { box-shadow: inset 0 0 0 1px var(--accent); }
 #grid td.num { text-align: right; }
 #grid td.err { color: #c00000; }
 #grid td input { width: 100%; height: 100%; border: none; outline: none; font: inherit; padding: 0; }

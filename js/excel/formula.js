@@ -1188,6 +1188,29 @@
     return out;
   }
 
+  /* ===================== Formül öteleme (dolgu tutamacı) =====================
+   * Kanonik bir formülü (dr satır, dc sütun) kadar GÖRELİ referanslarıyla öteler.
+   * $ ile sabitlenen (mutlak) satır/sütun kısımları değişmez — Excel "doldur"
+   * davranışı. Çözümlenemeyen formül aynen döner. */
+  function translateFormula(src, dr, dc) {
+    if (typeof src !== "string" || src[0] !== "=") return src;
+    let ast;
+    try { ast = parse(src.slice(1), () => null); } catch (e) { return src; }
+    const shiftRef = (r) => {
+      if (!r.colAbs) r.col = Math.max(0, r.col + dc);
+      if (!r.rowAbs) r.row = Math.max(0, r.row + dr);
+    };
+    const walk = (node) => {
+      if (!node || typeof node !== "object") return;
+      if (node.t === "ref") { shiftRef(node); return; }
+      if (node.t === "range") { shiftRef(node.a); shiftRef(node.b); return; }
+      for (const k of ["x", "a", "b"]) if (node[k]) walk(node[k]);
+      if (node.args) node.args.forEach(walk);
+    };
+    walk(ast);
+    try { return "=" + stringify(ast, null); } catch (e) { return src; }
+  }
+
   /* ============================ Dışa aktarım ============================ */
   const HyperFormula = {
     buildEmpty() { return new Engine(); },
@@ -1195,6 +1218,7 @@
     canonicalize,
     localizeFormula,
     delocalizeFormula,
+    translateFormula,
     FN_ALIASES,
     _Engine: Engine,
   };
